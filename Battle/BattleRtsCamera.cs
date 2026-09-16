@@ -11,36 +11,40 @@ namespace FeudalInternalAffairs
 {
     // 战场指挥官处理 + RTS 上帝视角相机
     //
-    // 相机实现复用/参考自 RTS Camera(作者 lzh / lizhenhuan, MIT 许可)，核心三点:
-    //   1) 每帧直接设置 MissionScreen.CombatCamera.Frame;
-    //   2) 必须再调用 Mission.SetCameraFrame(ref frame, 1f) 告诉引擎, 否则渲染用的还是旧帧(会黑屏);
-    //   3) 相机高度不能低于地形, 否则会渲染到地下(也会黑屏)。
+    // 相机实现复用自 RTS Camera(作者 lzh / lizhenhuan, MIT 许可), 关键点全部照搬:
+    //   1) 朝向: MatrixFrame.Identity -> RotateAboutSide(PI/2) -> RotateAboutForward(bearing) -> RotateAboutSide(elevation)
+    //   2) 鼠标读法: MissionScreen.SceneLayer.Input.GetMouseMoveX/Y()(静态 Input 在任务里读不到)
+    //   3) 移动: 沿 rotation.s(右) / rotation.u(前) / rotation.f(上) 三轴推相机
+    //   4) 应用: CombatCamera.Frame = frame, 并且必须 Mission.SetCameraFrame(ref frame, 1f)
+    //   5) 高度不低于地形(否则渲染到地下 -> 黑屏)
     // 玩家角色: 隐身 + 无敌 + 停战(国家意志不亲自下场)。
     internal static class BattleRtsCamera
     {
         internal static bool Active;
 
         private static bool _inited;
-        private static bool _applied;
-        private static Vec3 _pos;
-        private static float _yaw;
-        private static float _pitch = -0.85f;
-        private static float _dist = 45f;
+        private static Vec3 _camPos;
+        private static float _bearing;
+        private static float _elevation;
         private static int _logCount;
+        private static System.Reflection.PropertyInfo _bearingProp;
+        private static System.Reflection.PropertyInfo _elevProp;
+
+        private const float MouseScale = 5.4E-05f;      // RTS 原值
+        private const float ElevMin = -1.36591f;        // RTS 原值
+        private const float ElevMax = 1.121997f;        // RTS 原值
+        private const float MoveSpeed = 12f;
 
         internal static void Reset()
         {
             Active = false;
             _inited = false;
-            _applied = false;
         }
 
-        // 进入"亲自指挥"的战斗时自动开启
         internal static void Activate()
         {
             Active = true;
             _inited = false;
-            _applied = false;
         }
 
         [HarmonyPatch(typeof(MissionScreen), "CameraTick")]
@@ -61,7 +65,7 @@ namespace FeudalInternalAffairs
             }
         }
 
-        private static void Tick(MissionScreen screen, float dt)
+        private static void Tick(MissionScreen screen, float realDt)
         {
             if (screen == null) return;
             var mission = screen.Mission;
@@ -71,19 +75,25 @@ namespace FeudalInternalAffairs
             try { inBattle = mission.Mode == MissionMode.Battle; } catch { }
             if (!inBattle) return;
 
-            // F10 随时切换(战场内)
+            // F10 切换
             try
             {
-                if (Input.IsKeyPressed(InputKey.F10))
+                var ic0 = screen.SceneLayer != null ? screen.SceneLayer.Input : null;
+                bool pressed = ic0 != null ? ic0.IsKeyPressed(InputKey.F10) : Input.IsKeyPressed(InputKey.F10);
+                if (pressed)
                 {
                     Active = !Active;
+                    _inited = false;
                     DLog.Force(Active ? "RTS相机: 开" : "RTS相机: 关");
                 }
             }
             catch { }
 
             if (!Active) return;
+            float dt = realDt;
             if (dt <= 0f || dt > 1f) dt = 0.016f;
+
+            var ic = screen.SceneLayer != null ? screen.SceneLayer.Input : null;
 
             // ---- 玩家角色: 隐身 + 无敌 + 停战 ----
             var agent = mission.MainAgent;
@@ -95,82 +105,97 @@ namespace FeudalInternalAffairs
                 try { agent.SetIsAIPaused(true); } catch { }
             }
 
+            // ---- 初始化(照 RTS: 沿用当前相机位置/朝向) ----
             if (!_inited)
             {
-                try { _pos = agent != null ? agent.Position : Vec3.Zero; } catch { }
-                try { _yaw = agent != null ? agent.LookDirectionAsAngle : 0f; } catch { }
+                try { _camPos = screen.CombatCamera != null ? screen.CombatCamera.Frame.origin : Vec3.Zero; } catch { }
+                try { _bearing = screen.CameraBearing; } catch { }
+                try { _elevation = screen.CameraElevation; } catch { }
+                try { _camPos = new Vec3(_camPos.x, _camPos.y, _camPos.z + 15f, 1f); } catch { }
                 _inited = true;
                 DLog.Force("RTS相机: 已接管(角色隐身/无敌/停战)");
             }
 
-            // ---- 输入 ----
-            float mx = 0f, my = 0f;
+            // ---- 鼠标视角(照 RTS: 走任务 InputContext; 光标隐藏时才接管鼠标) ----
             try
             {
-                if (Input.IsKeyDown(InputKey.W) || Input.IsKeyDown(InputKey.Up)) my += 1f;
-                if (Input.IsKeyDown(InputKey.S) || Input.IsKeyDown(InputKey.Down)) my -= 1f;
-                if (Input.IsKeyDown(InputKey.D) || Input.IsKeyDown(InputKey.Right)) mx += 1f;
-                if (Input.IsKeyDown(InputKey.A) || Input.IsKeyDown(InputKey.Left)) mx -= 1f;
-
-                // 右键拖动 = 旋转
-                if (Input.IsKeyDown(InputKey.RightMouseButton))
+                if (ic != null && !screen.MouseVisible)
                 {
-                    _yaw -= Input.MouseMoveX * 0.004f;
-                    _pitch += Input.MouseMoveY * 0.004f;
-                    if (_pitch < -1.45f) _pitch = -1.45f;
-                    if (_pitch > -0.12f) _pitch = -0.12f;
+                    float dx = ic.GetMouseMoveX();
+                    float dy = ic.GetMouseMoveY();
+                    float scale = MouseScale * 1f * screen.CameraViewAngle;
+                    _bearing += -dx * scale;
+                    _elevation += (NativeConfig.InvertMouse ? dy : -dy) * scale;
+                    if (_elevation < ElevMin) _elevation = ElevMin;
+                    if (_elevation > ElevMax) _elevation = ElevMax;
                 }
-
-                // Q/E = 升降
-                if (Input.IsKeyDown(InputKey.Q)) _dist = Math.Max(8f, _dist - 60f * dt);
-                if (Input.IsKeyDown(InputKey.E)) _dist = Math.Min(300f, _dist + 60f * dt);
             }
             catch { }
 
-            float speed = _dist * 1.2f + 8f;
-            try { if (Input.IsKeyDown(InputKey.LeftShift)) speed *= 2.5f; } catch { }
+            // ---- 键位移动(照 RTS: 走任务 InputContext) ----
+            float ix = 0f, iy = 0f, iz = 0f;
+            try
+            {
+                if (ic != null)
+                {
+                    if (ic.IsKeyDown(InputKey.W)) iy += 1f;
+                    if (ic.IsKeyDown(InputKey.S)) iy -= 1f;
+                    if (ic.IsKeyDown(InputKey.D)) ix += 1f;
+                    if (ic.IsKeyDown(InputKey.A)) ix -= 1f;
+                    if (ic.IsKeyDown(InputKey.E)) iz += 1f;
+                    if (ic.IsKeyDown(InputKey.Q)) iz -= 1f;
+                }
+            }
+            catch { }
 
-            var look = new Vec3(
-                (float)(Math.Cos(_pitch) * Math.Sin(_yaw)),
-                (float)(Math.Cos(_pitch) * Math.Cos(_yaw)),
-                (float)Math.Sin(_pitch));
-            if (look.Length < 0.0001f) look = new Vec3(0f, 0f, -1f);
+            float speed = MoveSpeed;
+            try { if (ic != null && ic.IsKeyDown(InputKey.LeftShift)) speed *= 4f; } catch { }
 
-            var fwd = new Vec3((float)Math.Sin(_yaw), (float)Math.Cos(_yaw), 0f);
-            var right = new Vec3(fwd.y, -fwd.x, 0f);
-            _pos += (fwd * my + right * mx) * (speed * dt);
-
+            // ---- 构造相机帧(照 RTS 的旋转顺序) ----
             var frame = MatrixFrame.Identity;
-            frame.origin = _pos - look * _dist;
-            frame.rotation.u = -look;
-            var s = Vec3.CrossProduct(look, new Vec3(0f, 0f, 1f));
-            if (s.Length < 0.0001f) s = new Vec3(1f, 0f, 0f);
-            frame.rotation.s = s.NormalizedCopy();
-            frame.rotation.f = Vec3.CrossProduct(frame.rotation.u, frame.rotation.s).NormalizedCopy();
+            frame.rotation.RotateAboutSide(1.5707964f);
+            frame.rotation.RotateAboutForward(_bearing);
+            frame.rotation.RotateAboutSide(_elevation);
 
-            // ---- 不能低于地形(RTS 同款限制, 否则渲染到地下 -> 黑屏) ----
+            // 沿 右(s) / 前(u) / 上(f) 三轴移动(照 RTS)
+            if (ix != 0f || iy != 0f || iz != 0f)
+            {
+                _camPos += (frame.rotation.s * ix + frame.rotation.u * iy + frame.rotation.f * iz) * (speed * dt);
+            }
+            frame.origin = _camPos;
+
+            // ---- 高度不低于地形(照 RTS) ----
             try
             {
                 float gh = mission.Scene.GetGroundHeightAtPosition(frame.origin + new Vec3(0f, 0f, 100f), (BodyFlags)0);
                 if (gh < 9999f && frame.origin.z < gh + 0.5f) frame.origin.z = gh + 0.5f;
+                if (frame.origin.z > gh + 300f) frame.origin.z = gh + 300f;
             }
             catch { }
 
-            // ---- 应用: 相机 + Mission(关键) ----
-            try { screen.UpdateFreeCamera(frame); } catch { }
+            // ---- 应用 ----
+            try { if (screen.CombatCamera != null) screen.CombatCamera.Frame = frame; } catch { }
             try { mission.SetCameraFrame(ref frame, 1f); } catch { }
+            // bearing/elevation 的 setter 不可访问, 走反射(RTS 同款做法)
+            try
+            {
+                if (_bearingProp == null) _bearingProp = AccessTools.Property(typeof(MissionScreen), "CameraBearing");
+                if (_bearingProp != null && _bearingProp.CanWrite) _bearingProp.SetValue(screen, _bearing);
+                if (_elevProp == null) _elevProp = AccessTools.Property(typeof(MissionScreen), "CameraElevation");
+                if (_elevProp != null && _elevProp.CanWrite) _elevProp.SetValue(screen, _elevation);
+            }
+            catch { }
 
-            // 诊断(前几次 + 之后每 3 秒一条)
+            // 诊断(前几次 + 之后每 3 秒)
             _logCount++;
             if (_logCount <= 3 || _logCount % 180 == 0)
             {
                 try
                 {
-                    var cam = screen.CombatCamera;
-                    var f2 = cam != null ? cam.Frame : MatrixFrame.Identity;
                     DLog.Force("RTS诊断#" + _logCount
-                        + " 期望=(" + frame.origin.x.ToString("F0") + "," + frame.origin.y.ToString("F0") + "," + frame.origin.z.ToString("F0") + ")"
-                        + " 实际=(" + f2.origin.x.ToString("F0") + "," + f2.origin.y.ToString("F0") + "," + f2.origin.z.ToString("F0") + ")");
+                        + " 相机=(" + frame.origin.x.ToString("F0") + "," + frame.origin.y.ToString("F0") + "," + frame.origin.z.ToString("F0") + ")"
+                        + " 朝向=" + _bearing.ToString("F2") + " 俯仰=" + _elevation.ToString("F2")
+                        + " 输入=(" + ix.ToString("F0") + "," + iy.ToString("F0") + "," + iz.ToString("F0") + ")");
                 }
                 catch { }
             }
