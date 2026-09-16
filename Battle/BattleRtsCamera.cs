@@ -95,23 +95,36 @@ namespace FeudalInternalAffairs
 
             var ic = screen.SceneLayer != null ? screen.SceneLayer.Input : null;
 
-            // ---- 玩家角色: 隐身 + 无敌 + 停战 ----
+            // ---- 玩家角色: 隐身 + 无敌 + 停战 + 交给AI(否则 WASD 会把角色带走) ----
             var agent = mission.MainAgent;
             if (agent != null)
             {
+                try
+                {
+                    if (agent.Controller != AgentControllerType.AI) agent.Controller = AgentControllerType.AI;
+                }
+                catch { }
+                try { agent.SetIsAIPaused(true); } catch { }
                 try { if (agent.AgentVisuals != null) agent.AgentVisuals.SetVisible(false); } catch { }
+                // 坐骑也要一起隐身(否则会出现"人没了马还在跑")
+                try
+                {
+                    var mount = agent.MountAgent;
+                    if (mount != null && mount.AgentVisuals != null) mount.AgentVisuals.SetVisible(false);
+                }
+                catch { }
                 try { if (agent.HealthLimit < 100000f) agent.HealthLimit = 100000f; } catch { }
                 try { if (agent.Health < 90000f) agent.Health = 100000f; } catch { }
-                try { agent.SetIsAIPaused(true); } catch { }
             }
 
-            // ---- 初始化(照 RTS: 沿用当前相机位置/朝向) ----
+            // ---- 初始化: 直接给一个俯视的上帝视角(在角色上方 40 米) ----
             if (!_inited)
             {
-                try { _camPos = screen.CombatCamera != null ? screen.CombatCamera.Frame.origin : Vec3.Zero; } catch { }
-                try { _bearing = screen.CameraBearing; } catch { }
-                try { _elevation = screen.CameraElevation; } catch { }
-                try { _camPos = new Vec3(_camPos.x, _camPos.y, _camPos.z + 15f, 1f); } catch { }
+                Vec3 p = Vec3.Zero;
+                try { p = agent != null ? agent.Position : (screen.CombatCamera != null ? screen.CombatCamera.Frame.origin : Vec3.Zero); } catch { }
+                _camPos = new Vec3(p.x, p.y, p.z + 40f, 1f);
+                _bearing = 0f;
+                _elevation = -0.55f;    // 俯角
                 _inited = true;
                 DLog.Force("RTS相机: 已接管(角色隐身/无敌/停战)");
             }
@@ -132,24 +145,23 @@ namespace FeudalInternalAffairs
             }
             catch { }
 
-            // ---- 键位移动(照 RTS: 走任务 InputContext) ----
+            // ---- 键位移动: 用原版自己的移动轴 MovementAxisX/Y(= 玩家绑定的 WASD) ----
             float ix = 0f, iy = 0f, iz = 0f;
             try
             {
                 if (ic != null)
                 {
-                    if (ic.IsKeyDown(InputKey.W)) iy += 1f;
-                    if (ic.IsKeyDown(InputKey.S)) iy -= 1f;
-                    if (ic.IsKeyDown(InputKey.D)) ix += 1f;
-                    if (ic.IsKeyDown(InputKey.A)) ix -= 1f;
-                    if (ic.IsKeyDown(InputKey.E)) iz += 1f;
-                    if (ic.IsKeyDown(InputKey.Q)) iz -= 1f;
+                    ix = ic.GetGameKeyAxis("MovementAxisX");
+                    iy = ic.GetGameKeyAxis("MovementAxisY");
+                    float scroll = ic.GetDeltaMouseScroll();
+                    if (scroll > 0f) iz = 1f;
+                    else if (scroll < 0f) iz = -1f;
                 }
             }
             catch { }
 
             float speed = MoveSpeed;
-            try { if (ic != null && ic.IsKeyDown(InputKey.LeftShift)) speed *= 4f; } catch { }
+            try { if (ic != null && ic.GetGameKeyAxis("MovementAxisY") != 0f) speed = MoveSpeed; } catch { }
 
             // ---- 构造相机帧(照 RTS 的旋转顺序) ----
             var frame = MatrixFrame.Identity;
