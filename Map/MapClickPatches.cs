@@ -141,6 +141,14 @@ namespace FeudalInternalAffairs
                     bool wasPan = MapBoxSelect.HandleRightButton(rPressed, rDown, rReleased, mouse);
                     if (!rReleased || wasPan) return;
 
+                    // 右键战场标记: 本国参战的地图战斗 -> 询问是否亲自指挥
+                    var battle = BattleCommand.FindNearCursor(90f);
+                    if (battle != null)
+                    {
+                        BattleCommand.ShowConfirm(battle);
+                        return;
+                    }
+
                     // 右键点在某个部队上?
                     var visual = screen.CurrentVisualOfTooltip as MobilePartyVisual;
                     var party = visual != null && visual.MapEntity != null ? visual.MapEntity.MobileParty : null;

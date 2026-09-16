@@ -27,9 +27,11 @@
 ## 安装
 
 1. 需要游戏版本 **v1.4.8**，以及前置 mod：**Bannerlord.Harmony**、**Bannerlord.UIExtenderEx**
-2. 把 `FeudalInternalAffairs` 模块文件夹放进
+2. 建议同时安装 **RTS Camera**（战场上帝视角相机，作者 lzh/lizhenhuan，MIT 许可）：
+   进战场后按 **F10** 切换自由相机，或在它的菜单里勾选 "Use Free Camera By Default" 让它自动开启
+3. 把 `FeudalInternalAffairs` 模块文件夹放进
    `Mount & Blade II Bannerlord\Modules\`
-3. 启动器里勾选 **内政扩展（国家意志）**，加载顺序放在 Harmony / UIExtenderEx 之后
+4. 启动器里勾选 **内政扩展（国家意志）**，加载顺序放在 Harmony / UIExtenderEx 之后
 
 ## 从源码编译
 
@@ -56,6 +58,11 @@ dotnet build FeudalInternalAffairs.csproj -c Release -p:GameModulesDir="你的�
 
 代码按职责分目录（`Map/` `Will/` `World/` `Focus/` `Creation/` `Core/`），Harmony 补丁逐类注册，不使用 `PatchAll`。
 
+## 致谢
+
+- 战场自由相机直接复用/参考了 [RTS Camera](https://github.com/lzh-mb-mod/RTSCamera)（MIT，作者 lzh / lizhenhuan）的开源实现。
+- 依赖 Bannerlord.Harmony、Bannerlord.UIExtenderEx。
+
 ## 许可证
 
-[GPL-3.0](LICENSE)
+[MIT](LICENSE)

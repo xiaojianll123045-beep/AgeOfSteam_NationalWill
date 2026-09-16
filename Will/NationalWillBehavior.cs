@@ -20,6 +20,9 @@ namespace FeudalInternalAffairs
         private string _nationKingdomId = "";
         private bool _setupDone;
         private bool _gaveUp;
+        private string _focusState = "";
+        private string _cameraState = "";
+        private string _pendingCamera = null;   // 读档后等相机就绪再恢复视角
 
         public bool IsNationalWill
         {
@@ -48,6 +51,13 @@ namespace FeudalInternalAffairs
             CampaignEvents.HourlyTickEvent.AddNonSerializedListener(this, OnHourlyTick);
             CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, OnDailyTick);
             CampaignEvents.OnSettlementOwnerChangedEvent.AddNonSerializedListener(this, OnSettlementOwnerChanged);
+            CampaignEvents.MapEventEnded.AddNonSerializedListener(this, OnMapEventEnded);
+        }
+
+        // 战斗结束 -> 亲自指挥的部队归位
+        private void OnMapEventEnded(TaleWorlds.CampaignSystem.MapEvents.MapEvent mapEvent)
+        {
+            try { BattleCommand.OnBattleEnded(mapEvent); } catch { }
         }
 
         // 定居点易主 -> 国界要重画
@@ -64,8 +74,65 @@ namespace FeudalInternalAffairs
             {
                 dataStore.SyncData("FIA_NationKingdomId", ref _nationKingdomId);
                 dataStore.SyncData("FIA_SetupDone", ref _setupDone);
+                // 存: 国策状态 + 地图视角位置
+                if (dataStore.IsSaving)
+                {
+                    _focusState = FocusTreeData.Serialize();
+                    _cameraState = CaptureCameraState();
+                }
+                dataStore.SyncData("FIA_FocusState", ref _focusState);
+                dataStore.SyncData("FIA_CameraState", ref _cameraState);
+                if (dataStore.IsLoading)
+                {
+                    FocusTreeData.Deserialize(_focusState);
+                    _pendingCamera = _cameraState;
+                    DLog.Force("读档: 国策=" + (_focusState ?? "空") + " 视角=" + (_cameraState ?? "空"));
+                }
             }
             catch (Exception ex) { DLog.Force("SyncData 异常: " + ex.Message); }
+        }
+
+        // ---- 地图视角的存档 ----
+        private static string CaptureCameraState()
+        {
+            try
+            {
+                var view = NationalWillCamera.View;
+                if (view == null) return "";
+                var t = NationalWillCamera.GetIdealTarget(view);
+                float bearing = NationalWillCamera.GetBearing(view);
+                float dist = NationalWillCamera.GetCameraDistance(view);
+                var ci = System.Globalization.CultureInfo.InvariantCulture;
+                return t.x.ToString("F2", ci) + "," + t.y.ToString("F2", ci) + ","
+                     + bearing.ToString("F3", ci) + "," + dist.ToString("F2", ci);
+            }
+            catch { return ""; }
+        }
+
+        private static bool ApplyCameraState(string s)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(s)) return true;
+                var parts = s.Split(',');
+                if (parts.Length < 4) return true;
+                var ci = System.Globalization.CultureInfo.InvariantCulture;
+                float x = float.Parse(parts[0], ci);
+                float y = float.Parse(parts[1], ci);
+                float bearing = float.Parse(parts[2], ci);
+                float dist = float.Parse(parts[3], ci);
+                var view = NationalWillCamera.View;
+                if (view == null) return false;   // 相机还没就绪, 下帧再试
+                var target = new Vec3(x, y, 0f, 1f);
+                NationalWillCamera.SetIdealTarget(view, target);
+                NationalWillCamera.SetCameraTarget(view, target);
+                NationalWillCamera.SetLastUsedTarget(view, target);
+                NationalWillCamera.SetBearing(view, bearing);
+                NationalWillCamera.SetCameraDistance(view, dist);
+                DLog.Force("读档: 地图视角已恢复 (" + x.ToString("F0", ci) + "," + y.ToString("F0", ci) + ")");
+                return true;
+            }
+            catch { return true; }
         }
 
         private void OnNewGameCreated(CampaignGameStarter starter)
@@ -107,6 +174,8 @@ namespace FeudalInternalAffairs
         private void OnTick(float dt)
         {
             CommandTimeout.Tick(dt);   // 指挥超时 -> 恢复 AI 自主
+            // 读档后恢复地图视角(等相机就绪)
+            if (_pendingCamera != null && ApplyCameraState(_pendingCamera)) _pendingCamera = null;
             if (_setupDone)
             {
                 NationalWillParty.Freeze(false);   // 每帧维持(时间流逝后游戏可能把部队状态改回去)

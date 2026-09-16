@@ -52,6 +52,7 @@ namespace FeudalInternalAffairs
         }
 
         // 右键拖动期间不锁光标位置(原版左键拖动也不锁) -> 光标地面点能跟着走
+        // 只在"地图右键拖动中"生效, 免得影响战场里按住右键格挡之类的情况
         [HarmonyPatch(typeof(TaleWorlds.MountAndBlade.MBWindowManager), "DontChangeCursorPos")]
         internal static class NoCursorLockPatch
         {
@@ -59,7 +60,7 @@ namespace FeudalInternalAffairs
             {
                 try
                 {
-                    if (NationalWillOrders.IsActive && Input.IsKeyDown(InputKey.RightMouseButton)) return false;
+                    if (NationalWillOrders.IsActive && MapBoxSelect.RightDown) return false;
                 }
                 catch { }
                 return true;

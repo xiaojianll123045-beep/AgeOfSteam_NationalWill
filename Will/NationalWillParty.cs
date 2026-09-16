@@ -11,6 +11,7 @@ namespace FeudalInternalAffairs
         internal static void Freeze(bool force)
         {
             if (DLog.Flag("nohide")) return;
+            if (BattleCommand.InCommandBattle) return;   // 亲自指挥战斗期间: 不冻结、不隐藏
             var mp = MobileParty.MainParty;
             if (mp == null) return;
             try

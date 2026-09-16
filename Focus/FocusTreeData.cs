@@ -104,6 +104,42 @@ namespace FeudalInternalAffairs
         internal static bool IsCompleted(string id) { return Completed.Contains(id); }
         internal static bool IsInProgress(string id) { return InProgress.ContainsKey(id); }
 
+        // ---- 存档: 已完成的国策 + 进行中的国策(剩余天数) ----
+        internal static string Serialize()
+        {
+            try
+            {
+                var sb = new System.Text.StringBuilder();
+                sb.Append("C:");
+                foreach (var id in Completed) { sb.Append(id); sb.Append(','); }
+                sb.Append(";P:");
+                foreach (var kv in InProgress) { sb.Append(kv.Key); sb.Append('='); sb.Append(kv.Value); sb.Append(','); }
+                return sb.ToString();
+            }
+            catch { return ""; }
+        }
+
+        internal static void Deserialize(string s)
+        {
+            try
+            {
+                Completed.Clear();
+                InProgress.Clear();
+                if (string.IsNullOrEmpty(s)) return;
+                int p = s.IndexOf(";P:", StringComparison.Ordinal);
+                string cs = p >= 0 ? s.Substring(0, p) : s;
+                string ps = p >= 0 ? s.Substring(p + 3) : "";
+                if (cs.StartsWith("C:", StringComparison.Ordinal)) cs = cs.Substring(2);
+                foreach (var id in cs.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)) Completed.Add(id);
+                foreach (var seg in ps.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var kv = seg.Split('=');
+                    if (kv.Length == 2 && int.TryParse(kv[1], out int days) && days > 0) InProgress[kv[0]] = days;
+                }
+            }
+            catch { }
+        }
+
         internal static bool PrerequisitesMet(FocusDefinition f)
         {
             if (f.Requires == null || f.Requires.Length == 0) return true;

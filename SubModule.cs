@@ -69,6 +69,8 @@ namespace FeudalInternalAffairs
                     typeof(MapCursorPatches.CursorVisibilityPatch),
                     typeof(MapCursorPatches.FakeRightKeyPatch),
                     typeof(MapCursorPatches.NoCursorLockPatch),
+                    typeof(BattleRtsCamera.CameraTickPatch),
+                    typeof(BattleRtsCamera.FinalizePatch),
                     typeof(NationalWillClan.ZombieClanKingdomPatch),
                     typeof(NoAiControlPatches.BlockAiArmy),
                     typeof(NoAiControlPatches.BlockDeclareWar),

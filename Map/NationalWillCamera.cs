@@ -170,6 +170,37 @@ namespace FeudalInternalAffairs
             catch { }
         }
 
+        // 存档/读档用: 直接设置朝向与距离
+        internal static void SetBearing(MapCameraView view, float value)
+        {
+            try
+            {
+                if (view == null) return;
+                if (_bearingProp == null) _bearingProp = AccessTools.Property(typeof(MapCameraView), "CameraBearing");
+                if (_bearingProp != null && _bearingProp.CanWrite) _bearingProp.SetValue(view, value);
+            }
+            catch { }
+        }
+
+        internal static float GetCameraDistance(MapCameraView view)
+        {
+            try { return view != null ? view.CameraDistance : 0f; }
+            catch { return 0f; }
+        }
+
+        internal static void SetCameraDistance(MapCameraView view, float value)
+        {
+            try
+            {
+                if (view == null || value <= 0f) return;
+                if (_distanceProp == null) _distanceProp = AccessTools.Property(typeof(MapCameraView), "CameraDistance");
+                SetDistance(view, _distanceProp, value);
+                if (_targetDistanceProp == null) _targetDistanceProp = AccessTools.Property(typeof(MapCameraView), "TargetCameraDistance");
+                SetDistance(view, _targetDistanceProp, value);
+            }
+            catch { }
+        }
+
         private static void SetDistance(MapCameraView view, PropertyInfo prop, float value)
         {
             try { if (prop != null && prop.CanWrite) prop.SetValue(view, value); }
