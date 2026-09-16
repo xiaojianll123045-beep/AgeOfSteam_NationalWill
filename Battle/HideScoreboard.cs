@@ -29,7 +29,11 @@ namespace FeudalInternalAffairs
                         var row = __instance.Parties[i];
                         if (row == null) continue;
                         bool isPlayerParty = false;
-                        try { isPlayerParty = ReferenceEquals(row.BattleCombatant, main); } catch { }
+                        try { if (row.Score != null && row.Score.IsMainParty) isPlayerParty = true; } catch { }
+                        if (!isPlayerParty)
+                        {
+                            try { isPlayerParty = ReferenceEquals(row.BattleCombatant, main); } catch { }
+                        }
                         if (!isPlayerParty && mainName != null)
                         {
                             try
@@ -42,8 +46,30 @@ namespace FeudalInternalAffairs
                         }
                         if (isPlayerParty)
                         {
+                            // 把这一行的数字也从"队伍总数"里扣掉(否则总人数会比可见部队多出玩家那 1 人)
+                            try
+                            {
+                                var s = __instance.Score;
+                                var r = row.Score;
+                                if (s != null && r != null)
+                                {
+                                    s.Remaining -= r.Remaining;
+                                    s.Dead -= r.Dead;
+                                    s.Wounded -= r.Wounded;
+                                    s.Routed -= r.Routed;
+                                    s.Kill -= r.Kill;
+                                    s.ReadyToUpgrade -= r.ReadyToUpgrade;
+                                    if (s.Remaining < 0) s.Remaining = 0;
+                                    if (s.Dead < 0) s.Dead = 0;
+                                    if (s.Wounded < 0) s.Wounded = 0;
+                                    if (s.Routed < 0) s.Routed = 0;
+                                    if (s.Kill < 0) s.Kill = 0;
+                                    if (s.ReadyToUpgrade < 0) s.ReadyToUpgrade = 0;
+                                }
+                            }
+                            catch { }
                             __instance.Parties.RemoveAt(i);
-                            DLog.Force("记分板: 已移除玩家自己的部队行");
+                            DLog.Force("记分板: 已移除玩家自己的部队行并修正总人数");
                         }
                     }
                 }
