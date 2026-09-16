@@ -264,14 +264,12 @@ namespace FeudalInternalAffairs
             if (!inBattle) return;
 
             // RTS 在场: 严格让位 —— 相机、玩家角色、坐骑全部交给他们, 我们一律不碰。
-            // 唯一做的事: 进入"亲自指挥"的战斗后, 一次性请求他们切到自由相机
-            // (延迟 2 秒等他们的任务逻辑就绪, 避免在错误的时机切换导致状态错乱)。
+            // 唯一做的事: 进入"亲自指挥"的战斗后, 立刻请求他们切到自由相机。
             if (RtsModPresent)
             {
                 if (Active && !_askedRtsMod)
                 {
-                    _rtsWait += realDt;
-                    if (_rtsWait >= 2f && TryAskRtsModFreeCamera()) _askedRtsMod = true;
+                    if (TryAskRtsModFreeCamera()) _askedRtsMod = true;
                 }
                 return;
             }
