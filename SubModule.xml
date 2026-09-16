@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Module>
+  <Name value="内政扩展"/>
+  <Id value="_FeudalInternalAffairs"/>
+  <Version value="v0.1.0"/>
+  <SingleplayerModule value="true"/>
+  <MultiplayerModule value="false"/>
+  <DependedModules>
+    <DependedModule Id="Bannerlord.Harmony" DependentVersion="v2.4.2.248"/>
+    <DependedModule Id="Bannerlord.UIExtenderEx"/>
+  </DependedModules>
+  <SubModules>
+    <SubModule>
+      <Name value="内政扩展"/>
+      <DLLName value="FeudalInternalAffairs.dll"/>
+      <SubModuleClassType value="FeudalInternalAffairs.SubModule"/>
+      <Tags>
+        <Tag key="DedicatedServerType" value="none"/>
+        <Tag key="IsNoRenderModeElement" value="false"/>
+      </Tags>
+    </SubModule>
+  </SubModules>
+  <Xmls/>
+</Module>

@@ -1,0 +1,103 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="BlankWhiteSquare" Color="#14100CFF">
+      <Children>
+
+        <!-- 顶栏 -->
+        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="78" VerticalAlignment="Top" Sprite="BlankWhiteSquare" Color="#241C14FF">
+          <Children>
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="26" Brush="MapTextBrushGal" Brush.FontSize="30" Text="@Title" />
+
+            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="430" StackLayout.LayoutMethod="HorizontalLeftToRight">
+              <Children>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="34" MarginRight="10" Sprite="Clan\party_leader_crown" />
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="34" MarginRight="10" Sprite="Barter\Gold" />
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="34" MarginRight="10" Sprite="CharacterDeveloper\cp_icon" />
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="34" MarginRight="10" Sprite="Clan\moving_icon" />
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="34" MarginRight="10" Sprite="Crafting\arrow" />
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="34" MarginRight="10" Sprite="Clan\clan_header" />
+              </Children>
+            </ListPanel>
+
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="280" SuggestedHeight="38" HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="BlankWhiteSquare" Color="#FFFFFF22">
+              <Children>
+                <EditableTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="8" MarginRight="8" Text="@SearchText" Brush="MapTextBrushGal" />
+              </Children>
+            </Widget>
+
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="42" SuggestedHeight="38" HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="215" Brush="ButtonBrush1" Command.Click="ExecuteZoomOut" UpdateChildrenStates="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Text="-" />
+              </Children>
+            </ButtonWidget>
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="42" SuggestedHeight="38" HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="150" Brush="ButtonBrush1" Command.Click="ExecuteZoomIn" UpdateChildrenStates="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Text="+" />
+              </Children>
+            </ButtonWidget>
+
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="90" SuggestedHeight="40" HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="24" Brush="ButtonBrush2" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Text="关闭" />
+              </Children>
+            </ButtonWidget>
+
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="290" Brush="MapTextBrushGal" Brush.FontSize="20" Text="@Counter" />
+          </Children>
+        </Widget>
+
+        <!-- 国策树 -->
+        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginTop="82">
+          <Children>
+            <!-- 连接线 -->
+            <Widget DataSource="{Lines}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" PositionXOffset="@X" PositionYOffset="@Y"
+                        SuggestedWidth="@W" SuggestedHeight="@H" Sprite="BlankWhiteSquare" Color="@Color" />
+              </ItemTemplate>
+            </Widget>
+
+            <!-- 节点 -->
+            <Widget DataSource="{Items}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+              <ItemTemplate>
+                <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                              SuggestedWidth="@Width" SuggestedHeight="@Height"
+                              PositionXOffset="@PosX" PositionYOffset="@PosY"
+                              Brush="ButtonBrush1" Command.Click="ExecuteSelect" IsEnabled="@IsAvailable" IsVisible="@IsVisible"
+                              UpdateChildrenStates="true">
+                  <Children>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@IconSize" SuggestedHeight="@IconSize"
+                            HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="@IconMargin" Sprite="@Icon" Color="@IconColor" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                MarginLeft="@TextMargin" Brush="MapTextBrushGal" Brush.FontSize="@FontSize" Text="@Name" />
+                  </Children>
+                </ButtonWidget>
+              </ItemTemplate>
+            </Widget>
+          </Children>
+        </Widget>
+
+        <!-- 右下角计数 -->
+        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                    MarginRight="30" MarginBottom="24" Brush="MapTextBrushGal" Brush.FontSize="22" Text="@Counter" />
+
+        <!-- 右侧: 正在解锁的国策 -->
+        <Widget IsVisible="@HasCurrent" WidthSizePolicy="Fixed" SuggestedWidth="250" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top"
+                MarginRight="26" MarginTop="120" Sprite="BlankWhiteSquare" Color="#241C14E6">
+          <Children>
+            <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="VerticalTopToBottom"
+                       MarginLeft="16" MarginRight="16" MarginTop="12" MarginBottom="12">
+              <Children>
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" Brush="MapTextBrushGal" Brush.FontSize="18" Text="正在解锁" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MarginTop="8" Brush="MapTextBrushGal" Brush.FontSize="24" Text="@CurrentName" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MarginTop="6" Brush="MapTextBrushGal" Brush.FontSize="18" Text="@CurrentDays" />
+              </Children>
+            </ListPanel>
+          </Children>
+        </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>
