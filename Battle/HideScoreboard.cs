@@ -1,3 +1,5 @@
+using System;
+using System.Reflection;
 using HarmonyLib;
 using TaleWorlds.MountAndBlade.GauntletUI.Widgets.Scoreboard;
 
@@ -5,11 +7,14 @@ namespace FeudalInternalAffairs
 {
     // 亲自指挥的战斗里, 删掉战况记分板(截图里那个"进攻方 98 / 艾仁的部队 1"面板)。
     //
-    // 注意: 不能只在 OnUpdate 里把 IsVisible 设成 false —— 那样记分板的"打开状态"仍是 true,
-    // 游戏会继续吞掉输入(Tab 等按键就会失灵)。正确做法是拦截 ShowScoreboard 的设置,
-    // 让它从状态上就保持关闭。
+    // 两层处理:
+    //   1) 拦截 ShowScoreboard 的设置 -> 从状态上就不打开;
+    //   2) 每帧兜底: 把状态字段 _showScoreboard 与 IsVisible 一起强制为 false。
+    //      (只设 IsVisible 不够: 状态仍为"打开中"会让游戏继续吞输入)
     internal static class HideScoreboard
     {
+        private static FieldInfo _showField;
+
         [HarmonyPatch(typeof(ScoreboardScreenWidget), "set_ShowScoreboard")]
         internal static class BlockScoreboardOpen
         {
@@ -21,6 +26,22 @@ namespace FeudalInternalAffairs
                 }
                 catch { }
                 return true;
+            }
+        }
+
+        [HarmonyPatch(typeof(ScoreboardScreenWidget), "OnUpdate")]
+        internal static class ForceHide
+        {
+            private static void Postfix(ScoreboardScreenWidget __instance)
+            {
+                try
+                {
+                    if (!BattleRtsCamera.Active) return;
+                    if (_showField == null) _showField = AccessTools.Field(typeof(ScoreboardScreenWidget), "_showScoreboard");
+                    if (_showField != null) _showField.SetValue(__instance, false);
+                    __instance.IsVisible = false;
+                }
+                catch { }
             }
         }
     }

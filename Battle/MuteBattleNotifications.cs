@@ -22,6 +22,7 @@ namespace FeudalInternalAffairs
                     var t = message != null ? message.Information : null;
                     if (string.IsNullOrEmpty(t)) return true;
                     if (t.Contains("提升") || t.Contains("升级") || t.Contains("熟练度")
+                        || t.Contains("技能+") || t.Contains("技能 +")
                         || t.IndexOf("increased", StringComparison.OrdinalIgnoreCase) >= 0
                         || t.IndexOf("level up", StringComparison.OrdinalIgnoreCase) >= 0
                         || t.IndexOf("levelled up", StringComparison.OrdinalIgnoreCase) >= 0
@@ -30,6 +31,8 @@ namespace FeudalInternalAffairs
                         DLog.Info("战斗中已屏蔽通知: " + t);
                         return false;
                     }
+                    // 诊断: 战斗里所有消息都记一下(找出"技能+1"到底走哪条渠道)
+                    DLog.Info("战斗中消息: " + t);
                 }
                 catch { }
                 return true;
