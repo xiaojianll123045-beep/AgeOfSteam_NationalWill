@@ -100,6 +100,8 @@ namespace FeudalInternalAffairs
             _agentPrepared = false;
             _askedRtsMod = false;
             _rtsWait = 0f;
+            _askedCameraGoTo = false;
+            _goToWait = 0f;
         }
 
         // 请求 RTS Camera 切到自由相机(反射, 只在它存在时用)。
@@ -253,6 +255,75 @@ namespace FeudalInternalAffairs
             catch { }
         }
 
+        // 我方"大军"中心: 最大编制(人数最多)的平均位置, 再抬高 45 米
+        private static Vec3 GetArmyCenterAbove(Mission mission)
+        {
+            try
+            {
+                var team = mission.PlayerTeam;
+                if (team != null)
+                {
+                    int bestCount = 0;
+                    Vec2 best = Vec2.Zero;
+                    foreach (var f in team.FormationsIncludingSpecialAndEmpty)
+                    {
+                        if (f == null) continue;
+                        int c = f.CountOfUnits;
+                        if (c > bestCount) { bestCount = c; best = f.CachedAveragePosition; }
+                    }
+                    if (bestCount > 0)
+                    {
+                        float z = 30f;
+                        try
+                        {
+                            float gh = mission.Scene.GetGroundHeightAtPosition(new Vec3(best.X, best.Y, 200f, 1f), (BodyFlags)0);
+                            if (gh > 0.05f && gh < 9998f) z = gh;
+                        }
+                        catch { }
+                        return new Vec3(best.X, best.Y, z + 45f, 1f);
+                    }
+                }
+            }
+            catch { }
+            return Vec3.Zero;
+        }
+
+        // 请求 RTS Camera 把相机飞到大军上方(用他们自己的 RequestCameraGoTo)
+        private static bool _askedCameraGoTo;
+        private static float _goToWait;
+
+        private static bool TryAskRtsModCameraGoTo(Mission mission)
+        {
+            try
+            {
+                var pos = GetArmyCenterAbove(mission);
+                if (pos == Vec3.Zero) return false;   // 编制还没就绪, 下帧再试
+
+                var mgrType = AccessTools.TypeByName("MissionLibrary.Controller.Camera.ACameraControllerManager");
+                if (mgrType == null) return false;
+                var mgr = AccessTools.Method(mgrType, "Get")?.Invoke(null, null);
+                if (mgr == null) return false;
+                var inst = AccessTools.Property(mgrType, "Instance")?.GetValue(mgr);
+                if (inst == null) return false;
+
+                var mi = AccessTools.Method(inst.GetType(), "RequestCameraGoTo", new[] { typeof(Vec3), typeof(Vec3) });
+                if (mi == null) mi = AccessTools.Method(inst.GetType(), "RequestCameraGoTo", new[] { typeof(Vec3) });
+                if (mi == null) { DLog.Force("RTS桥: 找不到 RequestCameraGoTo"); return false; }
+
+                if (mi.GetParameters().Length == 2)
+                    mi.Invoke(inst, new object[] { pos, Vec3.Zero });
+                else
+                    mi.Invoke(inst, new object[] { pos });
+                DLog.Force("RTS桥: 相机已传送到大军上方 (" + ((int)pos.x) + "," + ((int)pos.y) + "," + ((int)pos.z) + ")");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DLog.Force("RTS桥(相机传送)异常: " + (ex.InnerException != null ? ex.InnerException.Message : ex.Message));
+                return false;
+            }
+        }
+
         private static void Tick(MissionScreen screen, float realDt)
         {
             if (screen == null) return;
@@ -271,6 +342,13 @@ namespace FeudalInternalAffairs
                 if (Active && !_askedRtsMod)
                 {
                     if (TryAskRtsModFreeCamera()) _askedRtsMod = true;
+                }
+                // 刚进战场就把相机传送到大军上方(编制就绪前每帧重试, 最多 5 秒)
+                if (Active && !_askedCameraGoTo)
+                {
+                    _goToWait += realDt;
+                    if (TryAskRtsModCameraGoTo(mission)) _askedCameraGoTo = true;
+                    else if (_goToWait > 5f) _askedCameraGoTo = true;
                 }
                 return;
             }
