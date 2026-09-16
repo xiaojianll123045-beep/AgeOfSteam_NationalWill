@@ -302,7 +302,7 @@ namespace FeudalInternalAffairs
                 _commandingBattle = null;
                 InCommandBattle = false;
                 BattleRtsCamera.Reset();
-                _postBattleLeaveTries = 10;   // 战后立刻自动离开结算菜单(下一帧就执行)
+                _postBattleLeaveTries = 10;   // 战后把玩家部队从战斗记录里摘掉
             // 把暂时移出的兵还回去
             if (_savedRoster != null)
             {
@@ -352,8 +352,8 @@ namespace FeudalInternalAffairs
             }
         }
 
-        // 战后自动离开"战斗结算"菜单(俘虏敌人/离开 那个页面)。
-        // 玩家是国家意志, 不需要俘虏/战利品选择, 直接回地图。立即执行, 不等待。
+        // 战后处理: 不拦截结算页面(玩家想留就留), 只把玩家自己的部队从这场战斗里摘掉,
+        // 这样结算页/战斗总结里不会出现"玩家的部队"。
         private static int _postBattleLeaveTries;
 
         internal static void TickPostBattleLeave(float dt)
@@ -362,19 +362,23 @@ namespace FeudalInternalAffairs
             _postBattleLeaveTries--;
             try
             {
-                var enc = PlayerEncounter.Current;
-                if (enc == null) { _postBattleLeaveTries = 0; return; }
-                var helper = AccessTools.TypeByName("Helpers.MenuHelper");
-                var mi = helper != null ? AccessTools.Method(helper, "EncounterLeaveConsequence") : null;
-                if (mi != null)
+                var main = MobileParty.MainParty;
+                if (main == null || main.Party == null) { _postBattleLeaveTries = 0; return; }
+                // 把玩家部队从战斗一方里摘掉(战后安全, 只影响显示)
+                if (main.Party.MapEventSide != null)
                 {
-                    mi.Invoke(null, null);
-                    DLog.Force("战后: 已自动离开战斗结算菜单");
+                    main.Party.MapEventSide = null;
+                    DLog.Force("战后: 已把玩家部队从战斗记录中摘除(不再出现在结算页面)");
+                }
+                else
+                {
+                    _postBattleLeaveTries = 0;
                 }
             }
             catch (Exception ex)
             {
-                DLog.Force("战后自动离开失败: " + (ex.InnerException != null ? ex.InnerException.Message : ex.Message));
+                DLog.Force("战后摘除玩家部队失败: " + ex.Message);
+                _postBattleLeaveTries = 0;
             }
         }
 
