@@ -102,6 +102,7 @@ namespace FeudalInternalAffairs
             _rtsWait = 0f;
             _askedCameraGoTo = false;
             _goToWait = 0f;
+            _parkDone = false;
         }
 
         // 请求 RTS Camera 切到自由相机(反射, 只在它存在时用)。
@@ -163,6 +164,7 @@ namespace FeudalInternalAffairs
         // ---- 玩家角色: 隐身 + 无敌 + 拉到地图边缘 ----
         private static Vec3 _parkSpot;
         private static bool _parkLogged;
+        private static bool _parkDone;   // 玩家是否已经到边缘(相机传送要等它先完成)
 
         // 战场边缘: 取"软边界"离战场中心最远的顶点, 再往里收 10 米(不越界)
         private static Vec3 FindBattleEdge(Mission mission)
@@ -250,6 +252,14 @@ namespace FeudalInternalAffairs
                                 + ((int)_parkSpot.x) + "," + ((int)_parkSpot.y) + ")");
                         }
                     }
+                    else
+                    {
+                        _parkDone = true;   // 已经到边缘
+                    }
+                }
+                else
+                {
+                    _parkDone = true;   // 找不到边缘就别卡着相机
                 }
             }
             catch { }
@@ -339,14 +349,19 @@ namespace FeudalInternalAffairs
             if (RtsModPresent)
             {
                 try { ParkPlayerAgent(mission, mission.MainAgent); } catch { }
+                // 顺序要求: 玩家先到边缘, 再切相机/移动相机(否则相机会先跟着玩家飞过去)
+                if (!_parkDone)
+                {
+                    _goToWait += realDt;
+                    if (_goToWait < 3f) return;   // 最多等 3 秒, 免得卡死
+                }
                 if (Active && !_askedRtsMod)
                 {
                     if (TryAskRtsModFreeCamera()) _askedRtsMod = true;
                 }
-                // 刚进战场就把相机传送到大军上方(编制就绪前每帧重试, 最多 5 秒)
+                // 玩家到边缘后再把相机传送到大军上方(编制就绪前每帧重试, 最多 5 秒)
                 if (Active && !_askedCameraGoTo)
                 {
-                    _goToWait += realDt;
                     if (TryAskRtsModCameraGoTo(mission)) _askedCameraGoTo = true;
                     else if (_goToWait > 5f) _askedCameraGoTo = true;
                 }
