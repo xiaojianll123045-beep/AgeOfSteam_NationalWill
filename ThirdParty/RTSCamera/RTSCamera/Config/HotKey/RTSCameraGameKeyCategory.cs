@@ -38,7 +38,13 @@ namespace RTSCamera.Config.HotKey
     {
         public const string CategoryId = "RTSCameraHotKey";
 
-        public static AGameKeyCategory Category => AGameKeyCategoryManager.Get().GetItem(CategoryId);
+        public static AGameKeyCategory Category
+        {
+            get
+            {
+                try { return AGameKeyCategoryManager.Get()?.GetItem(CategoryId); } catch { return null; }
+            }
+        }
 
         public static void RegisterGameKeyCategory()
         {

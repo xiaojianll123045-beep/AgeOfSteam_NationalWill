@@ -1110,10 +1110,19 @@ namespace RTSCamera.CommandSystem.Utilities
 
         public static bool ShouldQueueCommand()
         {
-            // Disabled for naval battle for now.
-            if (Mission.Current?.IsNavalBattle ?? false)
+            try
+            {
+                // Disabled for naval battle for now.
+                if (Mission.Current?.IsNavalBattle ?? false)
+                    return false;
+                // 整合版修复: 按键类别可能还没注册(mgr 为空), 原来这里直接空引用崩溃
+                var key = CommandSystemGameKeyCategory.GetKey(GameKeyEnum.CommandQueue);
+                return key != null && key.IsKeyDownInOrder();
+            }
+            catch
+            {
                 return false;
-            return CommandSystemGameKeyCategory.GetKey(GameKeyEnum.CommandQueue).IsKeyDownInOrder();
+            }
         }
 
         // Copied from MissionOrderTroopControllerVM.GetMaxAndCurrentAmmoOfAgent

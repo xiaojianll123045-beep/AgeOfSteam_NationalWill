@@ -869,6 +869,11 @@ namespace MissionSharedLibrary.Utilities
         {
             try
             {
+                // 整合版修复: 命令系统已并入本模块(不再作为独立模块存在), 对它的安装检测恒为真,
+                // 否则 RTSCamera 侧会以为命令系统没装, 整套集成处于半残状态。
+                if (moduleId == "RTSCamera.CommandSystem"
+                    && HarmonyLib.AccessTools.TypeByName("RTSCamera.CommandSystem.CommandSystemSubModule") != null)
+                    return true;
                 // some module may be not loaded, causes info be null.
                 return TaleWorlds.Engine.Utilities.GetModulesNames().Select(ModuleHelper.GetModuleInfo).FirstOrDefault(info =>
                     info?.Id == moduleId) != null;
