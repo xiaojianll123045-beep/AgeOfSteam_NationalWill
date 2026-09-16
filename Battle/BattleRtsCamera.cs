@@ -93,11 +93,13 @@ namespace FeudalInternalAffairs
             _inited = false;
             _agentPrepared = false;
             _askedRtsMod = false;
+            _rtsWait = 0f;
         }
 
         // 请求 RTS Camera 切到自由相机(反射, 只在它存在时用)。
         // 他们那套: RTSCamera.Logic.RTSCameraLogic.Instance.SwitchFreeCameraLogic.SwitchCamera(false)
         private static bool _askedRtsMod;
+        private static float _rtsWait;
 
         private static bool TryAskRtsModFreeCamera()
         {
@@ -255,13 +257,15 @@ namespace FeudalInternalAffairs
             try { inBattle = mission.Mode == MissionMode.Battle; } catch { }
             if (!inBattle) return;
 
-            // 原 mod 在场: 相机交给他们, 但玩家角色/坐骑的隐身与"挪到地图边缘"仍然由我们做
+            // RTS 在场: 严格让位 —— 相机、玩家角色、坐骑全部交给他们, 我们一律不碰。
+            // 唯一做的事: 进入"亲自指挥"的战斗后, 一次性请求他们切到自由相机
+            // (延迟 2 秒等他们的任务逻辑就绪, 避免在错误的时机切换导致状态错乱)。
             if (RtsModPresent)
             {
-                try { ParkPlayerAgent(mission, mission.MainAgent); } catch { }
                 if (Active && !_askedRtsMod)
                 {
-                    if (TryAskRtsModFreeCamera()) _askedRtsMod = true;
+                    _rtsWait += realDt;
+                    if (_rtsWait >= 2f && TryAskRtsModFreeCamera()) _askedRtsMod = true;
                 }
                 return;
             }
