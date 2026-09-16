@@ -174,6 +174,7 @@ namespace FeudalInternalAffairs
         private void OnTick(float dt)
         {
             CommandTimeout.Tick(dt);   // 指挥超时 -> 恢复 AI 自主
+            try { BattleCommand.TickPostBattleLeave(dt); } catch { }   // 战后自动离开结算菜单
             // 读档后恢复地图视角(等相机就绪)
             if (_pendingCamera != null && ApplyCameraState(_pendingCamera)) _pendingCamera = null;
             if (_setupDone)

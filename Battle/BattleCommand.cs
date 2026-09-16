@@ -298,10 +298,11 @@ namespace FeudalInternalAffairs
                 }
             }
             catch { }
-            _savedValid = false;
-            _commandingBattle = null;
-            InCommandBattle = false;
-            BattleRtsCamera.Reset();
+                _savedValid = false;
+                _commandingBattle = null;
+                InCommandBattle = false;
+                BattleRtsCamera.Reset();
+                _postBattleLeaveTimer = 1.5f;   // 战后自动离开结算菜单
             // 把暂时移出的兵还回去
             if (_savedRoster != null)
             {
@@ -348,6 +349,34 @@ namespace FeudalInternalAffairs
             {
                 DLog.Force("开战场失败: " + (ex.InnerException != null ? ex.InnerException.Message : ex.Message));
                 return false;
+            }
+        }
+
+        // 战后自动离开"战斗结算"菜单(俘虏敌人/离开 那个页面)。
+        // 玩家是国家意志, 不需要俘虏/战利品选择, 直接回地图。
+        private static float _postBattleLeaveTimer;
+
+        internal static void TickPostBattleLeave(float dt)
+        {
+            if (_postBattleLeaveTimer <= 0f) return;
+            _postBattleLeaveTimer -= dt;
+            if (_postBattleLeaveTimer > 0f) return;   // 等菜单稳定一下再走
+            _postBattleLeaveTimer = 0f;
+            try
+            {
+                var enc = PlayerEncounter.Current;
+                if (enc == null) return;
+                var helper = AccessTools.TypeByName("Helpers.MenuHelper");
+                var mi = helper != null ? AccessTools.Method(helper, "EncounterLeaveConsequence") : null;
+                if (mi != null)
+                {
+                    mi.Invoke(null, null);
+                    DLog.Force("战后: 已自动离开战斗结算菜单");
+                }
+            }
+            catch (Exception ex)
+            {
+                DLog.Force("战后自动离开失败: " + (ex.InnerException != null ? ex.InnerException.Message : ex.Message));
             }
         }
 
