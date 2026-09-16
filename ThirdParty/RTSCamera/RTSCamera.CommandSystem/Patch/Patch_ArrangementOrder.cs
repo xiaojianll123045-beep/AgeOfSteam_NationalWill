@@ -1,0 +1,120 @@
+﻿using HarmonyLib;
+using MissionSharedLibrary.Utilities;
+using RTSCamera.CommandSystem.Config;
+using System;
+using System.Reflection;
+using TaleWorlds.Engine;
+using TaleWorlds.MountAndBlade;
+
+namespace RTSCamera.CommandSystem.Patch
+{
+    public class Patch_ArrangementOrder
+    {
+        private static bool _patched;
+
+        public static bool Patch(Harmony harmony)
+        {
+            try
+            {
+                if (_patched)
+                    return false;
+                _patched = true;
+
+                // for resizable square formation
+                harmony.Patch(
+                    typeof(ArrangementOrder).GetMethod(nameof(ArrangementOrder.GetArrangement),
+                    BindingFlags.Instance | BindingFlags.Public),
+                    prefix: new HarmonyMethod(typeof(Patch_ArrangementOrder).GetMethod(
+                        nameof(Prefix_GetArrangement), BindingFlags.Static | BindingFlags.Public)));
+                harmony.Patch(
+                    typeof(ArrangementOrder).GetMethod(nameof(ArrangementOrder.OnApply),
+                    BindingFlags.Instance | BindingFlags.Public),
+                    prefix: new HarmonyMethod(typeof(Patch_ArrangementOrder).GetMethod(
+                        nameof(Prefix_OnApply), BindingFlags.Static | BindingFlags.Public)));
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                Utility.DisplayMessage(e.ToString());
+                MBDebug.Print(e.ToString());
+                return false;
+            }
+            return true;
+        }
+
+        public static bool Prefix_GetArrangement(Formation formation, ArrangementOrder __instance, ref IFormationArrangement __result)
+        {
+            if (__instance.OrderEnum == ArrangementOrder.ArrangementOrderEnum.Square && CommandSystemConfig.Get().HollowSquare)
+            {
+                bool shouldEnableHollowSquareFor = Utilities.Utility.ShouldEnableHollowSquareOrSolidCircleFormationFor(formation);
+                bool isSimuationFormation = formation.Team == null;
+                if (shouldEnableHollowSquareFor || isSimuationFormation)
+                {
+                    __result = new SquareFormation(formation);
+                    return false;
+                }
+            }
+            else if (__instance.OrderEnum == ArrangementOrder.ArrangementOrderEnum.Circle && CommandSystemConfig.Get().CircleFormationUnitSpacingPreference == CircleFormationUnitSpacingPreference.Minimum)
+            {
+               bool shouldEnableHollowSquareFor = Utilities.Utility.ShouldEnableHollowSquareOrSolidCircleFormationFor(formation);
+               bool isSimuationFormation = formation.Team == null;
+               if (shouldEnableHollowSquareFor || isSimuationFormation)
+               {
+                   __result = new CircularSchiltronFormation(formation);
+                   return false;
+               }
+            }
+            return true;
+        }
+
+        private static PropertyInfo _formOrder = AccessTools.Property(typeof(Formation), "FormOrder");
+        private static PropertyInfo _unitSpacing = AccessTools.Property(typeof(Formation), "UnitSpacing");
+
+        public static bool Prefix_OnApply(ArrangementOrder __instance, Formation formation)
+        {
+            var previousUnitSpacing = formation.UnitSpacing;
+            var newUnitSpacing = __instance.GetUnitSpacing();
+            if (Utilities.Utility.ShouldEnablePlayerOrderControllerPatchForFormation(formation) && formation.Arrangement.GetType() != Utilities.Utility.GetTypeOfArrangement(__instance.OrderEnum, Utilities.Utility.ShouldEnableHollowSquareOrSolidCircleFormationFor(formation)))
+            {
+                _formOrder.SetValue(formation, FormOrder.FormOrderCustom(Patch_OrderController.GetFormationVirtualWidth(formation) ?? formation.Width));
+                _unitSpacing.SetValue(formation, Patch_OrderController.GetFormationVirtualUnitSpacing(formation) ?? newUnitSpacing);
+            }
+            else
+            {
+                formation.SetPositioning(unitSpacing: newUnitSpacing);
+            }
+            __instance.Rearrange(formation);
+            if (__instance.OrderEnum == ArrangementOrder.ArrangementOrderEnum.Scatter)
+            {
+                __instance.TickOccasionally(formation);
+                formation.ResetArrangementOrderTickTimer();
+            }
+            ArrangementOrder.ArrangementOrderEnum orderEnum = __instance.OrderEnum;
+            formation.ApplyActionOnEachUnit((Action<Agent>)(agent =>
+            {
+                if (agent.IsAIControlled)
+                {
+                    Agent.UsageDirection shieldDirectionOfUnit = ArrangementOrder.GetShieldDirectionOfUnit(formation, agent, orderEnum);
+                    agent.EnforceShieldUsage(shieldDirectionOfUnit);
+                }
+                agent.UpdateAgentProperties();
+                MovementOrder movementOrder1 = formation.GetReadonlyMovementOrderReference();
+                MovementOrder.MovementOrderEnum movementOrder2 = movementOrder1.OrderEnum;
+                switch (movementOrder2)
+                {
+                    case MovementOrder.MovementOrderEnum.Charge:
+                    case MovementOrder.MovementOrderEnum.ChargeToTarget:
+                        if (movementOrder1.GetPosition(formation).IsValid)
+                        {
+                            movementOrder2 = MovementOrder.MovementOrderEnum.Move;
+                            break;
+                        }
+                        break;
+                }
+                agent.RefreshBehaviorValues(movementOrder2, orderEnum);
+            }));
+            return false;
+        }
+    }
+}

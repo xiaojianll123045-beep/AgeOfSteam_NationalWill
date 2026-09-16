@@ -27,17 +27,12 @@
 ## 安装
 
 1. 需要游戏版本 **v1.4.8**，以及前置 mod：**Bannerlord.Harmony**、**Bannerlord.UIExtenderEx**
-2. 把下面三个模块文件夹一起放进 `Mount & Blade II Bannerlord\Modules\`：
-   - `FeudalInternalAffairs` —— 本 mod
-   - `_bundled\RTSCamera` —— 战场自由相机（MIT，作者 lzh / lizhenhuan）
-   - `_bundled\RTSCamera.CommandSystem` —— RTS 命令系统（同上）
-
-   > 已经单独安装过 RTS Camera 的，跳过后两个即可。
-3. 启动器里勾选 **内政扩展（国家意志）**（以及 RTSCamera / RTSCamera.CommandSystem）
+2. 把 `FeudalInternalAffairs` 模块文件夹放进
+   `Mount & Blade II Bannerlord\Modules\`（**只需这一个文件夹**，RTS Camera 已内置）
+3. 启动器里勾选 **内政扩展（国家意志）**
 
 进战场后按 **F10** 切换上帝视角：WASD 平移、鼠标转视角、Q/E（或滚轮）升降、Shift 加速。
-
-> 若检测到已安装 RTS Camera，本 mod 会**自动让位**：不接管战场相机与玩家角色处理，避免双方争抢同一个相机。
+点"亲自指挥"进入的战斗会在开场后自动切到该视角。
 
 ## 从源码编译
 
@@ -71,7 +66,7 @@ dotnet build FeudalInternalAffairs.csproj -c Release -p:GameModulesDir="你的�
 
 ## 致谢
 
-- 战场自由相机与命令系统来自 [RTS Camera](https://github.com/lzh-mb-mod/RTSCamera)（MIT，Copyright (c) 2020 Li Zhenhuan / lizhenhuan1019@qq.com），以 `_bundled` 形式随本 mod 分发；源码改动仅限构建配置（游戏路径）。
+- 战场自由相机与命令系统来自 [RTS Camera](https://github.com/lzh-mb-mod/RTSCamera) 与 [MissionLibrary](https://github.com/lzh-mb-mod/MissionLibrary)（MIT，Copyright (c) 2020 Li Zhenhuan / lizhenhuan1019@qq.com）。其**源码已并入本项目** `ThirdParty/RTSCamera/`（随附 MIT LICENSE），仅做了两处适配：改为编译进本模块程序集、补了一个缺失的反射扩展方法。
 - 依赖 Bannerlord.Harmony、Bannerlord.UIExtenderEx。
 - 如原作者对署名方式有额外要求，或希望调整、停止再分发，请联系我们（见上方「联系」），我们会立即配合修改或下架。
 

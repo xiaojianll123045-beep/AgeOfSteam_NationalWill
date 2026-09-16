@@ -40,8 +40,8 @@ namespace FeudalInternalAffairs
 
         private static bool? _rtsModPresent;
 
-        // 检测玩家是否装了(或我们的发布包里自带)RTS Camera:
-        // 装了的话, 相机/角色处理全部让位给原 mod, 我们自己一点都不接管(避免两边抢相机)。
+        // RTS Camera 是否在场: 现在他们的源码已并入我们的程序集(ThirdParty/RTSCamera),
+        // 所以这里主要靠"类型是否存在"判断; 另外也兼容外部单独安装 RTS Camera 的情况。
         internal static bool RtsModPresent
         {
             get
@@ -49,16 +49,22 @@ namespace FeudalInternalAffairs
                 if (_rtsModPresent == null)
                 {
                     bool found = false;
-                    try
+                    // 1) 源码合并进来的(编译在我们的程序集里)
+                    try { found = AccessTools.TypeByName("RTSCamera.Logic.RTSCameraLogic") != null; } catch { }
+                    // 2) 外部单独安装的 RTS Camera
+                    if (!found)
                     {
-                        var basePath = TaleWorlds.Library.BasePath.Name;
-                        if (!string.IsNullOrEmpty(basePath))
+                        try
                         {
-                            found = System.IO.File.Exists(System.IO.Path.Combine(basePath, "Modules", "RTSCamera", "SubModule.xml"))
-                                 || System.IO.File.Exists(System.IO.Path.Combine(basePath, "Modules", "RTSCamera.CommandSystem", "SubModule.xml"));
+                            var basePath = TaleWorlds.Library.BasePath.Name;
+                            if (!string.IsNullOrEmpty(basePath))
+                            {
+                                found = System.IO.File.Exists(System.IO.Path.Combine(basePath, "Modules", "RTSCamera", "SubModule.xml"))
+                                     || System.IO.File.Exists(System.IO.Path.Combine(basePath, "Modules", "RTSCamera.CommandSystem", "SubModule.xml"));
+                            }
                         }
+                        catch { }
                     }
-                    catch { }
                     if (!found)
                     {
                         try
@@ -72,7 +78,7 @@ namespace FeudalInternalAffairs
                         catch { }
                     }
                     _rtsModPresent = found;
-                    if (found) DLog.Force("检测到 RTS Camera mod: 我们的战场相机/角色处理全部让位(不接管)");
+                    if (found) DLog.Force("RTS Camera 在场: 我们的战场相机/角色处理让位(不接管)");
                 }
                 return _rtsModPresent.Value;
             }

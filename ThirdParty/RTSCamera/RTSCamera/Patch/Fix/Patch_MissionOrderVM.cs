@@ -1,0 +1,284 @@
+﻿using HarmonyLib;
+using MissionSharedLibrary.Utilities;
+using RTSCamera.Config;
+using RTSCamera.Logic;
+using RTSCamera.View;
+using System;
+using System.Linq;
+using System.Reflection;
+using TaleWorlds.Core;
+using TaleWorlds.Engine;
+using TaleWorlds.Library;
+using TaleWorlds.Localization;
+using TaleWorlds.MountAndBlade;
+using TaleWorlds.MountAndBlade.View.MissionViews.Order;
+using TaleWorlds.MountAndBlade.ViewModelCollection.Order;
+using TaleWorlds.MountAndBlade.ViewModelCollection.Order.Visual;
+
+namespace RTSCamera.Patch.Fix
+{
+    public class Patch_MissionOrderVM
+    {
+
+        public static bool AllowEscape = true;
+        public static bool AllowClosingOrderUI = false;
+        public static bool HasBeenClosedInThisTick = false;
+        public static bool UpdateOrderUIOnOrderExecutedHasBeenCalled = false;
+
+        private static bool _patched;
+        public static bool Patch(Harmony harmony)
+        {
+            try
+            {
+                if (_patched)
+                    return false;
+                _patched = true;
+
+                harmony.Patch(
+                    typeof(MissionOrderVM).GetMethod("CheckCanBeOpened",
+                        BindingFlags.NonPublic | BindingFlags.Instance),
+                    new HarmonyMethod(typeof(Patch_MissionOrderVM).GetMethod(
+                        nameof(Prefix_CheckCanBeOpened), BindingFlags.Static | BindingFlags.Public)));
+                //harmony.Patch(
+                //    typeof(MissionOrderVM).GetMethod("AfterInitialize", BindingFlags.Instance | BindingFlags.Public),
+                //    postfix: new HarmonyMethod(typeof(Patch_MissionOrderVM).GetMethod(nameof(Postfix_AfterInitialize),
+                //        BindingFlags.Static | BindingFlags.Public)));
+                harmony.Patch(
+                    typeof(MissionOrderVM).GetMethod(nameof(MissionOrderVM.OnEscape),
+                        BindingFlags.Instance | BindingFlags.Public),
+                    prefix: new HarmonyMethod(typeof(Patch_MissionOrderVM).GetMethod(nameof(Prefix_OnEscape),
+                        BindingFlags.Static | BindingFlags.Public)));
+                harmony.Patch(
+                    typeof(MissionOrderVM).GetMethod("OnOrderExecuted",
+                        BindingFlags.Instance | BindingFlags.Public),
+                    postfix: new HarmonyMethod(typeof(Patch_MissionOrderVM).GetMethod(nameof(Postfix_OnOrderExecuted),
+                        BindingFlags.Static | BindingFlags.Public)));
+                harmony.Patch(
+                    typeof(MissionOrderVM).GetMethod("OnTransferFinished",
+                        BindingFlags.Instance | BindingFlags.NonPublic),
+                    postfix: new HarmonyMethod(typeof(Patch_MissionOrderVM).GetMethod(nameof(Postfix_OnTransferFinished),
+                        BindingFlags.Static | BindingFlags.Public)));
+                harmony.Patch(
+                    typeof(MissionOrderVM).GetMethod("TryCloseToggleOrder",
+                        BindingFlags.Instance | BindingFlags.Public),
+                    prefix: new HarmonyMethod(typeof(Patch_MissionOrderVM).GetMethod(nameof(Prefix_TryCloseToggleOrder),
+                        BindingFlags.Static | BindingFlags.Public)));
+                return true;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                Utility.DisplayMessage(e.ToString());
+                MBDebug.Print(e.ToString());
+                return false;
+            }
+        }
+
+        public static bool Prefix_CheckCanBeOpened(MissionOrderVM __instance, bool displayMessage, ref bool __result)
+        {
+            // Free camera intentionally permits the order UI while the AI controls MainAgent and while the mission is ending.
+            if (Agent.Main != null && !Agent.Main.IsPlayerControlled && Mission.Current
+                .GetMissionBehavior<RTSCameraLogic>()?.SwitchFreeCameraLogic.IsSpectatorCamera == true)
+            {
+                __result = __instance.Team.HasBots && __instance.PlayerHasAnyTroopUnderThem &&
+                           (__instance.Team.IsPlayerGeneral || __instance.Team.IsPlayerSergeant);
+                if (!__result && displayMessage)
+                {
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        new TextObject("{=DQvGNQ0g}There isn't any unit under command.").ToString()));
+                }
+                return false;
+            }
+
+            return true;
+        }
+
+        //public static void Postfix_AfterInitialize(MissionOrderVM __instance)
+        //{
+        //    LastSelectedOrderSetType.SetValue(__instance, (object)OrderSetType.None);
+        //    AllowEscape = true;
+        //}
+
+        public static bool Prefix_OnEscape(MissionOrderVM __instance)
+        {
+            AllowClosingOrderUI = AllowEscape;
+            // Do nothing during draging camera using right mouse button.
+            return AllowEscape;
+            //if (!AllowEscape)
+            //    return false;
+            //if (!__instance.IsToggleOrderShown)
+            //    return false;
+            //if (____currentActivationType == MissionOrderVM.ActivationType.Hold)
+            //{
+            //    if (__instance.LastSelectedOrderItem == null)
+            //        return false;
+            //    UpdateTitleOrdersKeyVisualVisibility.Invoke(__instance, null);
+            //    ___OrderSetsWithOrdersByType[__instance.LastSelectedOrderSetType].ShowOrders = false;
+            //    LastSelectedOrderItem.SetValue(__instance, null);
+            //}
+            //else
+            //{
+            //    if (____currentActivationType != MissionOrderVM.ActivationType.Click)
+            //        return false;
+            //    LastSelectedOrderItem.SetValue(__instance, null);
+            //    if (__instance.LastSelectedOrderSetType != OrderSetType.None)
+            //    {
+            //        ___OrderSetsWithOrdersByType[__instance.LastSelectedOrderSetType].ShowOrders = false;
+            //        __instance.LastSelectedOrderSetType = OrderSetType.None;
+            //        UpdateTitleOrdersKeyVisualVisibility.Invoke(__instance, null);
+            //    }
+            //    else
+            //    {
+            //        __instance.LastSelectedOrderSetType = OrderSetType.None;
+            //        __instance.TryCloseToggleOrder();
+            //    }
+            //}
+            //return false;
+        }
+
+        private static PropertyInfo _displayOrderMessageForLastOrder = AccessTools.Property(typeof(MissionOrderVM), "DisplayedOrderMessageForLastOrder");
+        private static MethodInfo _Reset_OrderTrropPlacer = typeof(OrderTroopPlacer).GetMethod("Reset", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        public static bool ShouldKeepOpen()
+        {
+            return RTSCameraLogic.Instance?.SwitchFreeCameraLogic.IsSpectatorCamera == true &&
+                RTSCameraLogic.Instance?.SwitchFreeCameraLogic.ShouldKeepOrderUIOpen == true &&
+                RTSCameraConfig.Get().KeepOrderUIOpenInFreeCamera ||
+                FlyCameraMissionView.Instance?.ElevatedCameraSubView.IsElevatedCameraNoticable == true && RTSCameraConfig.Get().KeepOrderUIOpenInElevatedCamera;
+        }
+
+        public static void UpdateOrderUIOnOrderExecuted(MissionOrderVM __instance)
+        {
+            // Close UI if needed
+            bool shouldKeepOpen = ShouldKeepOpen() || Mission.Current.Mode == TaleWorlds.Core.MissionMode.Deployment || __instance.TroopController.IsTransferActive;
+            
+            if (!UpdateOrderUIOnOrderExecutedHasBeenCalled)
+            {
+                UpdateOrderUIOnOrderExecutedHasBeenCalled = true;
+                if (shouldKeepOpen)
+                {
+                    if (!__instance.TroopController.IsTransferActive)
+                    {
+                        var displayedOrderMessageForLastOrder = __instance.DisplayedOrderMessageForLastOrder;
+                        TryCloseToggleOrder(__instance);
+                        Patch_MissionOrderVM.OpenToggleOrder(__instance, false);
+                        _displayOrderMessageForLastOrder.SetValue(__instance, displayedOrderMessageForLastOrder);
+                    }
+                }
+                else
+                {
+                    var displayedOrderMessageForLastOrder = __instance.DisplayedOrderMessageForLastOrder;
+                    TryCloseToggleOrder(__instance);
+                    _displayOrderMessageForLastOrder.SetValue(__instance, displayedOrderMessageForLastOrder);
+                }
+            }
+
+            var orderTroopPlacer = Mission.Current.GetMissionBehavior<OrderTroopPlacer>();
+            if (orderTroopPlacer != null)
+            {
+                _Reset_OrderTrropPlacer.Invoke(orderTroopPlacer, null);
+            }
+        }
+
+        public static void Postfix_OnOrderExecuted(MissionOrderVM __instance, OrderItemVM orderItem)
+        {
+            UpdateOrderUIOnOrderExecuted(__instance);
+        }
+
+        public static void Postfix_OnTransferFinished(MissionOrderVM __instance)
+        {
+            // Keep orders UI open after transfer finished in free camera mode.
+            //if (RTSCameraLogic.Instance?.SwitchFreeCameraLogic.IsSpectatorCamera == true && RTSCameraConfig.Get().KeepOrderUIOpenInFreeCamera ||
+            //    RTSCameraLogic.Instance?.ElevatedCameraLogic.IsElevatedCameraEnabled == true && RTSCameraConfig.Get().KeepOrderUIOpenInElevatedCamera)
+            if (ShouldKeepOpen())
+            {
+                // Close and open again, to fix the issue that MissionGauntletSingleplayerOrderUIHandler.OnTransferFinished may disable it's scene layer.
+                // and cause Command System not highlighting the original formation.
+
+                // force order UI being closed.
+                HasBeenClosedInThisTick = false;
+                Patch_MissionOrderVM.TryCloseToggleOrder(__instance);
+                Patch_MissionOrderVM.OpenToggleOrder(__instance, false);
+            }
+        }
+
+        private static MethodInfo _OnOrderShownToggle = typeof(MissionOrderVM).GetMethod("OnOrderShownToggle", BindingFlags.Instance | BindingFlags.NonPublic);
+
+        public static bool Prefix_TryCloseToggleOrder(MissionOrderVM __instance, bool applySelectedOrders, ref bool __result, MissionOrderCallbacks ____callbacks)
+        {
+            // Since Bannerlord v1.3.x, there're several places that calls TryCloseToggleOrder:
+            // 1. MissionOrderTroopControllerVM.OrderController_OnTroopOrderIssued
+            // 2. GauntletOrderUIHandler.TickInput
+            // It's difficult to implement "Keep Order UI Open" by opening the UI after being closed.
+            // and there's performance issue.
+            // So it's implemented in this way:
+            // Prevent the order UI from being closed in certain condition, and only close once when needed.
+            // For example, when giving Activate facing order by hotkey with alt key pressed in RTS Command,
+            // GauntletOrderUIHandler.TickInput will close toggle order but RTS Command doesn't hope so.
+            if (__instance.IsToggleOrderShown)
+            {
+                bool shouldKeepOpen = RTSCameraLogic.Instance?.SwitchFreeCameraLogic.IsSpectatorCamera == true && RTSCameraLogic.Instance?.SwitchFreeCameraLogic.ShouldKeepOrderUIOpen == true && RTSCameraConfig.Get().KeepOrderUIOpenInFreeCamera;
+                //bool shouldKeepOpen = !AllowClosingOrderUI;
+                if (AllowClosingOrderUI)
+                {
+                    AllowClosingOrderUI = false;
+                    shouldKeepOpen = false;
+                }
+                if (!shouldKeepOpen && !HasBeenClosedInThisTick)
+                {
+#if DEBUG
+                    Utility.DisplayMessage("order ui closed");
+#endif
+                    HasBeenClosedInThisTick = true;
+                    return true;
+                }
+
+                if (applySelectedOrders && __instance.SelectedOrderSet != null)
+                {
+                    OrderItemVM orderItemVm = __instance.SelectedOrderSet.Orders.FirstOrDefault(o => o.IsSelected);
+                    if (orderItemVm != null && ____callbacks.GetVisualOrderExecutionParameters != null)
+                    {
+                        VisualOrderExecutionParameters executionParameters = ____callbacks.GetVisualOrderExecutionParameters();
+                        orderItemVm.ExecuteAction(executionParameters);
+                    }
+                }
+                //__instance.SelectedOrderSet?.ExecuteDeSelect();
+                //__instance.IsToggleOrderShown = false;
+                //_displayOrderMessageForLastOrder.SetValue(__instance, false);
+                //_OnOrderShownToggle.Invoke(__instance, new object[] { });
+                //if (!__instance.IsDeployment)
+                //{
+                //    __instance.InputRestrictions.ResetInputRestrictions();
+                //    __result = true;
+                //    return false;
+                //}
+                __result = false;
+                return false;
+            }
+            __result = false;
+            return false;
+        }
+
+        public static bool TryCloseToggleOrder(MissionOrderVM __instance, bool applySelectedOrders = false)
+        {
+            AllowClosingOrderUI = true;
+            bool result = __instance?.TryCloseToggleOrder(applySelectedOrders) ?? false;
+            AllowClosingOrderUI = false;
+            return result;
+        }
+
+        public static void OpenToggleOrder(MissionOrderVM __instance, bool fromHold, bool displayMessage = true)
+        {
+            __instance?.OpenToggleOrder(fromHold, displayMessage);
+        }
+
+
+        // Called every tick so that the order UI can be closed only once per tick.
+        public static void TickIsFirstCallToUpdateOrderUIOnOrderExecuted()
+        {
+            //Patch_MissionOrderVM.AllowClosingOrderUI = true;
+            Patch_MissionOrderVM.HasBeenClosedInThisTick = false;
+            Patch_MissionOrderVM.UpdateOrderUIOnOrderExecutedHasBeenCalled = false;
+        }
+    }
+}

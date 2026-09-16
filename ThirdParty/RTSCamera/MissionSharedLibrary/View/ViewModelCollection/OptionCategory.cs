@@ -1,0 +1,94 @@
+﻿using MissionLibrary.View;
+using MissionSharedLibrary.View.ViewModelCollection.Basic;
+using MissionSharedLibrary.View.ViewModelCollection.Options;
+using System;
+using System.Collections.Generic;
+using TaleWorlds.Library;
+using TaleWorlds.Localization;
+
+namespace MissionSharedLibrary.View.ViewModelCollection
+{
+    public class OptionCategory : ViewModel, IOptionCategory
+    {
+        private readonly List<IOption> _options = new List<IOption>();
+        private MBBindingList<ViewModel> _optionViewModels;
+        private bool _isTargetVisible = true;
+        private Func<bool> _isVisible;
+        private Action<bool> _onVisibleChanged;
+
+        public string Id { get; }
+
+        public TextViewModel Title { get; }
+
+        [DataSourceProperty]
+        public bool IsTargetVisible
+        {
+            get => _isTargetVisible;
+            set
+            {
+                if (_isTargetVisible == value)
+                    return;
+                _isTargetVisible = value;
+                OnPropertyChanged(nameof(IsTargetVisible));
+                _onVisibleChanged(IsTargetVisible);
+            }
+        }
+
+        [DataSourceProperty]
+        public MBBindingList<ViewModel> OptionViewModels
+        {
+            get => _optionViewModels;
+            set
+            {
+                if (_optionViewModels == value)
+                    return;
+                _optionViewModels = value;
+                OnPropertyChanged(nameof(OptionViewModels));
+            }
+        }
+
+        public OptionCategory(string id, TextObject title, Func<bool> isVisible, Action<bool> onVisibleChanged)
+        {
+            Id = id;
+            Title = new TextViewModel(title);
+            OptionViewModels = new MBBindingList<ViewModel>();
+            _onVisibleChanged = onVisibleChanged;
+            _isVisible = isVisible;
+        }
+
+        public void AddOption(IOption option)
+        {
+            _options.Add(option);
+            OptionViewModels.Add(option.GetViewModel());
+        }
+
+        public override void RefreshValues()
+        {
+            base.RefreshValues();
+
+            var isVisible = _isVisible();
+            IsTargetVisible = isVisible;
+
+            foreach (var optionViewModel in OptionViewModels)
+            {
+                optionViewModel.RefreshValues();
+            }
+        }
+
+        public void UpdateAllOptions()
+        {
+            foreach (var viewModel in OptionViewModels)
+            {
+                if (viewModel is OptionViewModel optionViewModel)
+                {
+                    optionViewModel.UpdateData(false);
+                }
+            }
+        }
+
+        public ViewModel GetViewModel()
+        {
+            return this;
+        }
+    }
+}

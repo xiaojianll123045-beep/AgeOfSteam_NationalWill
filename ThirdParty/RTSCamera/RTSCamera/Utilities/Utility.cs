@@ -1,0 +1,446 @@
+﻿using HarmonyLib;
+using RTSCamera.CampaignGame.Behavior;
+using RTSCamera.Config;
+using RTSCamera.Config.HotKey;
+using RTSCamera.View;
+using SandBox.Missions.MissionLogics.Arena;
+using System;
+using System.Linq;
+using System.Reflection;
+using TaleWorlds.Core;
+using TaleWorlds.Library;
+using TaleWorlds.MountAndBlade;
+using TaleWorlds.MountAndBlade.GauntletUI.Mission.Singleplayer;
+using TaleWorlds.MountAndBlade.View.MissionViews;
+
+namespace RTSCamera.Utilities
+{
+    public class Utility
+    {
+        public static void PrintUsageHint()
+        {
+            var keyName = RTSCameraGameKeyCategory.GetKey(GameKeyEnum.FreeCamera).ToSequenceString();
+            var hint = TaleWorlds.MountAndBlade.Module.CurrentModule.GlobalTextManager.FindText("str_rts_camera_switch_camera_hint").SetTextVariable("KeyName", keyName).ToString();
+            MissionSharedLibrary.Utilities.Utility.DisplayMessage(hint);
+        }
+
+        public static void PrintOrderHint()
+        {
+            var hint = GameTexts.FindText("str_rts_camera_focus_on_formation_hint");
+            hint.SetTextVariable("KeyName", RTSCameraGameKeyCategory.GetKey(GameKeyEnum.ControlTroop).ToSequenceString());
+            MissionSharedLibrary.Utilities.Utility.DisplayMessage(hint.ToString());
+        }
+
+        public static void PrintHelmsmanWarning()
+        {
+            MissionSharedLibrary.Utilities.Utility.DisplayMessage("RTS Camera: Helmsman detected. Will disable soldier control command in RTS.", new Color(1, 0, 0));
+        }
+
+
+        public static void UpdateMainAgentControllerInFreeCamera(Agent agent, AgentControllerType controller)
+        {
+            switch (controller)
+            {
+                case AgentControllerType.None:
+                    MissionSharedLibrary.Utilities.Utility.PlayerControlAgent(agent);
+                    agent.LookDirection = agent.GetMovementDirection().ToVec3();
+                    break;
+                case AgentControllerType.AI:
+                    MissionSharedLibrary.Utilities.Utility.AIControlMainAgent(
+                        Mission.Current.Mode != MissionMode.StartUp &&
+                        Mission.Current.Mode != MissionMode.Conversation &&
+                        (!MissionSharedLibrary.Utilities.Utility.IsStealthMission() || Mission.Current.Mode != MissionMode.Stealth) &&
+                        Mission.Current.Mode != MissionMode.Barter &&
+                        Mission.Current.Mode != MissionMode.Deployment &&
+                        Mission.Current.Mode != MissionMode.Replay, true);
+                    break;
+                case AgentControllerType.Player:
+                    MissionSharedLibrary.Utilities.Utility.PlayerControlAgent(agent);
+                    break;
+            }
+        }
+
+        public static void UpdateMainAgentControllerState(Agent agent, bool isSpectatorCamera, AgentControllerType playerControllerInFreeCamera, bool force = false)
+        {
+            var controller = Mission.Current.GetMissionBehavior<MissionMainAgentController>();
+            if (controller != null)
+            {
+                if ((agent.Controller == AgentControllerType.Player || force) &&
+                    (!isSpectatorCamera ||
+                     playerControllerInFreeCamera == AgentControllerType.Player))
+                {
+                    controller.CustomLookDir = isSpectatorCamera ? agent.LookDirection : Vec3.Zero;
+                    controller.Enable();
+                    if (agent.IsCameraAttachable())
+                    {
+                        controller.IsDisabled = false;
+                    }
+                }
+                else
+                {
+                    controller.CustomLookDir = Vec3.Zero;
+                    controller.Disable();
+                    controller.InteractionComponent.ClearFocus();
+                }
+            }
+        }
+
+        public static bool IsArenaCombat(Mission mission)
+        {
+            foreach (var missionLogic in mission.MissionLogics)
+            {
+                if (missionLogic is ArenaAgentStateDeciderLogic)
+                    return true;
+            }
+
+            return false;
+        }
+
+        public static bool IsBattleCombat(Mission mission)
+        {
+            return mission.Mode == MissionMode.Battle && mission.CombatType == Mission.MissionCombatType.Combat &&
+                   !IsArenaCombat(mission);
+        }
+
+        public static void FastForwardInHideout(Mission mission)
+        {
+            mission.SetFastForwardingFromUI(true);
+            MissionSharedLibrary.Utilities.Utility.DisplayLocalizedText("str_rts_camera_fast_forward_hideout_hint");
+            var formationToFollow = mission.MainAgent?.Formation ?? mission.PlayerTeam.FormationsIncludingSpecialAndEmpty?.FirstOrDefault(f => f.CountOfUnits > 0);
+            if (formationToFollow != null)
+            {
+                FlyCameraMissionView.Instance?.FocusOnFormation(formationToFollow);
+            }
+            foreach (var formation in mission.PlayerTeam.FormationsIncludingSpecialAndEmpty)
+            {
+                if (formation.CountOfUnits > 0)
+                {
+                    formation.SetMovementOrder(MovementOrder.MovementOrderCharge);
+                    formation.SetFiringOrder(FiringOrder.FiringOrderFireAtWill);
+                }
+            }
+        }
+
+        public static MissionObject GetShip(MissionBehavior navalShipLogic, TeamSideEnum teamSide, FormationClass formationClass)
+        {
+            var getShipAssignmentMethod = AccessTools.Method(navalShipLogic.GetType(), "GetShipAssignment");
+            var shipAssignment = getShipAssignmentMethod.Invoke(navalShipLogic, new object[] { teamSide, formationClass });
+
+            var missionShipProperty = AccessTools.Property(shipAssignment.GetType(), "MissionShip");
+            var missionShip = (MissionObject)missionShipProperty.GetValue(shipAssignment);
+            return missionShip;
+        }
+
+        private static PropertyInfo _shipControllerMachine;
+
+        public static UsableMachine GetShipControllerMachine(MissionObject ship)
+        {
+            _shipControllerMachine ??= AccessTools.Property("NavalDLC.Missions.Objects.MissionShip:ShipControllerMachine");
+            return (UsableMachine)_shipControllerMachine.GetValue(ship);
+        }
+        public static bool IsShipPilotByPlayer(MissionObject missionShip)
+        {
+            var shipControllerMachine = GetShipControllerMachine(missionShip);
+
+            var pilotAgent = shipControllerMachine.PilotAgent;
+            return pilotAgent != null && pilotAgent.IsPlayerControlled;
+        }
+
+        private static PropertyInfo _playerControlledShip;
+
+        public static MissionObject GetPlayerControlledShip(Mission mission)
+        {
+            var navalShipsLogic = MissionSharedLibrary.Utilities.Utility.GetNavalShipsLogic(mission);
+            _playerControlledShip ??= AccessTools.Property("NavalDLC.Missions.MissionLogics.NavalShipsLogic:PlayerControlledShip");
+            return (MissionObject)_playerControlledShip.GetValue(navalShipsLogic);
+        }
+
+        private static PropertyInfo _formation;
+
+        public static Formation GetShipFormation(MissionObject playerShip)
+        {
+            _formation ??= AccessTools.Property("NavalDLC.Missions.Objects.MissionShip:Formation");
+            return (Formation)_formation.GetValue(playerShip);
+        }
+
+        public static bool ShouldAddToggleShipOrderOrder()
+        {
+            if (Agent.Main == null)
+                return false;
+            //var playerControlledShip = GetPlayerControlledShip(Mission.Current);
+            //var playerControlledShipFormation = playerControlledShip == null ? null : GetShipFormation(playerControlledShip);
+            var selectedFormations = Mission.Current.PlayerTeam.PlayerOrderController.SelectedFormations;
+            foreach (var formation in selectedFormations)
+            {
+                // add the command even when player is piloting the ship.
+                //if (formation == playerControlledShipFormation && Agent.Main.IsPlayerControlled)
+                //{
+                //    return false;
+                //}
+                if (formation == Agent.Main.Formation && !CommandBattleBehavior.CommandMode && !(RTSCameraSubModule.IsHelmsmanInstalled && formation.FormationIndex == FormationClass.Infantry))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public static bool IsPlayerPilotingSelectedShip()
+        {
+            if (Agent.Main == null)
+                return false;
+            var playerControlledShip = GetPlayerControlledShip(Mission.Current);
+            var playerControlledShipFormation = playerControlledShip == null ? null : GetShipFormation(playerControlledShip);
+            if (playerControlledShipFormation == null)
+                return false;
+            var selectedFormations = Mission.Current.PlayerTeam.PlayerOrderController.SelectedFormations;
+            foreach (var formation in selectedFormations)
+            {
+                if (formation == playerControlledShipFormation)
+                {
+                    return Agent.Main.IsPlayerControlled;
+                }
+            }
+            return false;
+        }
+
+        public static MissionObject GetPlayerShip(Mission mission)
+        {
+            if (Agent.Main == null || Agent.Main.Formation == null)
+                return null;
+            var navalShipsLogic = MissionSharedLibrary.Utilities.Utility.GetNavalShipsLogic(mission);
+            if (navalShipsLogic == null)
+                return null;
+            return GetShip(navalShipsLogic, TeamSideEnum.PlayerTeam, Agent.Main.Formation.FormationIndex);
+        }
+
+        public enum ShipControllerType
+        {
+            None,
+            AI,
+            Player,
+        }
+
+        private static PropertyInfo _isAIControlled;
+
+        public static bool IsShipAIControlled(MissionObject ship)
+        {
+            _isAIControlled ??= AccessTools.Property("NavalDLC.Missions.Objects.MissionShip:IsAIControlled");
+            return (bool)_isAIControlled.GetValue(ship);
+        }
+
+        private static PropertyInfo _isPlayerControlled;
+
+        public static bool IsShipPlayerControlled(MissionObject ship)
+        {
+            _isPlayerControlled ??= AccessTools.Property("NavalDLC.Missions.Objects.MissionShip:IsPlayerControlled");
+            return (bool)_isPlayerControlled.GetValue(ship);
+        }
+
+        private static PropertyInfo _isPlayerShip;
+
+        public static bool IsPlayerShip(MissionObject ship)
+        {
+            _isPlayerShip ??= AccessTools.Property("NavalDLC.Missions.Objects.MissionShip:IsPlayerShip");
+            return (bool)_isPlayerShip.GetValue(ship);
+        }
+
+        public static MissionObject GetAgentSteppedShip(Agent agent)
+        {
+            var component = GetAgentComponent(agent, AccessTools.TypeByName("NavalDLC.Missions.AgentNavalComponent")) as AgentComponent;
+            if (component == null)
+                return null;
+            return AccessTools.Property(component.GetType(), "SteppedShip").GetValue(component) as MissionObject;
+
+        }
+
+        public static void CancelAIPilotPlayerShip(Mission mission)
+        {
+            var playerShip = GetPlayerShip(mission);
+
+            var captain = GetShipFormation(playerShip).Captain;
+            var shipControllerMachine = GetShipControllerMachine(playerShip);
+            if (shipControllerMachine.PilotAgent != null && shipControllerMachine.PilotAgent.IsAIControlled && shipControllerMachine.PilotAgent != captain)
+            {
+                shipControllerMachine.PilotAgent.StopUsingGameObjectMT(flags: Agent.StopUsingGameObjectFlags.AutoAttachAfterStoppingUsingGameObject | Agent.StopUsingGameObjectFlags.DoNotWieldWeaponAfterStoppingUsingGameObject);
+            }
+            if (shipControllerMachine.PilotStandingPoint.MovingAgent != null && shipControllerMachine.PilotStandingPoint.MovingAgent.IsAIControlled && shipControllerMachine.PilotStandingPoint.MovingAgent != captain)
+            {
+                shipControllerMachine.PilotStandingPoint.MovingAgent.StopUsingGameObjectMT(flags: Agent.StopUsingGameObjectFlags.AutoAttachAfterStoppingUsingGameObject | Agent.StopUsingGameObjectFlags.DoNotWieldWeaponAfterStoppingUsingGameObject);
+            }
+        }
+
+        private static FieldInfo _components = AccessTools.Field("TaleWorlds.MountAndBlade.Agent:_components");
+
+        public static AgentComponent GetAgentComponent(Agent agent, Type componentType)
+        {
+            var components = (MBList<AgentComponent>)_components.GetValue(agent);
+            for (int index = 0; index < components.Count; ++index)
+            {
+                if (componentType.IsAssignableFrom(components[index].GetType()))
+                {
+                    return components[index];
+                }
+            }
+            return null;
+        }
+
+        public static void TryToSetPlayerFormationClass(FormationClass formationClass)
+        {
+            if (Mission.Current.IsNavalBattle || Mission.Current.IsNavalRaidBattle)
+            {
+                var navalShipLogic = MissionSharedLibrary.Utilities.Utility.GetNavalShipsLogic(Mission.Current);
+                if (navalShipLogic == null)
+                    return;
+                var ship = GetShip(navalShipLogic, TeamSideEnum.PlayerTeam, formationClass);
+                if (ship == null)
+                    return;
+            }
+
+#if DEBUG
+            MissionSharedLibrary.Utilities.Utility.DisplayMessage($"Setting player formation to {formationClass}");
+#endif
+            MissionSharedLibrary.Utilities.Utility.SetPlayerFormationClass(formationClass);
+        }
+
+        public static PlayerShipController GetPlayerShipControllerInFreeCamera()
+        {
+            if (CommandBattleBehavior.CommandMode)
+                return PlayerShipController.AI;
+            return RTSCameraConfig.Get().PlayerShipControllerInFreeCamera;
+        }
+
+        private static MethodInfo _setIsFormationTargetingDisabled;
+        private static FieldInfo _formationTargetHandler;
+        private static Type _navalOrderUIHandlerType;
+        private static FieldInfo _shipTargetHandler;
+
+        public static void SetOrderTargetDisabled(bool isDisabled)
+        {
+            if (!Mission.Current.IsNavalBattle)
+                return;
+            var orderUIHandler = Mission.Current.GetMissionBehavior<MissionGauntletSingleplayerOrderUIHandler>();
+            if (orderUIHandler != null)
+            {
+                _formationTargetHandler ??= AccessTools.Field("TaleWorlds.MountAndBlade.GauntletUI.GauntletOrderUIHandler:_formationTargetHandler");
+                MissionFormationTargetSelectionHandler formationTargetSelectionHandler = (MissionFormationTargetSelectionHandler)_formationTargetHandler.GetValue(orderUIHandler);
+                formationTargetSelectionHandler?.SetIsFormationTargetingDisabled(isDisabled);
+                _navalOrderUIHandlerType ??= AccessTools.TypeByName("MissionGauntletNavalOrderUIHandler");
+                if (_navalOrderUIHandlerType != null && _navalOrderUIHandlerType.IsAssignableFrom(orderUIHandler.GetType()))
+                {
+                    _shipTargetHandler ??= AccessTools.Field("NavalDLC.GauntletUI.MissionViews.MissionGauntletNavalOrderUIHandler:_shipTargetHandler");
+                    MissionView shipTargetHandler = (MissionView)_shipTargetHandler.GetValue(orderUIHandler);
+                    if (shipTargetHandler == null)
+                        return;
+                    _setIsFormationTargetingDisabled ??= AccessTools.Method("NavalDLC.View.MissionViews.NavalShipTargetSelectionHandler:SetIsFormationTargetingDisabled");
+                    _setIsFormationTargetingDisabled.Invoke(shipTargetHandler, new object[] { isDisabled });
+                }
+            }
+        }
+
+        private static PropertyInfo _shipOrder;
+
+        public static Object GetShipOrder(MissionObject ship)
+        {
+            _shipOrder ??= AccessTools.Property("NavalDLC.Missions.Objects.MissionShip:ShipOrder");
+            return _shipOrder.GetValue(ship);
+        }
+
+        public enum ShipMovementOrderEnum
+        {
+            Stop = 0,
+            Move = 1,
+            Retreat = 2,
+            Follow = 3,
+            StaticOrderCount = 3,
+            Engage = 4,
+            Skirmish = 5,
+        }
+
+        private static PropertyInfo _movementOrderEnum;
+        public static ShipMovementOrderEnum GetShipMovementOrderEnum(Object shipOrder)
+        {
+            _movementOrderEnum ??= AccessTools.Property("NavalDLC.Missions.ShipOrder:MovementOrderEnum");
+            return (ShipMovementOrderEnum)_movementOrderEnum.GetValue(shipOrder);
+        }
+
+        public static bool ShouldFollowAgentFacingDirection(bool isControllingNewAgent)
+        {
+            var config = RTSCameraConfig.Get();
+            return config.FollowFaceDirection >= FollowFaceDirection.Always ||
+                config.FollowFaceDirection == FollowFaceDirection.ControlNewTroopOnly && isControllingNewAgent;
+        }
+
+        public static class CameraEaseSolver
+        {
+            /// <summary>
+            /// Solves the rise parameters a and b from delay, duration, and r thresholds.
+            /// </summary>
+            public static void SolveRiseParams(
+                double delay,
+                double duration,
+                double R_start,
+                double R_end,
+                out double a,
+                out double b)
+            {
+                if (delay <= 0)
+                    throw new ArgumentOutOfRangeException(nameof(delay), "delay must be greater than 0.");
+
+                double t1 = delay;
+                double t2 = delay + duration;
+                double lnRStart = Math.Log(R_start);
+                double lnREnd = Math.Log(R_end);
+                double K = lnRStart / lnREnd; // Positive value, for example 7.884.
+
+                // Solve x = 2^{-a} in the range (0, 1) using binary search.
+                double lo = 1e-12;
+                double hi = 1.0 - 1e-12;
+
+                for (int i = 0; i < 60; i++)
+                {
+                    double mid = (lo + hi) * 0.5;
+                    double ln1 = Math.Log(1 - Math.Pow(mid, t1));
+                    double ln2 = Math.Log(1 - Math.Pow(mid, t2));
+                    double fx = ln1 - K * ln2;
+
+                    // Note: f(x) is monotonically increasing in this interval.
+                    if (fx < 0)
+                        lo = mid; // fx < 0 means a larger x is needed.
+                    else
+                        hi = mid; // fx > 0 means a smaller x is needed.
+                }
+
+                double x = (lo + hi) * 0.5;
+                a = -Math.Log(x, 2.0);
+                b = lnRStart / Math.Log(1 - Math.Pow(x, t1));
+            }
+
+            /// <summary>
+            /// Solves the fall parameter c from T_down and the "return-to-position" r threshold.
+            /// </summary>
+            public static double SolveFallParam(double T_down, double R_start)
+            {
+                double lo = 0.0;
+                double hi = 10.0; // The upper bound for u is sufficiently large.
+
+                for (int i = 0; i < 60; i++)
+                {
+                    double mid = (lo + hi) * 0.5;
+                    double val = (1.0 + mid * Math.Log(2.0)) * Math.Pow(2.0, -mid);
+
+                    // The function is monotonically decreasing:
+                    // val > target means u is too small.
+                    if (val > R_start)
+                        lo = mid;
+                    else
+                        hi = mid;
+                }
+
+                double u = (lo + hi) * 0.5;
+                return u / T_down;
+            }
+        }
+
+    }
+}

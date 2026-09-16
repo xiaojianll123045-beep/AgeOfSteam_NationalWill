@@ -6,6 +6,11 @@
   <SingleplayerModule value="true"/>
   <MultiplayerModule value="false"/>
   <DependedModules>
+    <DependedModule Id="Native"/>
+    <DependedModule Id="SandBoxCore"/>
+    <DependedModule Id="Sandbox"/>
+    <DependedModule Id="CustomBattle"/>
+    <DependedModule Id="StoryMode"/>
     <DependedModule Id="Bannerlord.Harmony" DependentVersion="v2.4.2.248"/>
     <DependedModule Id="Bannerlord.UIExtenderEx"/>
   </DependedModules>
@@ -19,6 +24,33 @@
         <Tag key="IsNoRenderModeElement" value="false"/>
       </Tags>
     </SubModule>
+    <!-- RTS Camera(MIT, 作者 lzh/lizhenhuan; 源码已并入本模块 ThirdParty/RTSCamera) -->
+    <SubModule>
+      <Name value="RTSCamera"/>
+      <DLLName value="FeudalInternalAffairs.dll"/>
+      <SubModuleClassType value="RTSCamera.RTSCameraSubModule"/>
+      <Tags>
+        <Tag key="DedicatedServerType" value="none"/>
+        <Tag key="IsNoRenderModeElement" value="false"/>
+      </Tags>
+    </SubModule>
+    <!-- RTS Camera 命令系统(同上) -->
+    <SubModule>
+      <Name value="RTSCameraCommandSystem"/>
+      <DLLName value="FeudalInternalAffairs.dll"/>
+      <SubModuleClassType value="RTSCamera.CommandSystem.CommandSystemSubModule"/>
+      <Tags>
+        <Tag key="DedicatedServerType" value="none"/>
+        <Tag key="IsNoRenderModeElement" value="false"/>
+      </Tags>
+    </SubModule>
   </SubModules>
-  <Xmls/>
+  <Xmls>
+    <XmlNode>
+      <XmlName id="GameText" path="module_strings"/>
+    </XmlNode>
+    <XmlNode>
+      <XmlName id="GameText" path="MissionLibrary"/>
+    </XmlNode>
+  </Xmls>
 </Module>
