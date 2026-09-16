@@ -103,6 +103,8 @@ namespace FeudalInternalAffairs
             _askedCameraGoTo = false;
             _goToWait = 0f;
             _parkDone = false;
+            _deploymentSkipped = false;
+            _deployWait = 0f;
         }
 
         // 请求 RTS Camera 切到自由相机(反射, 只在它存在时用)。
@@ -301,6 +303,8 @@ namespace FeudalInternalAffairs
         // 请求 RTS Camera 把相机飞到大军上方(用他们自己的 RequestCameraGoTo)
         private static bool _askedCameraGoTo;
         private static float _goToWait;
+        private static bool _deploymentSkipped;
+        private static float _deployWait;
 
         private static bool TryAskRtsModCameraGoTo(Mission mission)
         {
@@ -365,6 +369,57 @@ namespace FeudalInternalAffairs
                     if (TryAskRtsModCameraGoTo(mission)) _askedCameraGoTo = true;
                     else if (_goToWait > 5f) _askedCameraGoTo = true;
                 }
+                // 跳过"战斗准备(布阵)"页面: 直接把部署结束掉, 省得还要手动点
+                if (Active && !_deploymentSkipped)
+                {
+                    _deployWait += realDt;
+                    if (_deployWait > 0.5f)
+                    {
+                        try
+                        {
+                            var dmc = mission.GetMissionBehavior<DeploymentMissionController>();
+                            if (dmc != null)
+                            {
+                                dmc.FinishDeployment();
+                                DLog.Force("战场: 已跳过战斗准备(布阵)阶段");
+                            }
+                            _deploymentSkipped = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            DLog.Force("跳过布阵失败: " + ex.Message);
+                            _deploymentSkipped = true;
+                        }
+                    }
+                }
+
+                // Tab: 隐藏/显示我方部队的标记(指示器)
+                try
+                {
+                    var icTab = screen.SceneLayer != null ? screen.SceneLayer.Input : null;
+                    bool tab = icTab != null ? icTab.IsKeyPressed(InputKey.Tab) : Input.IsKeyPressed(InputKey.Tab);
+                    if (tab)
+                    {
+                        var labelView = mission.GetMissionBehavior<MissionAgentLabelView>();
+                        if (labelView != null)
+                        {
+                            // IndicatorsActive 的访问级别不可用, 走反射
+                            var prop = AccessTools.Property(typeof(MissionAgentLabelView), "IndicatorsActive");
+                            if (prop != null && prop.CanRead)
+                            {
+                                bool cur = (bool)prop.GetValue(labelView);
+                                var setter = prop.GetSetMethod(true);
+                                if (setter != null)
+                                {
+                                    setter.Invoke(labelView, new object[] { !cur });
+                                    DLog.Force("战场: 部队标记 " + (!cur ? "开" : "关"));
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+
                 return;
             }
 
