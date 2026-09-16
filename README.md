@@ -66,7 +66,7 @@ dotnet build FeudalInternalAffairs.csproj -c Release -p:GameModulesDir="你的�
 
 ## 致谢
 
-- 战场自由相机与命令系统来自 [RTS Camera](https://github.com/lzh-mb-mod/RTSCamera) 与 [MissionLibrary](https://github.com/lzh-mb-mod/MissionLibrary)（MIT，Copyright (c) 2020 Li Zhenhuan / lizhenhuan1019@qq.com）。其**源码已并入本项目** `ThirdParty/RTSCamera/`（随附 MIT LICENSE），仅做了两处适配：改为编译进本模块程序集、补了一个缺失的反射扩展方法。
+- 战场自由相机与命令系统来自 [RTS Camera](https://github.com/lzh-mb-mod/RTSCamera) 与 [MissionLibrary](https://github.com/lzh-mb-mod/MissionLibrary)（MIT，Copyright (c) 2020 Li Zhenhuan / lizhenhuan1019@qq.com）。其**源码已并入本项目** `ThirdParty/RTSCamera/`（随附 MIT LICENSE），为适配"并入单模块运行"做了若干修复：编译进本模块程序集、补缺失的反射扩展、命令系统安装检测恒真、按键类别懒注册、若干空引用防护。
 - 依赖 Bannerlord.Harmony、Bannerlord.UIExtenderEx。
 - 如原作者对署名方式有额外要求，或希望调整、停止再分发，请联系我们（见上方「联系」），我们会立即配合修改或下架。
 

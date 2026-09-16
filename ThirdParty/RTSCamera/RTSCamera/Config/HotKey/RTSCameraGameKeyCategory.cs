@@ -42,7 +42,21 @@ namespace RTSCamera.Config.HotKey
         {
             get
             {
-                try { return AGameKeyCategoryManager.Get()?.GetItem(CategoryId); } catch { return null; }
+                try
+                {
+                    var mgr = AGameKeyCategoryManager.Get();
+                    if (mgr == null) return null;
+                    var cat = mgr.GetItem(CategoryId);
+                    if (cat == null)
+                    {
+                        // 懒注册: 原版注册发生在共享库管理器就绪之前(被 ?. 静默跳过),
+                        // 导致 GetKey(...) 返回 null, 后续 .IsKeyDownInOrder() 空引用崩溃。
+                        RegisterGameKeyCategory();
+                        cat = mgr.GetItem(CategoryId);
+                    }
+                    return cat;
+                }
+                catch { return null; }
             }
         }
 
