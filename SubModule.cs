@@ -72,6 +72,8 @@ namespace FeudalInternalAffairs
                     typeof(BattleRtsCamera.CameraTickPatch),
                     typeof(BattleRtsCamera.FinalizePatch),
                     typeof(MuteBattleNotifications.MuteLevelUp),
+                    typeof(MuteBattleNotifications.MuteQuickInformation),
+                    typeof(MuteBattleNotifications.MuteSceneNotification),
                     typeof(NationalWillClan.ZombieClanKingdomPatch),
                     typeof(NoAiControlPatches.BlockAiArmy),
                     typeof(NoAiControlPatches.BlockDeclareWar),
