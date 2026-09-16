@@ -9,6 +9,7 @@ namespace FeudalInternalAffairs
     internal static class TerritoryData
     {
         private static readonly List<Kingdom> _kingdoms = new List<Kingdom>();
+        private static readonly List<Settlement> _settlements = new List<Settlement>();   // 与 _xs/_ys 同序, 点击归属查询用
         private static readonly List<float> _xs = new List<float>();
         private static readonly List<float> _ys = new List<float>();
         private static readonly List<int> _ks = new List<int>();
@@ -33,6 +34,20 @@ namespace FeudalInternalAffairs
         internal static Kingdom PointKingdom(int i) { return _kingdoms[_ks[i]]; }
         internal static uint PointColor(int i) { return i >= 0 && i < _colors.Count ? _colors[i] : 0u; }
 
+        // 领地格子对应的定居点
+        internal static Settlement PointSettlement(int i)
+        {
+            return i >= 0 && i < _settlements.Count ? _settlements[i] : null;
+        }
+
+        // 某个世界坐标落在哪个定居点的领地里(和地图上色/边界线用的是同一份数据: 点在哪块地就是哪个定居点)
+        // 返回该定居点; 不在任何领地(比如没人要的荒地/无主)时返回 null
+        internal static Settlement SettlementAt(float x, float y)
+        {
+            int idx = OwnerPointAt(x, y);
+            return idx >= 0 ? _settlements[idx] : null;
+        }
+
         // 预转换的 RGB(每个定居点只转一次, 贴图填充时直接用)
         internal static bool PointRgb(int i, out byte r, out byte g, out byte b)
         {
@@ -51,7 +66,7 @@ namespace FeudalInternalAffairs
         {
             if (_built) return;
             _built = true;
-            _kingdoms.Clear(); _xs.Clear(); _ys.Clear(); _ks.Clear(); _colors.Clear();
+            _kingdoms.Clear(); _settlements.Clear(); _xs.Clear(); _ys.Clear(); _ks.Clear(); _colors.Clear();
             _cr.Clear(); _cg.Clear(); _cb.Clear();
             _grid.Clear();
             float minX = float.MaxValue, maxX = float.MinValue, minY = float.MaxValue, maxY = float.MinValue;
@@ -68,6 +83,7 @@ namespace FeudalInternalAffairs
                         int idx = _kingdoms.IndexOf(k);
                         if (idx < 0) { _kingdoms.Add(k); idx = _kingdoms.Count - 1; }
                         var p = s.Position;
+                        _settlements.Add(s);
                         _xs.Add(p.X); _ys.Add(p.Y); _ks.Add(idx);
                         // 该定居点自己的旗帜主色(城市头牌上显示的就是这个), 顺便预转成 RGB 字节
                         uint col = 0u;
