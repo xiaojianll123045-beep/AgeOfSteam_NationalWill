@@ -87,10 +87,47 @@ namespace FeudalInternalAffairs
 
         internal static void Activate()
         {
-            if (RtsModPresent) return;   // 有原 mod -> 我们自己不启用
             Active = true;
             _inited = false;
             _agentPrepared = false;
+            _askedRtsMod = false;
+        }
+
+        // 请求 RTS Camera 切到自由相机(反射, 只在它存在时用)。
+        // 他们那套: RTSCamera.Logic.RTSCameraLogic.Instance.SwitchFreeCameraLogic.SwitchCamera(false)
+        private static bool _askedRtsMod;
+
+        private static bool TryAskRtsModFreeCamera()
+        {
+            try
+            {
+                var logicType = AccessTools.TypeByName("RTSCamera.Logic.RTSCameraLogic");
+                if (logicType == null) return false;
+                var inst = AccessTools.Field(logicType, "Instance")?.GetValue(null);
+                if (inst == null) return false;
+                var sw = AccessTools.Field(logicType, "SwitchFreeCameraLogic")?.GetValue(inst);
+                if (sw == null) return false;
+
+                var swType = sw.GetType();
+                // 已经在自由相机里就别再切(他们那个是开关, 会切回去)
+                try
+                {
+                    var p = AccessTools.Property(swType, "IsSpectatorCamera");
+                    if (p != null && (bool)p.GetValue(sw)) { DLog.Force("RTS桥: 已经是自由相机"); return true; }
+                }
+                catch { }
+
+                var mi = AccessTools.Method(swType, "SwitchCamera", new[] { typeof(bool) });
+                if (mi == null) { DLog.Force("RTS桥: 找不到 SwitchCamera"); return false; }
+                mi.Invoke(sw, new object[] { false });
+                DLog.Force("RTS桥: 已请求 RTS Camera 切到自由相机");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DLog.Force("RTS桥异常: " + (ex.InnerException != null ? ex.InnerException.Message : ex.Message));
+                return false;
+            }
         }
 
         [HarmonyPatch(typeof(MissionScreen), "CameraTick")]
@@ -113,7 +150,6 @@ namespace FeudalInternalAffairs
 
         private static void Tick(MissionScreen screen, float realDt)
         {
-            if (RtsModPresent) return;   // 原 mod 在场 -> 完全不碰相机和角色
             if (screen == null) return;
             var mission = screen.Mission;
             if (mission == null) return;
@@ -121,6 +157,17 @@ namespace FeudalInternalAffairs
             bool inBattle = false;
             try { inBattle = mission.Mode == MissionMode.Battle; } catch { }
             if (!inBattle) return;
+
+            // 原 mod 在场: 我们自己完全不碰相机/角色, 但进入"亲自指挥"的战斗时
+            // 帮玩家自动切到他们的自由相机(只请求一次)。
+            if (RtsModPresent)
+            {
+                if (Active && !_askedRtsMod)
+                {
+                    if (TryAskRtsModFreeCamera()) _askedRtsMod = true;
+                }
+                return;
+            }
 
             // F10 切换
             try
