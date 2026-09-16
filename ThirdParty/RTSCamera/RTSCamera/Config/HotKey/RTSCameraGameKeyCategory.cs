@@ -82,15 +82,17 @@ namespace RTSCamera.Config.HotKey
                 nameof(GameKeyEnum.Fastforward), CategoryId, new List<GameKeySequenceAlternative>
                 {
                 }));
-            result.AddGameKeySequence(new GameKeySequence((int)GameKeyEnum.FreeCamera,
-                nameof(GameKeyEnum.FreeCamera), CategoryId, new List<GameKeySequenceAlternative>()
-                {
-                    new GameKeySequenceAlternative(
-                        new List<InputKey> () {
-                            InputKey.F10
-                        }
-                    )
-                }));
+            // 整合版改动: 删除 FreeCamera(F10)按键定义 —— 相机进入后固定为 RTS, 不再提供切换,
+            // 菜单/按键设置里也不再出现 F10。
+            //result.AddGameKeySequence(new GameKeySequence((int)GameKeyEnum.FreeCamera,
+            //    nameof(GameKeyEnum.FreeCamera), CategoryId, new List<GameKeySequenceAlternative>()
+            //    {
+            //        new GameKeySequenceAlternative(
+            //            new List<InputKey> () {
+            //                InputKey.F10
+            //            }
+            //        )
+            //    }));
             result.AddGameKeySequence(new GameKeySequence((int) GameKeyEnum.DisableDeath,
                 nameof(GameKeyEnum.DisableDeath), CategoryId, new List<GameKeySequenceAlternative>()
                 {

@@ -19,9 +19,7 @@ namespace RTSCamera.Utilities
     {
         public static void PrintUsageHint()
         {
-            var keyName = RTSCameraGameKeyCategory.GetKey(GameKeyEnum.FreeCamera).ToSequenceString();
-            var hint = TaleWorlds.MountAndBlade.Module.CurrentModule.GlobalTextManager.FindText("str_rts_camera_switch_camera_hint").SetTextVariable("KeyName", keyName).ToString();
-            MissionSharedLibrary.Utilities.Utility.DisplayMessage(hint);
+            // 整合版: 已删除 F10 自由相机切换, 不再提示
         }
 
         public static void PrintOrderHint()

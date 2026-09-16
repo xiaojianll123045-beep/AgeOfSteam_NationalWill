@@ -28,8 +28,7 @@ namespace RTSCamera.Usage
                 {
                     GameTexts.FindText("str_mission_library_open_menu_hint").SetTextVariable("KeyName",
                         GeneralGameKeyCategory.GetKey(GeneralGameKey.OpenMenu).ToSequenceString()),
-                    GameTexts.FindText("str_rts_camera_switch_camera_hint").SetTextVariable("KeyName",
-                        RTSCameraGameKeyCategory.GetKey(GameKeyEnum.FreeCamera).ToSequenceString()),
+                    // 整合版: 已删除 F10 切换自由相机的使用说明
                     GameTexts.FindText("str_rts_camera_focus_on_formation_usage").SetTextVariable("KeyName",
                         RTSCameraGameKeyCategory.GetKey(GameKeyEnum.ControlTroop ).ToSequenceString()),
                     GameTexts.FindText("str_rts_camera_control_troop_usage").SetTextVariable("KeyName",

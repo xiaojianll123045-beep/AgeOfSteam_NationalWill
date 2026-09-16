@@ -125,11 +125,7 @@ namespace RTSCamera.View
                     Key = GeneralGameKeyCategory.GetKey(GeneralGameKey.OpenMenu).ToSequenceString(),
                     Description = GameTexts.FindText("str_rts_camera_open_menu_hotkey_hint")
                 },
-                new HotKeyHint
-                {
-                    Key = RTSCameraGameKeyCategory.GetKey(GameKeyEnum.FreeCamera).ToSequenceString(),
-                    Description = GameTexts.FindText("str_rts_camera_switch_camera_hotkey_hint")
-                },
+                // 整合版: 已删除 F10 切换提示
                 new HotKeyHint
                 {
                     Key = RTSCameraGameKeyCategory.GetKey(GameKeyEnum.ControlTroop).ToSequenceString(),
