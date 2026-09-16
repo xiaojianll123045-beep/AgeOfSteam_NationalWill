@@ -302,7 +302,7 @@ namespace FeudalInternalAffairs
                 _commandingBattle = null;
                 InCommandBattle = false;
                 BattleRtsCamera.Reset();
-                _postBattleLeaveTimer = 1.5f;   // 战后自动离开结算菜单
+                _postBattleLeaveTries = 10;   // 战后立刻自动离开结算菜单(下一帧就执行)
             // 把暂时移出的兵还回去
             if (_savedRoster != null)
             {
@@ -353,19 +353,17 @@ namespace FeudalInternalAffairs
         }
 
         // 战后自动离开"战斗结算"菜单(俘虏敌人/离开 那个页面)。
-        // 玩家是国家意志, 不需要俘虏/战利品选择, 直接回地图。
-        private static float _postBattleLeaveTimer;
+        // 玩家是国家意志, 不需要俘虏/战利品选择, 直接回地图。立即执行, 不等待。
+        private static int _postBattleLeaveTries;
 
         internal static void TickPostBattleLeave(float dt)
         {
-            if (_postBattleLeaveTimer <= 0f) return;
-            _postBattleLeaveTimer -= dt;
-            if (_postBattleLeaveTimer > 0f) return;   // 等菜单稳定一下再走
-            _postBattleLeaveTimer = 0f;
+            if (_postBattleLeaveTries <= 0) return;
+            _postBattleLeaveTries--;
             try
             {
                 var enc = PlayerEncounter.Current;
-                if (enc == null) return;
+                if (enc == null) { _postBattleLeaveTries = 0; return; }
                 var helper = AccessTools.TypeByName("Helpers.MenuHelper");
                 var mi = helper != null ? AccessTools.Method(helper, "EncounterLeaveConsequence") : null;
                 if (mi != null)
