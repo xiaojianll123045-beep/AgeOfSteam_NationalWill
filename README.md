@@ -68,6 +68,7 @@ dotnet build FeudalInternalAffairs.csproj -c Release -p:GameModulesDir="你的�
 
 - 战场自由相机与命令系统来自 [RTS Camera](https://github.com/lzh-mb-mod/RTSCamera)（MIT，Copyright (c) 2020 Li Zhenhuan / lizhenhuan1019@qq.com），以 `_bundled` 形式随本 mod 分发；源码改动仅限构建配置（游戏路径）。
 - 依赖 Bannerlord.Harmony、Bannerlord.UIExtenderEx。
+- 如原作者对署名方式有额外要求，或希望调整、停止再分发，请联系我们，我们会立即配合修改或下架。
 
 ## 许可证
 
