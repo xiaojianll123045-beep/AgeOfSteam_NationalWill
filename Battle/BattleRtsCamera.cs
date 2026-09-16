@@ -83,6 +83,8 @@ namespace FeudalInternalAffairs
             Active = false;
             _inited = false;
             _agentPrepared = false;
+            _parkSpot = Vec3.Zero;
+            _parkLogged = false;
         }
 
         internal static void Activate()
@@ -148,6 +150,101 @@ namespace FeudalInternalAffairs
             }
         }
 
+        // ---- 玩家角色: 隐身 + 无敌 + 拉到地图边缘 ----
+        private static Vec3 _parkSpot;
+        private static bool _parkLogged;
+
+        // 战场边缘: 取"软边界"离战场中心最远的顶点, 再往里收 10 米(不越界)
+        private static Vec3 FindBattleEdge(Mission mission)
+        {
+            try
+            {
+                var scene = mission.Scene;
+                if (scene != null)
+                {
+                    int n = scene.GetSoftBoundaryVertexCount();
+                    if (n > 0)
+                    {
+                        Vec2 best = Vec2.Zero;
+                        float bestD = -1f;
+                        for (int i = 0; i < n; i++)
+                        {
+                            var v = scene.GetSoftBoundaryVertex(i);
+                            float d = v.X * v.X + v.Y * v.Y;
+                            if (d > bestD) { bestD = d; best = v; }
+                        }
+                        if (bestD > 1f)
+                        {
+                            float len = (float)Math.Sqrt(bestD);
+                            float k = Math.Max(0f, len - 10f) / len;
+                            float x = best.X * k;
+                            float y = best.Y * k;
+                            float z = 20f;
+                            try
+                            {
+                                float gh = scene.GetGroundHeightAtPosition(new Vec3(x, y, 200f, 1f), (BodyFlags)0);
+                                if (gh > 0.05f && gh < 9998f) z = gh;
+                            }
+                            catch { }
+                            return new Vec3(x, y, z + 2f, 1f);
+                        }
+                    }
+                }
+            }
+            catch { }
+            try
+            {
+                Vec3 min, max;
+                mission.Scene.GetBoundingBox(out min, out max);
+                return new Vec3(min.x + 30f, min.y + 30f, max.z, 1f);
+            }
+            catch { }
+            return Vec3.Zero;
+        }
+
+        // 玩家角色与坐骑: 隐身 + 无敌 + 停在战场边缘(原版/他们的 mod 可能把角色挪回去, 所以每帧维持)
+        private static void ParkPlayerAgent(Mission mission, Agent agent)
+        {
+            if (agent == null) return;
+            try { if (agent.AgentVisuals != null) agent.AgentVisuals.SetVisible(false); } catch { }
+            try
+            {
+                var mount = agent.MountAgent;
+                if (mount != null && mount.AgentVisuals != null) mount.AgentVisuals.SetVisible(false);
+            }
+            catch { }
+            try { if (agent.HealthLimit < 100000f) agent.HealthLimit = 100000f; } catch { }
+            try { if (agent.Health < 90000f) agent.Health = 100000f; } catch { }
+
+            try
+            {
+                if (_parkSpot == Vec3.Zero) _parkSpot = FindBattleEdge(mission);
+                if (_parkSpot != Vec3.Zero)
+                {
+                    var p = agent.Position;
+                    float dx = p.x - _parkSpot.x;
+                    float dy = p.y - _parkSpot.y;
+                    if (dx * dx + dy * dy > 25f)   // 离边缘超过 5 米就拉过去
+                    {
+                        try { agent.TeleportToPosition(_parkSpot); } catch { }
+                        try
+                        {
+                            var mount = agent.MountAgent;
+                            if (mount != null) mount.TeleportToPosition(_parkSpot);
+                        }
+                        catch { }
+                        if (!_parkLogged)
+                        {
+                            _parkLogged = true;
+                            DLog.Force("战场: 玩家与坐骑已隐身并移到地图边缘 ("
+                                + ((int)_parkSpot.x) + "," + ((int)_parkSpot.y) + ")");
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
         private static void Tick(MissionScreen screen, float realDt)
         {
             if (screen == null) return;
@@ -158,10 +255,10 @@ namespace FeudalInternalAffairs
             try { inBattle = mission.Mode == MissionMode.Battle; } catch { }
             if (!inBattle) return;
 
-            // 原 mod 在场: 我们自己完全不碰相机/角色, 但进入"亲自指挥"的战斗时
-            // 帮玩家自动切到他们的自由相机(只请求一次)。
+            // 原 mod 在场: 相机交给他们, 但玩家角色/坐骑的隐身与"挪到地图边缘"仍然由我们做
             if (RtsModPresent)
             {
+                try { ParkPlayerAgent(mission, mission.MainAgent); } catch { }
                 if (Active && !_askedRtsMod)
                 {
                     if (TryAskRtsModFreeCamera()) _askedRtsMod = true;
