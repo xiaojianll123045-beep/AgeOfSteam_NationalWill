@@ -5,6 +5,7 @@ using TaleWorlds.Engine;
 using TaleWorlds.InputSystem;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.MountAndBlade.View.MissionViews;
 using TaleWorlds.MountAndBlade.View.Screens;
 
 namespace FeudalInternalAffairs
@@ -23,12 +24,14 @@ namespace FeudalInternalAffairs
         internal static bool Active;
 
         private static bool _inited;
+        private static bool _agentPrepared;
         private static Vec3 _camPos;
         private static float _bearing;
         private static float _elevation;
         private static int _logCount;
         private static System.Reflection.PropertyInfo _bearingProp;
         private static System.Reflection.PropertyInfo _elevProp;
+        private static System.Reflection.PropertyInfo _isPlayerAgentAddedProp;
 
         private const float MouseScale = 5.4E-05f;      // RTS 原值
         private const float ElevMin = -1.36591f;        // RTS 原值
@@ -39,12 +42,14 @@ namespace FeudalInternalAffairs
         {
             Active = false;
             _inited = false;
+            _agentPrepared = false;
         }
 
         internal static void Activate()
         {
             Active = true;
             _inited = false;
+            _agentPrepared = false;
         }
 
         [HarmonyPatch(typeof(MissionScreen), "CameraTick")]
@@ -95,18 +100,42 @@ namespace FeudalInternalAffairs
 
             var ic = screen.SceneLayer != null ? screen.SceneLayer.Input : null;
 
-            // ---- 玩家角色: 隐身 + 无敌 + 停战 + 交给AI(否则 WASD 会把角色带走) ----
+            // ---- 玩家角色: 完全照搬 RTS 的做法 ----
+            // 关键: 不要把角色设成 AI(那样原版会拒绝"下达命令"), 而是保持 Player 控制,
+            // 但禁用 MissionMainAgentController(玩家输入控制器) -> 角色不响应 WASD/WASD 归相机。
             var agent = mission.MainAgent;
             if (agent != null)
             {
                 try
                 {
-                    if (agent.Controller != AgentControllerType.AI) agent.Controller = AgentControllerType.AI;
+                    var ctrl = mission.GetMissionBehavior<MissionMainAgentController>();
+                    if (ctrl != null)
+                    {
+                        ctrl.CustomLookDir = Vec3.Zero;
+                        ctrl.Disable();
+                        try { ctrl.InteractionComponent?.ClearFocus(); } catch { }
+                    }
                 }
                 catch { }
-                try { agent.SetIsAIPaused(true); } catch { }
+
+                if (!_agentPrepared)
+                {
+                    try { agent.SetCanLeadFormationsRemotely(true); } catch { }       // 允许远程指挥
+                    try { if (mission.PlayerTeam != null) mission.PlayerTeam.GeneralAgent = agent; } catch { }
+                    try
+                    {
+                        if (_isPlayerAgentAddedProp == null)
+                            _isPlayerAgentAddedProp = AccessTools.Property(typeof(MissionScreen), "IsPlayerAgentAdded");
+                        if (_isPlayerAgentAddedProp != null && _isPlayerAgentAddedProp.CanWrite)
+                            _isPlayerAgentAddedProp.SetValue(screen, true);
+                    }
+                    catch { }
+                    _agentPrepared = true;
+                    DLog.Force("RTS相机: 已接管(禁用玩家控制器/允许远程指挥/角色隐身)");
+                }
+
                 try { if (agent.AgentVisuals != null) agent.AgentVisuals.SetVisible(false); } catch { }
-                // 坐骑也要一起隐身(否则会出现"人没了马还在跑")
+                // 坐骑一起隐身(否则"人没了马还在跑")
                 try
                 {
                     var mount = agent.MountAgent;
@@ -117,7 +146,7 @@ namespace FeudalInternalAffairs
                 try { if (agent.Health < 90000f) agent.Health = 100000f; } catch { }
             }
 
-            // ---- 初始化: 直接给一个俯视的上帝视角(在角色上方 40 米) ----
+            // ---- 初始化: 俯视的上帝视角(在角色上方 40 米) ----
             if (!_inited)
             {
                 Vec3 p = Vec3.Zero;
@@ -126,7 +155,7 @@ namespace FeudalInternalAffairs
                 _bearing = 0f;
                 _elevation = -0.55f;    // 俯角
                 _inited = true;
-                DLog.Force("RTS相机: 已接管(角色隐身/无敌/停战)");
+                DLog.Force("RTS相机: 视角已初始化(俯视)");
             }
 
             // ---- 鼠标视角(照 RTS: 走任务 InputContext; 光标隐藏时才接管鼠标) ----
