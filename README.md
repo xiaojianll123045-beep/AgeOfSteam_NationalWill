@@ -23,16 +23,18 @@
 - **外交**：宣战可直接发起；和谈在敌国发起领主投票
 - **取缔个人事务**：背包/部队/家族/任务/角色/捏脸/旗帜等快捷键被屏蔽（国家意志不需要处理这些）
 - **禁止 AI 擅自行动**：AI 不能自行建立军团、宣战、和谈
+- **亲自指挥战斗**：地图上右键本国参战的战斗 → 选"亲自指挥" → 进入真实战场并**固定为 RTS 上帝视角**（相机自动飞到我方大军上方）：WASD 平移、鼠标转视角、Q/E（或滚轮）升降、Shift 加速；自动跳过布阵阶段，玩家与坐骑隐身并停在战场边缘，战斗中的升级/技能提示与记分板里的玩家部队一并隐藏，战后战斗结算不再包含玩家部队
 
 ## 安装
 
 1. 需要游戏版本 **v1.4.8**，以及前置 mod：**Bannerlord.Harmony**、**Bannerlord.UIExtenderEx**
 2. 把 `FeudalInternalAffairs` 模块文件夹放进
-   `Mount & Blade II Bannerlord\Modules\`（**只需这一个文件夹**，RTS Camera 已内置）
+   `Mount & Blade II Bannerlord\Modules\`（**只需这一个文件夹**，RTS Camera 源码已内置）
 3. 启动器里勾选 **内政扩展（国家意志）**
 
-进战场后按 **F10** 切换上帝视角：WASD 平移、鼠标转视角、Q/E（或滚轮）升降、Shift 加速。
-点"亲自指挥"进入的战斗会在开场后自动切到该视角。
+进入"亲自指挥"的战斗后会自动进入 RTS 上帝视角（相机飞到我方大军上方），**没有切换键**：
+WASD 平移、鼠标转视角、Q/E（或滚轮）升降、Shift 加速、Tab 切换部队标记。
+（如果另外安装了原版 RTS Camera 模块，本 mod 会自动屏蔽它，只保留内置版本。）
 
 ## 从源码编译
 
@@ -57,7 +59,7 @@ dotnet build FeudalInternalAffairs.csproj -c Release -p:GameModulesDir="你的�
 
 欢迎提交 Pull Request：fork 本仓库 → 新建分支开发 → 发起 PR。
 
-代码按职责分目录（`Map/` `Will/` `World/` `Focus/` `Creation/` `Core/`），Harmony 补丁逐类注册，不使用 `PatchAll`。
+代码按职责分目录（`Map/` `Will/` `World/` `Focus/` `Creation/` `Battle/` `Core/`；第三方 RTS Camera 源码在 `ThirdParty/RTSCamera/`），Harmony 补丁逐类注册，不使用 `PatchAll`。
 
 ## 联系
 
@@ -72,4 +74,4 @@ dotnet build FeudalInternalAffairs.csproj -c Release -p:GameModulesDir="你的�
 
 ## 许可证
 
-[MIT](LICENSE)（`_bundled` 下的 RTS Camera 同样为 MIT，见其自带 LICENSE）
+[MIT](LICENSE)（第三方 RTS Camera 源码位于 `ThirdParty/RTSCamera/`，同样为 MIT，见其自带 LICENSE）
