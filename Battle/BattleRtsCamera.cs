@@ -263,10 +263,11 @@ namespace FeudalInternalAffairs
             try { inBattle = mission.Mode == MissionMode.Battle; } catch { }
             if (!inBattle) return;
 
-            // RTS 在场: 严格让位 —— 相机、玩家角色、坐骑全部交给他们, 我们一律不碰。
-            // 唯一做的事: 进入"亲自指挥"的战斗后, 立刻请求他们切到自由相机。
+            // RTS 在场: 相机交给他们, 但玩家角色/坐骑的隐身 + 挪到地图边缘仍由我们做
+            // (挪到边缘后, 敌方 AI 的索敌范围够不到, 就不会来锁玩家)。
             if (RtsModPresent)
             {
+                try { ParkPlayerAgent(mission, mission.MainAgent); } catch { }
                 if (Active && !_askedRtsMod)
                 {
                     if (TryAskRtsModFreeCamera()) _askedRtsMod = true;
@@ -338,6 +339,8 @@ namespace FeudalInternalAffairs
                 catch { }
                 try { if (agent.HealthLimit < 100000f) agent.HealthLimit = 100000f; } catch { }
                 try { if (agent.Health < 90000f) agent.Health = 100000f; } catch { }
+                // 隐身 + 挪到地图边缘(敌方 AI 够不到就不会锁玩家)
+                try { ParkPlayerAgent(mission, agent); } catch { }
             }
 
             // ---- 初始化: 俯视的上帝视角(在角色上方 40 米) ----
