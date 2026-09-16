@@ -28,7 +28,7 @@ namespace RTSCamera
         public const string ModuleId = "RTSCamera";
         public const string OldModuleId = "EnhancedMission";
 
-        private readonly Harmony _harmony = new Harmony("RTSCameraPatch");
+        private readonly Harmony _harmony = new Harmony("FeudalRtsCameraPort");
         private bool _successPatch;
         public static bool IsCommandSystemInstalled = false;
         public static bool IsNavalInstalled = false;

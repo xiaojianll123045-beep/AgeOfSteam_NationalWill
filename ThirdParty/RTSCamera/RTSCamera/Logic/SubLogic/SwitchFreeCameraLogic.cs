@@ -445,12 +445,14 @@ namespace RTSCamera.Logic.SubLogic
             {
                 _isSwitchCameraKeyPressedLastTick = false;
             }
-            // some keys are not supported in Mission.InputManager. Pass null to use InputSystem.Input directly.
-            else if (RTSCameraGameKeyCategory.GetKey(GameKeyEnum.FreeCamera).IsKeyPressed())
-            {
-                _isSwitchCameraKeyPressedLastTick = true;
-                SwitchCamera(true);
-            }
+            // 整合版改动: 删除 F10(自由相机切换键)。
+            // 进入"亲自指挥"的战斗后相机固定为 RTS 上帝视角, 不再允许玩家切回骑乘视角。
+            // (SwitchCamera 方法本身保留, 我们的自动切换还在调用它。)
+            //else if (RTSCameraGameKeyCategory.GetKey(GameKeyEnum.FreeCamera).IsKeyPressed())
+            //{
+            //    _isSwitchCameraKeyPressedLastTick = true;
+            //    SwitchCamera(true);
+            //}
         }
 
         public void SwitchCamera(bool toggleOrderUI = false)

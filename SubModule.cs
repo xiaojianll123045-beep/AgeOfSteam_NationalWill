@@ -18,6 +18,8 @@ namespace FeudalInternalAffairs
             try
             {
                 HarmonyInstance = new Harmony("FeudalInternalAffairs");
+                // 先屏蔽外部单独安装的 RTS Camera(如果玩家装了), 只保留本模块内置版
+                BanStandaloneRts.Apply(HarmonyInstance);
                 var patches = new List<Type>
                 {
                     typeof(StageSkipPatches.StageSkip),
@@ -135,6 +137,13 @@ namespace FeudalInternalAffairs
             base.OnBeforeInitialModuleScreenSetAsRoot();
             try { ModConflictGuard.TryPopup(); }
             catch (Exception ex) { DLog.Force("冲突弹窗异常: " + ex.Message); }
+        }
+
+        // 前 10 秒内持续尝试屏蔽外部 RTS 模块(它们的程序集可能比我们晚加载)
+        protected override void OnApplicationTick(float dt)
+        {
+            base.OnApplicationTick(dt);
+            try { BanStandaloneRts.Apply(HarmonyInstance); } catch { }
         }
 
         protected override void OnGameStart(Game game, IGameStarter gameStarterObject)

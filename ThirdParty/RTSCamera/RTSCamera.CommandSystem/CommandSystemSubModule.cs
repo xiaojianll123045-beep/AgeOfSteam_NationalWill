@@ -27,7 +27,7 @@ namespace RTSCamera.CommandSystem
         public static bool IsRealisticBattleModuleInstalled = true;
         public static bool IsTAOMInstalled;
 
-        private readonly Harmony _harmony = new Harmony("RTSCommandPatch");
+        private readonly Harmony _harmony = new Harmony("FeudalRtsCommandPort");
         private bool _successPatch;
 
         protected override void OnSubModuleLoad()
