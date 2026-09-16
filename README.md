@@ -64,11 +64,16 @@ dotnet build FeudalInternalAffairs.csproj -c Release -p:GameModulesDir="你的�
 
 代码按职责分目录（`Map/` `Will/` `World/` `Focus/` `Creation/` `Core/`），Harmony 补丁逐类注册，不使用 `PatchAll`。
 
+## 联系
+
+- QQ：**1099155831**
+- 邮箱：**qw123045@qq.com**
+
 ## 致谢
 
 - 战场自由相机与命令系统来自 [RTS Camera](https://github.com/lzh-mb-mod/RTSCamera)（MIT，Copyright (c) 2020 Li Zhenhuan / lizhenhuan1019@qq.com），以 `_bundled` 形式随本 mod 分发；源码改动仅限构建配置（游戏路径）。
 - 依赖 Bannerlord.Harmony、Bannerlord.UIExtenderEx。
-- 如原作者对署名方式有额外要求，或希望调整、停止再分发，请联系我们，我们会立即配合修改或下架。
+- 如原作者对署名方式有额外要求，或希望调整、停止再分发，请联系我们（见上方「联系」），我们会立即配合修改或下架。
 
 ## 许可证
 
