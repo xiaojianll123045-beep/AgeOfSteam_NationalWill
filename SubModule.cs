@@ -76,7 +76,7 @@ namespace FeudalInternalAffairs
                     typeof(MuteBattleNotifications.MuteLevelUp),
                     typeof(MuteBattleNotifications.MuteQuickInformation),
                     typeof(MuteBattleNotifications.MuteSceneNotification),
-                    typeof(HideScoreboard.HideScoreboardPatch),
+                    typeof(HideScoreboard.BlockScoreboardOpen),
                     typeof(NationalWillClan.ZombieClanKingdomPatch),
                     typeof(NoAiControlPatches.BlockAiArmy),
                     typeof(NoAiControlPatches.BlockDeclareWar),
