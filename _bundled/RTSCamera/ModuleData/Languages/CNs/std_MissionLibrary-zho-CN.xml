@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="string">
+  <tags>
+    <tag language="简体中文" />
+  </tags>
+  <strings>
+    <string id="MissionLibrary_config_key" text="按键绑定" />
+    <string id="MissionLibrary_open_menu_hint" text="战斗中按{KeyName}来打开mod菜单。" />
+    <string id="MissionLibrary_config_key_hint" text="配置快捷键。" />
+    <string id="MissionLibrary_general_game_key" text="通用按键" />
+    <string id="MissionLibrary_openmenukey" text="打开菜单" />
+    <string id="MissionLibrary_openmenukey_description" text="打开或关闭菜单" />
+
+    <string id="MissionLibrary_show_usage" text="使用说明" />
+    <string id="MissionLibrary_show_usage_hint" text="显示mod的使用方法" />
+    <string id="MissionLibrary_usages" text="使用说明" />
+
+    <string id="MissionLibrary_game_key_or" text="或" />
+
+    <string id="MissionLibrary_configincompatible" text="配置文件不兼容。重设为默认设置。" />
+    <string id="MissionLibrary_hotkey_config_incompatible" text="按键配置不兼容，恢复为默认按键。" />
+
+    <string id="MissionLibrary_hotkey_add_shortcut" text="添加快捷键" />
+    <string id="MissionLibrary_hotkey_remove_shortcut" text="移除快捷键" />
+    <string id="MissionLibrary_hotkey_add_key" text="扩展组合键" />
+    <string id="MissionLibrary_hotkey_remove_key" text="缩减组合键" />
+  </strings>
+</base>

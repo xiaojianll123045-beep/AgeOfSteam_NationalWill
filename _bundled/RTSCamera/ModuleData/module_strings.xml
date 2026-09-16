@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<strings>
+  <string id="str_rts_camera_option_class" text="{=RTSCamera_option_class}RTS Camera" />
+
+  <string id="str_rts_camera_command_battle" text="{=RTSCamera_command_battle}(RTS Camera)Command the battle." />
+  <string id="str_rts_camera_cannot_control_agent_in_command_mode" text="{=RTSCamera_cannot_control_agent_in_command_mode}Cannot control units in command only mode." />
+  <string id="str_rts_camera_command_mode_tool_tip" text="{=RTSCamera_command_mode_tool_tip}You are injured. You may be able to command your troops but you cannot directly participate in the battle." />
+
+  <string id="str_rts_camera_switch_camera_hint" text="{=RTSCamera_switch_camera_hint}Press {KeyName} in battle to toggle free Camera" />
+
+  <string id="str_rts_camera_all_invulnerable_hint" text="{=RTSCamera_disable_death_hint}All units will not die, for making video." />
+  <string id="str_rts_camera_switch_team_hint" text="{=RTSCamera_switch_team_hint}Swap player's team, for making video." />
+
+  <string id="str_rts_camera_control_troop" text="{=RTSCamera_controltroop}Controlling: {ControlledTroopName}." />
+  <string id="str_rts_camera_no_troop_to_control" text="{=RTSCamera_notrooptocontrol}No ally troop to control." />
+  <string id="str_rts_camera_death_disabled" text="{=RTSCamera_deathdisabled}All Invulnerable enabled." />
+  <string id="str_rts_camera_death_enabled" text="{=RTSCamera_deathenabled}All Invulnerable disabled." />
+
+  <string id="str_rts_camera_camera_options" text="{=RTSCamera_camera_options}Camera Options" />
+  <string id="str_rts_camera_switch_free_camera" text="{=RTSCamera_switchfreecamera}Switch Free Camera" />
+  <string id="str_rts_camera_switch_free_camera_hint" text="{=RTSCamera_switch_free_camera_hint}Switch between free camera and player camera." />
+  <string id="str_rts_camera_default_to_free_camera" text="{=RTSCamera_default_to_free_camera}Default to Free Camera" />
+  <string id="str_rts_camera_default_to_free_camera_hint" text="{=RTSCamera_default_to_free_camera_hint}When to use free camera by default." />
+  <string id="str_rts_camera_default_to_free_camera_option.Never" text="{=RTSCamera_default_to_free_camera_option_never}Never" />
+  <string id="str_rts_camera_default_to_free_camera_option.DeploymentStage" text="{=RTSCamera_default_to_free_camera_option_deployment_stage}Deployment Stage" />
+  <string id="str_rts_camera_default_to_free_camera_option.Always" text="{=RTSCamera_controller_default_to_free_camera_option_always}Always" />
+  <string id="str_rts_camera_raised_height_after_switching_to_free_camera" text="{=RTSCamera_raisedheightafterswitchingtofreecamera}Camera Raised Height" />
+  <string id="str_rts_camera_raised_height_hint" text="{=RTSCamera_raised_height_hint}Camera raised height after switching to free camera." />
+  <string id="str_rts_camera_limit_camera_distance" text="{=RTSCamera_limit_camera_distance}Limit Camera Distance" />
+  <string id="str_rts_camera_limit_camera_distance_hint" text="{=RTSCamera_limit_camera_distance_hint}Limit Camera Distance by tactics and scouting skill." />
+  <string id="str_rts_camera_camera_distance_limit" text="{=RTSCamera_camera_distance_limit}Camera Distance Limit" />
+  <string id="str_rts_camera_constant_speed" text="{=RTSCamera_constantspeed}Constant Camera Speed" />
+  <string id="str_rts_camera_constant_speed_hint" text="{=RTSCamera_constant_speed_hint}Camera movement speed won't be affected by height." />
+  <string id="str_rts_camera_camera_height_follows_terrain" text="{=RTSCamera_camera_height_follows_terrain}Camera Height Follows Terrain" />
+  <string id="str_rts_camera_camera_height_follows_terrain_hint" text="{=RTSCamera_camera_height_follows_terrain_hint}Camera elevation will follow terrain height, except when camera is inside or above a scene object (wall, house, stone...)" />
+  <string id="str_rts_camera_ignore_terrain" text="{=RTSCamera_ignore_terrain}Ignore Terrain" />
+  <string id="str_rts_camera_ignore_terrain_hint" text="{=RTSCamera_ignore_terrain_hint}Camera will not be blocked by terrain and buildings when enabled." />
+  <string id="str_rts_camera_ignore_boundaries" text="{=RTSCamera_ignore_boundaries}Ignore Boundaries" />
+  <string id="str_rts_camera_ignore_boundaries_hint" text="{=RTSCamera_ignore_boundaries_hint}Camera will not be restricted by boundaries when enabled." />
+  <string id="str_rts_camera_elevated_camera_rise_delay" text="{=RTSCamera_elevated_camera_rise_delay}Elevated Camera Rise Delay" />
+  <string id="str_rts_camera_elevated_camera_rise_delay_hint" text="{=RTSCamera_elevated_camera_rise_delay_hint}Delay in seconds before the elevated camera begins to rise noticeably." />
+  <string id="str_rts_camera_elevated_camera_rise_duration" text="{=RTSCamera_elevated_camera_rise_duration}Elevated Camera Rise Duration" />
+  <string id="str_rts_camera_elevated_camera_rise_duration_hint" text="{=RTSCamera_elevated_camera_rise_duration_hint}Time in seconds for the elevated camera to rise to almost full height." />
+  <string id="str_rts_camera_elevated_camera_off_duration" text="{=RTSCamera_elevated_camera_off_duration}Elevated Camera Off Duration" />
+  <string id="str_rts_camera_elevated_camera_off_duration_hint" text="{=RTSCamera_elevated_camera_off_duration_hint}Time in seconds for the elevated camera to return to almost normal height." />
+  <string id="str_rts_camera_follow_facing_direction" text="{=RTSCamera_follow_facing_direction}Follow Facing Direction" />
+  <string id="str_rts_camera_follow_facing_direction_hint" text="{=RTSCamera_follow_facing_direction_hint}When camera switch back, whether to rotate camera to follow character's facing direction." />
+  <string id="str_rts_camera_follow_facing_direction_option.Never" text="{=RTSCamera_follow_facing_direction_option_never}Never" />
+  <string id="str_rts_camera_follow_facing_direction_option.ControlNewUnitOnly" text="{=RTSCamera_follow_facing_direction_option_control_new_unit_only}Control New Unit only (Recommended)" />
+  <string id="str_rts_camera_follow_facing_direction_option.Always" text="{=RTSCamera_follow_facing_direction_option_always}Always" />
+
+  <string id="str_rts_camera_control_options" text="{=RTSCamera_control_options}Control Options" />
+  <string id="str_rts_camera_player_controller_in_free_camera" text="{=RTSCamera_player_controller_in_free_camera}Player Controller in Free Camera" />
+  <string id="str_rts_camera_player_controller_in_free_camera_hint" text="{=RTSCamera_player_controller_in_free_camera_hint}Player control mode in Free Camera. If set to none, player character will not be controlled. If set to AI, AI will control player character. If set to Player, you can still directly control your character." />
+  <string id="str_rts_camera_controller_type.None" text="{=RTSCamera_controller_type_none}None" />
+  <string id="str_rts_camera_controller_type.AI" text="{=RTSCamera_controller_type_AI}AI (Recommended)" />
+  <string id="str_rts_camera_controller_type.Player" text="{=RTSCamera_controller_type_player}Player" />
+  <string id="str_rts_camera_player_formation" text="{=RTSCamera_playerformation}Player Formation" />
+  <string id="str_rts_camera_player_formation_unset" text="{=RTSCamera_player_formation_unset}Unset" />
+  <string id="str_rts_camera_player_formation_hint" text="{=RTSCamera_player_formation_hint}Assign player to the selected formation." />
+  <string id="str_rts_camera_assign_player_formation" text="{=RTSCamera_assign_player_formation}Player Formation Assignment" />
+  <string id="str_rts_camera_assign_player_formation_hint" text="{=RTSCamera_assign_player_formation_hint}Which formation to add player to during deployment stage." />
+  <string id="str_rts_camera_assign_player_formation.DefaultOrGeneralFormation" text="{=RTSCamera_assign_player_formation_default_or_general_formation}Default Or General Formation" />
+  <string id="str_rts_camera_assign_player_formation.Default" text="{=RTSCamera_assign_player_formation_default}Always Default Formation" />
+  <string id="str_rts_camera_assign_player_formation.Overwrite" text="{=RTSCamera_assign_player_formation_overwrite}Formation in Above Option" />
+  <string id="str_rts_camera_watch_another_hero" text="{=RTSCamera_watchanotherhero}Watch Another Hero" />
+  <string id="str_rts_camera_watch_another_hero_hint" text="{=RTSCamera_watch_another_hero_hint}Watch the hero you selected." />
+  <string id="str_rts_camera_select_character" text="{=RTSCamera_select_character}Select Character" />
+  <string id="str_rts_camera_select_character_hint" text="{=RTSCamera_select_character_hint}Select a character using mouse, then you can focus the camera to it or control it." />
+  <string id="str_rts_camera_control_ally_after_death_timing" text="{=RTSCamera_control_ally_after_death_timing}When To Control Ally After Death" />
+  <string id="str_rts_camera_control_ally_after_death_timing_hint" text="{=RTSCamera_control_ally_after_death_timing_hint}When to automatically control one of your ally after you die." />
+  <string id="str_rts_camera_control_ally_after_death_timing_option.Never" text="{=RTSCamera_control_ally_after_death_timing_option_never}Never" />
+  <string id="str_rts_camera_control_ally_after_death_timing_option.FreeCamera" text="{=RTSCamera_control_ally_after_death_timing_option_free_camera}Free Camera" />
+  <string id="str_rts_camera_control_ally_after_death_timing_option.Always" text="{=RTSCamera_control_ally_after_death_timing_option_always}Always (Recommended)" />
+  <string id="str_rts_camera_control_ally_after_death_timing_prompt" text="{=RTSCamera_control_ally_after_death_timing_prompt}Do you want to enable 'Control Troop After Death'?" />
+  <string id="str_rts_camera_prefer_unit_in_same_formation" text="{=RTSCamera_prefer_unit_in_same_formation}Prefer Units In Same Formation" />
+  <string id="str_rts_camera_prefer_unit_in_same_formation_hint" text="{=RTSCamera_prefer_unit_in_same_formation_hint}Prefer to control units in the same formation as player." />
+  <string id="str_rts_camera_control_troops_in_player_party_only" text="{=RTSCamera_controltroopsinplayerpartyonly}Control Troops In Player Party Only" />
+  <string id="str_rts_camera_control_troops_in_player_party_only_hint" text="{=RTSCamera_control_troops_in_player_party_only_hint}Only consider troops in player party when looking for target to control." />
+  <string id="str_rts_camera_limited_to_player_party_only" text="{=RTSCamera_limited_to_player_party_only}Control Troops In Player Party Only is enabled. Only troops in player party will be considered for control." />
+  <string id="str_rts_camera_control_hero_only" text="{=RTSCamera_controlheroonly}Control Hero Only" />
+  <string id="str_rts_camera_control_hero_only_hint" text="{=RTSCamera_controlheroonlyhint}Only consider hero troops when looking for target to control." />
+  <string id="str_rts_camera_limited_to_hero_only" text="{=RTSCamera_limitedtoheroonly}Control Hero Only is enabled. Only hero troops will be considered for control." />
+  <string id="str_rts_camera_ignore_retreating_troops" text="{=RTSCamera_ignoreretreatingtroops}Ignore Retreating Troops" />
+  <string id="str_rts_camera_ignore_retreating_troops_hint" text="{=RTSCamera_ignore_retreating_troops_hint}Won't consider retreating troops when looking for target to control." />
+
+  <string id="str_rts_camera_time_speed_options" text="{=RTSCamera_time_speed_options}Time Speed Options" />
+  <string id="str_rts_camera_toggle_pause" text="{=RTSCamera_togglepause}Toggle Pause" />
+  <string id="str_rts_camera_toggle_pause_hint" text="{=RTSCamera_toggle_pause_hint}Pause or unpause the game." />
+  <string id="str_rts_camera_slow_motion_mode" text="{=RTSCamera_slowmotionmode}Slow Motion Mode" />
+  <string id="str_rts_camera_slow_motion_hint" text="{=RTSCamera_slow_motion_hint}Whether to enable slow motion mode (to adjust time speed)." />
+  <string id="str_rts_camera_slow_motion_factor" text="{=RTSCamera_slowmotionfactor}Slow Motion Factor" />
+  <string id="str_rts_camera_slow_motion_factor_hint" text="{=RTSCamera_slow_motion_factor_hint}The factor of time speed. Note that setting to greater than 1 may cause issue to AI or simulation. Please use fast forward below if you want to increase time speed." />
+  <string id="str_rts_camera_slow_motion_on_rts_view" text="{=RTSCamera_slowmotiononrtsview}Slow Motion On RTS view" />
+  <string id="str_rts_camera_slow_motion_on_rts_view_hint" text="{=RTSCamera_slowmotiononrtsviewhint}Automatically turn on Slow Motion mode On RTS view" />
+  <string id="str_rts_camera_slow_motion_hotkey_mode" text="{=RTSCamera_slow_motion_hotkey_mode}Slow Motion Hotkey Mode" />
+  <string id="str_rts_camera_slow_motion_hotkey_mode_hint" text="{=RTSCamera_slow_motion_hotkey_mode_hint}The mode of slow motion with hotkey." />
+  <string id="str_rts_camera_hotkey_mode.Toggle" text="{=RTSCamera_hotkey_mode_toggle}Toggle" />
+  <string id="str_rts_camera_hotkey_mode.Hold" text="{=RTSCamera_hotkey_mode_hold}Hold" />
+  <string id="str_rts_camera_fast_forward_mode" text="{=RTSCamera_fast_forward_mode}Fast Forward Mode" />
+  <string id="str_rts_camera_fast_forward_hint" text="{=RTSCamera_fast_forward_hint}Whether to enable fast forward mode" />
+  <string id="str_rts_camera_override_fast_forward_speed" text="{=RTSCamera_override_fast_forward_speed}Override Fast Forward Speed (Restart Required)" />
+  <string id="str_rts_camera_override_fast_forward_speed_hint" text="{=RTSCamera_override_fast_forward_speed_hint}(Restart required) Whether to override the default fast forward speed. Default is 10x. If enabled, the fast forward speed will be set by the value below." />
+  <string id="str_rts_camera_fast_forward_speed" text="{=RTSCamera_fast_forward_speed}Fast Forward Speed" />
+  <string id="str_rts_camera_fast_forward_speed_hint" text="{=RTSCamera_fast_forward_speed_hint}Time speed under fast forward mode. Require the above option being enabled." />
+  <string id="str_rts_camera_fast_forward_hotkey_mode" text="{=RTSCamera_fast_forward_hotkey_mode}Fast Forward Hotkey Mode" />
+  <string id="str_rts_camera_fast_forward_hotkey_mode_hint" text="{=RTSCamera_fast_forward_hotkey_mode_hint}The mode of fast forward with hotkey." />
+
+  <string id="str_rts_camera_miscellaneous_options" text="{=RTSCamera_miscellaneous_options}Miscellaneous Options" />
+  <string id="str_rts_camera_display_mod_message" text="{=RTSCamera_displaymodmessage}Display Message" />
+  <string id="str_rts_camera_display_message_hint" text="{=RTSCamera_display_message_hint}Whether to display message of this mod." />
+  <string id="str_rts_camera_toggle_ui" text="{=RTSCamera_toggleui}Toggle HUD" />
+  <string id="str_rts_camera_toggle_ui_hint" text="{=RTSCamera_toggle_ui_hint}Toggle HUD of the game, for making video." />
+
+  <string id="str_rts_camera_naval_options" text="{=RTSCamera_naval_options}War Sails Options" />
+  <string id="str_rts_camera_player_ship_controller_in_free_camera" text="{=RTSCamera_player_ship_controller_in_free_camera}Player Ship Controller in Free Camera" />
+  <string id="str_rts_camera_player_ship_controller_in_free_camera_hint" text="{=RTSCamera_player_ship_controller_in_free_camera_hint}Player ship control mode in Free Camera. If set to none, player ship will not be controlled. If set to AI, AI will control player ship. If set to Player, you can still directly control your ship." />
+
+  <string id="str_rts_camera_steering_mode_when_player_stops_piloting" text="{=RTSCamera_steering_mode_when_player_stops_piloting}Steering Mode When Player Stops Piloting" />
+  <string id="str_rts_camera_steering_mode_when_player_stops_piloting_hint" text="{=RTSCamera_steering_mode_when_player_stops_piloting_hint}When player stops piloting the ship, how the ship will be controlled. If set to None, the ship will stay uncontrolled. If set to Soldier, the ship will be piloted by soldier and receives your command. If set to Delegate Command, the ship will be piloted by soldier and receives ship command from AI." />
+  <string id="str_rts_camera_steering_mode.None" text="{=RTSCamera_steering_mode_none}None (Default)" />
+  <string id="str_rts_camera_steering_mode.Soldier" text="{=RTSCamera_steering_mode_soldier}Soldier" />
+  <string id="str_rts_camera_steering_mode.DelegateCommand" text="{=RTSCamera_steering_mode_delegate_command}Delegate Command" />
+
+  <string id="str_rts_camera_switch_retreat_and_delegate_command" text="{=RTSCamera_switch_retreat_and_delegate_command}Switch Retreat and Delegate Command" />
+  <string id="str_rts_camera_switch_retreat_and_delegate_command_hint" text="{=RTSCamera_switch_retreat_and_delegate_command_hint}Switch hotkey and UI of Retreat and Delegate Command. So that Delegate Command is bound to F6." />
+
+  <string id="str_rts_camera_unbalanced_options_description" text="{=RTSCamera_unbalancedoptionsdescription}Cheat Options" />
+  <string id="str_rts_camera_all_invulnerable" text="{=RTSCamera_disabledeath}All Invulnerable" />
+  <string id="str_rts_camera_enable_all_invulnerable_hotkey" text="{=RTSCamera_enable_all_invulnerable_hotkey}Enable All Invulnerable Hotkey" />
+  <string id="str_rts_camera_switch_team" text="{=RTSCamera_switchteam}Switch Team" />
+  <string id="str_rts_camera_enable_switch_team_hotkey" text="{=RTSCamera_enable_switch_team_hotkey}Enable Switch Team Hotkey" />
+
+  <string id="str_rts_camera_mission_paused" text="{=RTSCamera_missionpaused}Mission paused." />
+  <string id="str_rts_camera_mission_continued" text="{=RTSCamera_missioncontinue}Mission continued." />
+
+  <string id="str_rts_camera_slow_motion_enabled" text="{=RTSCamera_slowmotionenabled}Slow Motion Mode Enabled." />
+  <string id="str_rts_camera_normal_mode_enabled" text="{=RTSCamera_normalmodeenabled}Normal Mode Enabled." />
+
+  <string id="str_rts_camera_fast_forward_enabled" text="{=RTSCamera_fastforwardenabled}Fast Forward Mode Enabled." />
+  <string id="str_rts_camera_fast_forward_disabled" text="{=RTSCamera_fastforwarddisabled}Fast Forward Mode Disabled." />
+
+  <string id="str_rts_camera_player_dead" text="{=RTSCamera_playeragentdead}Player agent is injured." />
+  <string id="str_rts_camera_switch_to_player" text="{=RTSCamera_switchtoplayer}Switch to player agent." />
+  <string id="str_rts_camera_switch_to_free_camera" text="{=RTSCamera_switchtofreecamera}Switch to free camera." />
+
+  <string id="str_rts_camera_elevated_camera_hint" text="{=RTSCamera_elevated_camera_hint}Elevate camera when giving orders. " />
+  <string id="str_rts_camera_elevated_camera_trigger_mode" text="{=RTSCamera_elevated_camera_trigger_mode}Elevated Camera Trigger Mode" />
+  <string id="str_rts_camera_elevated_camera_trigger_mode_hint" text="{=RTSCamera_elevated_camera_trigger_mode_hint}When giving orders, choose when the elevated camera should be triggered." />
+  <string id="str_rts_camera_elevated_camera_trigger_mode_option.Never" text="{=RTSCamera_elevated_camera_trigger_mode_option_never}Never" />
+  <string id="str_rts_camera_elevated_camera_trigger_mode_option.WhenOpeningOrderUI" text="{=RTSCamera_elevated_camera_trigger_mode_option_when_opening_order_ui}When Opening Order UI" />
+  <string id="str_rts_camera_elevated_camera_trigger_mode_option.WhenGivingMovementOrder" text="{=RTSCamera_elevated_camera_trigger_mode_option_when_giving_movement_order}When Giving Movement Order" />
+  <string id="str_rts_camera_switch_camera_on_ordering" text="{=RTSCamera_switch_camera_on_ordering}Switch Camera on Ordering" />
+  <string id="str_rts_camera_switch_camera_on_ordering_hint" text="{=RTSCamera_switch_camera_on_ordering_hint}Switch to free camera when opening the order UI, and switch back when closing it." />
+  <string id="str_rts_camera_order_on_switching_camera" text="{=RTSCamera_orderonswitchingcamera}Order on Switching Camera" />
+  <string id="str_rts_camera_order_on_switching_camera_hint" text="{=RTSCamera_orderonswitchingcamerahint}Automatically open order UI when switching to free camera, and close order UI when switching back." />
+  <string id="str_rts_camera_keep_order_ui_open_in_free_camera" text="{=RTSCamera_keep_order_ui_open_in_free_camera}Keep Order UI Open in Free Camera" />
+  <string id="str_rts_camera_keep_order_ui_open_in_free_camera_hint" text="{=RTSCamera_keep_order_ui_open_in_free_camera_hint}Keep Order UI Open in Free Camera" />
+  <string id="str_rts_camera_keep_order_ui_open_in_elevated_camera" text="{=RTSCamera_keep_order_ui_open_in_elevated_camera}Keep Order UI Open in Elevated Camera" />
+  <string id="str_rts_camera_keep_order_ui_open_in_elevated_camera_hint" text="{=RTSCamera_keep_order_ui_open_in_elevated_camera_hint}Keep Order UI Open in Elevated Camera" />
+  <string id="str_rts_camera_show_hotkey_hint" text="{=RTSCamera_show_hotkey_hint}Show Hotkey Hint" />
+  <string id="str_rts_camera_show_hotkey_hint_hint" text="{=RTSCamera_show_hotkey_hint_hint}Show hotkey hint in free camera mode." />
+  <string id="str_rts_camera_fast_forward_hideout" text="{=RTSCamera_fast_forward_hideout}Fast Forward Hideout" />
+  <string id="str_rts_camera_fast_forward_hideout_hint" text="{=RTSCamera_fast_forward_hideout_hint}Automatically fast forward in hideout and let AI control player." />
+  <string id="str_rts_camera_fast_forward_hideout_option.Never" text="{=RTSCamera_fast_forward_hideout_option_never}Never" />
+  <string id="str_rts_camera_fast_forward_hideout_option.UntilBossFight" text="{=RTSCamera_fast_forward_hideout_option_until_boss_fight}Until Boss Fight" />
+  <string id="str_rts_camera_fast_forward_hideout_option.Always" text="{=RTSCamera_fast_forward_hideout_option_always}Always" />
+  <string id="str_rts_camera_fast_forward_hideout_prompt" text="{=RTSCamera_fast_forward_hideout_prompt}Do you want to enable fast forward in hideout?" />
+
+  <string id="str_rts_camera_ai_control_ship_on" text="{=RTSCamera_ai_control_ship_on}Soldier Pilot On" />
+  <string id="str_rts_camera_ai_control_ship_off" text="{=RTSCamera_player_control_ship_off}Soldier Pilot Off" />
+  <string id="str_rts_camera_soldiers_start_controlling_ship" text="{=RTSCamera_soldiers_start_controlling_ship}Soldier starts piloting your ship." />
+  <string id="str_rts_camera_soldiers_stop_controlling_ship" text="{=RTSCamera_soldiers_stop_controlling_ship}Soldier stops piloting your ship." />
+
+  <string id="str_key_category_name.RTSCameraHotKey" text="{=RTSCamera_hotkeycategory}RTSCamera Hot Key" />
+  <string id="str_key_name.RTSCameraHotKey_Pause" text="{=RTSCamera_pausekey}Pause" />
+  <string id="str_key_name.RTSCameraHotKey_SlowMotion" text="{=RTSCamera_slowmotionkey}Slow Motion" />
+  <string id="str_key_name.RTSCameraHotKey_Fastforward" text="{=RTSCamera_fastforwardkey}Fast Forward" />
+  <string id="str_key_name.RTSCameraHotKey_FreeCamera" text="{=RTSCamera_freecamerakey}Free Camera" />
+  <string id="str_key_name.RTSCameraHotKey_DisableDeath" text="{=RTSCamera_disabledeathkey}All Invulnerable" />
+  <string id="str_key_name.RTSCameraHotKey_ControlTroop" text="{=RTSCamera_controltroopkey}Focus Camera/Control Troop" />
+  <!-- same as str_rts_camera_toggle_ui -->
+  <string id="str_key_name.RTSCameraHotKey_ToggleHUD" text="{=RTSCamera_toggleui}Toggle HUD" />
+  <!-- same as str_rts_camera_switch_team -->
+  <string id="str_key_name.RTSCameraHotKey_SwitchTeam" text="{=RTSCamera_switchteam}Switch Team" />
+  <!-- same as str_rts_camera_select_character -->
+  <string id="str_key_name.RTSCameraHotKey_SelectCharacter" text="{=RTSCamera_select_character}Select Character" />
+  <string id="str_key_name.RTSCameraHotKey_CameraMoveForward" text="{=RTSCamera_camera_move_forward}Camera Move Forward" />
+  <string id="str_key_name.RTSCameraHotKey_CameraMoveBackward" text="{=RTSCamera_camera_move_backward}Camera Move Backward" />
+  <string id="str_key_name.RTSCameraHotKey_CameraMoveLeft" text="{=RTSCamera_camera_move_left}Camera Move Left" />
+  <string id="str_key_name.RTSCameraHotKey_CameraMoveRight" text="{=RTSCamera_camera_move_right}Camera Move Right" />
+  <string id="str_key_name.RTSCameraHotKey_CameraMoveUp" text="{=RTSCamera_camera_move_up}Camera Move Up" />
+  <string id="str_key_name.RTSCameraHotKey_CameraMoveDown" text="{=RTSCamera_camera_move_down}Camera Move Down" />
+  <string id="str_key_name.RTSCameraHotKey_IncreaseCameraDistanceLimit" text="{=RTSCamera_camera_increase_camera_limit}Increase Camera Distance Limit" />
+  <string id="str_key_name.RTSCameraHotKey_DecreaseCameraDistanceLimit" text="{=RTSCamera_camera_decrease_camera_limit}Decrease Camera Distance Limit" />
+  <string id="str_key_name.RTSCameraHotKey_IncreaseCameraSpeed" text="{=RTSCamera_camera_increase_camera_speed}Increase Camera speed" />
+  <string id="str_key_name.RTSCameraHotKey_DecreaseCameraSpeed" text="{=RTSCamera_camera_decrease_camera_speed}Decrease Camera speed" />
+  <string id="str_key_name.RTSCameraHotKey_ResetCameraSpeed" text="{=RTSCamera_camera_reset_camera_speed}Reset Camera speed" />
+  <string id="str_key_name.RTSCameraHotKey_CameraMoveByMouse" text="{=RTSCamera_camera_move_by_mouse}Move Camera By Mouse." />
+
+
+  <!-- same as str_rts_camera_toggle_pause_hint -->
+  <string id="str_key_description.RTSCameraHotKey_Pause" text="{=RTSCamera_toggle_pause_hint}Pause or unpause the game." />
+  <string id="str_key_description.RTSCameraHotKey_SlowMotion" text="{=RTSCamera_slowmotionkey_description}Enable slow motion mode. Press again to recover." />
+  <string id="str_key_description.RTSCameraHotKey_Fastforward" text="{=RTSCamera_fastforwardkey_description}Toggle Fast Forward" />
+  <!-- same as str_rts_camera_auto_mode_hint -->
+  <string id="str_key_description.RTSCameraHotKey_FreeCamera" text="{=RTSCamera_switch_free_camera_hint}Switch between free camera and player camera." />
+  <string id="str_key_description.RTSCameraHotKey_DisableDeath" text="{=RTSCamera_disable_death_description}All units will not die, for making video. Cheat mode needs to be on and the hotkey needs to be enabled in menu." />
+  <string id="str_key_description.RTSCameraHotKey_ControlTroop" text="{=RTSCamera_controltroopkey_description}Focus camera to character or selected formation. Control one of your teammates when you are killed." />
+  <!-- same as str_rts_camera_toggle_ui_hint -->
+  <string id="str_key_description.RTSCameraHotKey_ToggleHUD" text="{=RTSCamera_toggle_ui_hint}Toggle HUD of the game, for making video." />
+  <string id="str_key_description.RTSCameraHotKey_SwitchTeam" text="{=RTSCamera_switchteam_description}Swap player's team, for making video. Cheat mode needs to be on and the hotkey needs to be enabled in menu." />
+  <!-- same as str_rts_camera_select_character_hint -->
+  <string id="str_key_description.RTSCameraHotKey_SelectCharacter" text="{=RTSCamera_select_character_hint}Select a character using mouse, then you can focus the camera to it or control it." />
+  <string id="str_key_description.RTSCameraHotKey_CameraMoveForward" text="{=RTSCamera_camera_move_forward_description}Move the camera forward" />
+  <string id="str_key_description.RTSCameraHotKey_CameraMoveBackward" text="{=RTSCamera_camera_move_backward_description}Move the camera backward" />
+  <string id="str_key_description.RTSCameraHotKey_CameraMoveLeft" text="{=RTSCamera_camera_move_left_description}Move the camera to the left" />
+  <string id="str_key_description.RTSCameraHotKey_CameraMoveRight" text="{=RTSCamera_camera_move_right_description}Move the camera to the right" />
+  <string id="str_key_description.RTSCameraHotKey_CameraMoveUp" text="{=RTSCamera_camera_move_up_description}Move the camera up" />
+  <string id="str_key_description.RTSCameraHotKey_CameraMoveDown" text="{=RTSCamera_camera_move_down_description}Move the camera down" />
+  <string id="str_key_description.RTSCameraHotKey_IncreaseCameraDistanceLimit" text="{=RTSCamera_camera_increase_camera_limit_description}Increase Camera Distance Limit" />
+  <string id="str_key_description.RTSCameraHotKey_DecreaseCameraDistanceLimit" text="{=RTSCamera_camera_decrease_camera_limit_description}Decrease Camera Distance Limit" />
+  <string id="str_key_description.RTSCameraHotKey_IncreaseCameraSpeed" text="{=RTSCamera_camera_increase_camera_speed_description}Increase Camera speed" />
+  <string id="str_key_description.RTSCameraHotKey_DecreaseCameraSpeed" text="{=RTSCamera_camera_decrease_camera_speed_description}Decrease Camera speed" />
+  <string id="str_key_description.RTSCameraHotKey_ResetCameraSpeed" text="{=RTSCamera_camera_reset_camera_speed_description}Reset Camera speed" />
+  <string id="str_key_description.RTSCameraHotKey_CameraMoveByMouse" text="{=RTSCamera_camera_move_by_mouse_description}Hold to Move Camera By Mouse." />
+
+  <string id="str_rts_camera_enemy_wiped_out" text="{=RTSCamera_enemywipedout}Enemy has been wiped out." />
+  <string id="str_rts_camera_switch_to_enemy_team" text="{=RTSCamera_switchtoenemyteam}Switched to the enemy team." />
+
+  <string id="str_rts_camera_select_character_view_hint" text="{=RTSCamera_select_character_view_hint}Please Select a character by left click. Then press {KeyName} to lock to it and press again to control it." />
+  <string id="str_rts_camera_control_troop_hint" text="{=RTSCamera_control_troop_hint}Press {KeyName} to control one of your teammates." />
+  <string id="str_rts_camera_control_current_agent_hint" text="{=RTSCamera_control_current_agent_hint}Press {KeyName} to control the character" />
+  <string id="str_rts_camera_focus_on_formation_hint" text="{=RTSCamera_focus_on_formation_hint}Press {KeyName} to focus camera on selected formation." />
+
+  <string id="str_rts_camera_tactics_skill_effect_description" text="{=RTSCamera_tactics_skill_effect_description}RTS Camera Limit by Tactics: +{a0}m" />
+  <string id="str_rts_camera_scouting_skill_effect_description" text="{=RTSCamera_scouting_skill_effect_description}RTS Camera Limit by Scouting: +{a0}%" />
+
+  <string id="str_rts_camera_base_distance" text="{=RTSCamera_base_distance}Base Distance" />
+  <string id="str_rts_camera_out_of_campaign" text="{=RTSCamera_out_of_campaign}Out of Campaign" />
+  <string id="str_rts_camera_no_main_hero" text="{=RTSCamera_no_main_hero}Main hero doesn't exist" />
+
+  <string id="str_rts_camera_cheat_mode_required" text="{=RTSCamera_cheat_mode_required}Enable cheat mode to close this option." />
+
+  <string id="str_rts_camera_focus_on_formation_usage" text="{=RTSCamera_focus_on_formation_usage}(New Feature) When command UI is open in free camera mode, you can press {KeyName} to stick camera to selected formation." />
+  <string id="str_rts_camera_control_troop_usage" text="{=RTSCamera_control_troop_usage}After your character is killed in battle, you can press {KeyName} to follow one of your soldiers and press {KeyName} again to control it and continue fighting." />
+
+  <string id="str_rts_camera_open_menu_hotkey_hint" text="{=RTSCamera_open_menu_hotkey_hint}open menu" />
+  <string id="str_rts_camera_switch_camera_hotkey_hint" text="{=RTSCamera_switch_camera_hotkey_hint}toggle free Camera" />
+  <string id="str_rts_camera_control_troop_hotkey_hint" text="{=RTSCamera_control_troop_hotkey_hint}lock to agent/formation; control agent" />
+  <string id="str_rts_camera_select_character_hotkey_hint" text="{=RTSCamera_select_character_hotkey_hint}select character mode" />
+  <string id="str_rts_camera_move_camera_hotkey_hint" text="{=RTSCamera_move_camera_hotkey_hint}Move Camera" />
+</strings>

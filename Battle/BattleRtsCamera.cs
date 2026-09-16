@@ -38,6 +38,46 @@ namespace FeudalInternalAffairs
         private const float ElevMax = 1.121997f;        // RTS 原值
         private const float MoveSpeed = 12f;
 
+        private static bool? _rtsModPresent;
+
+        // 检测玩家是否装了(或我们的发布包里自带)RTS Camera:
+        // 装了的话, 相机/角色处理全部让位给原 mod, 我们自己一点都不接管(避免两边抢相机)。
+        internal static bool RtsModPresent
+        {
+            get
+            {
+                if (_rtsModPresent == null)
+                {
+                    bool found = false;
+                    try
+                    {
+                        var basePath = TaleWorlds.Library.BasePath.Name;
+                        if (!string.IsNullOrEmpty(basePath))
+                        {
+                            found = System.IO.File.Exists(System.IO.Path.Combine(basePath, "Modules", "RTSCamera", "SubModule.xml"))
+                                 || System.IO.File.Exists(System.IO.Path.Combine(basePath, "Modules", "RTSCamera.CommandSystem", "SubModule.xml"));
+                        }
+                    }
+                    catch { }
+                    if (!found)
+                    {
+                        try
+                        {
+                            foreach (var a in AppDomain.CurrentDomain.GetAssemblies())
+                            {
+                                var n = a.GetName().Name;
+                                if (n == "RTSCamera" || n == "RTSCamera.CommandSystem") { found = true; break; }
+                            }
+                        }
+                        catch { }
+                    }
+                    _rtsModPresent = found;
+                    if (found) DLog.Force("检测到 RTS Camera mod: 我们的战场相机/角色处理全部让位(不接管)");
+                }
+                return _rtsModPresent.Value;
+            }
+        }
+
         internal static void Reset()
         {
             Active = false;
@@ -47,6 +87,7 @@ namespace FeudalInternalAffairs
 
         internal static void Activate()
         {
+            if (RtsModPresent) return;   // 有原 mod -> 我们自己不启用
             Active = true;
             _inited = false;
             _agentPrepared = false;
@@ -72,6 +113,7 @@ namespace FeudalInternalAffairs
 
         private static void Tick(MissionScreen screen, float realDt)
         {
+            if (RtsModPresent) return;   // 原 mod 在场 -> 完全不碰相机和角色
             if (screen == null) return;
             var mission = screen.Mission;
             if (mission == null) return;

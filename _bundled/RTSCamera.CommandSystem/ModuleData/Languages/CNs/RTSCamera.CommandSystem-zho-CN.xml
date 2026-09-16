@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="string">
+  <tags>
+    <tag language="简体中文" />
+  </tags>
+  <strings>
+    <string id="RTSCameraCommandSystem_option_class" text="指挥系统" />
+
+    <string id="RTSCameraCommandSystem_command_system_options" text="指挥系统选项" />
+
+    <string id="RTSCameraCommandSystem_click_to_select_formation" text="用鼠标选择编队" />
+    <string id="RTSCameraCommandSystem_click_to_select_formation_hint" text="你可以按下{KeyName}来选择编队。选中的编队会用轮廓高亮。" />
+    <string id="RTSCameraCommandSystem_attack_specific_formation" text="启用攻击特定编队" />
+    <string id="RTSCameraCommandSystem_attack_specific_formation_hint" text="你可以在敌方编队上按下{KeyName}来发出集中攻击的命令。" />
+    <string id="RTSCameraCommandSystem_attack_specific_formation_alt_hint" text="(新功能) 若同时按下Alt则不会打断移动指令。" />
+
+    <string id="RTSCameraCommandSystem_disable_native_attack" text="禁用原生攻击" />
+    <string id="RTSCameraCommandSystem_disable_native_attack_hint" text="通过单击编队图标禁用原生攻击，以避免意外触发攻击。" />
+
+    <string id="RTSCameraCommandSystem_after_enemy_eliminated" text="消灭敌方编队后" />
+    <string id="RTSCameraCommandSystem_after_enemy_formation_eliminated_hint" text="消灭指定的敌方编队后下一步的行为" />
+    <string id="RTSCameraCommandSystem_after_charge_behavior_charge" text="冲锋" />
+    <string id="RTSCameraCommandSystem_after_charge_behavior_hold" text="原地等待" />
+
+    <string id="RTSCameraCommandSystem_troop_highlight_character_mode" text="部队高亮样式（角色模式）" />
+    <string id="RTSCameraCommandSystem_troop_highlight_character_mode_hint" text="角色模式下的部队高亮样式。" />
+    <string id="RTSCameraCommandSystem_troop_highlight_option_no" text="无" />
+    <string id="RTSCameraCommandSystem_troop_highlight_option_outline" text="轮廓" />
+    <string id="RTSCameraCommandSystem_troop_highlight_option_ground_marker" text="地面标记" />
+
+    <string id="RTSCameraCommandSystem_troop_highlight_rts_mode" text="部队高亮样式（RTS模式）" />
+    <string id="RTSCameraCommandSystem_troop_highlight_rts_mode_hint" text="RTS模式下的部队高亮样式。" />
+
+    <string id="RTSCameraCommandSystem_highlight_troops_when_showing_indicators" text="显示指引标记时高亮部队" />
+    <string id="RTSCameraCommandSystem_highlight_troops_when_showing_indicators_hint" text="启用后，显示编队指示器时部队将被高亮显示。" />
+
+    <string id="RTSCameraCommandSystem_highlight_troops_without_formation" text="高亮无编队的部队" />
+    <string id="RTSCameraCommandSystem_highlight_troops_without_formation_hint" text="启用后，无编队的部队也可以被高亮显示。" />
+
+    <string id="RTSCameraCommandSystem_movement_target_highlight_character_mode" text="移动目标样式（角色模式）" />
+    <string id="RTSCameraCommandSystem_movement_target_highlight_character_mode_hint" text="角色模式下的移动目标样式。" />
+    <string id="RTSCameraCommandSystem_highlight_style_original" text="原始" />
+    <string id="RTSCameraCommandSystem_highlight_style_new_model_only" text="仅新模型" />
+    <string id="RTSCameraCommandSystem_highlight_style_always_visible" text="始终可见" />
+
+    <string id="RTSCameraCommandSystem_movement_target_highlight_rts_mode" text="移动目标样式（RTS模式）" />
+    <string id="RTSCameraCommandSystem_movement_target_highlight_rts_mode_hint" text="RTS模式下的移动目标样式。" />
+
+    <string id="RTSCameraCommandSystem_movement_target_fade_out_duration" text="移动目标淡出持续时间" />
+    <string id="RTSCameraCommandSystem_movement_target_fade_out_duration_hint" text="移动目标的淡出持续时间。" />
+
+    <string id="RTSCameraCommandSystem_command_queue_flag_show_mode" text="何时显示命令旗帜" />
+    <string id="RTSCameraCommandSystem_command_queue_flag_show_mode_hint" text="命令队列中的命令目标将会用旗帜标识出来。" />
+    <string id="RTSCameraCommandSystem_highlight_mode_never" text="从不" />
+    <string id="RTSCameraCommandSystem_highlight_mode_free_camera_only" text="仅自由视角下" />
+    <string id="RTSCameraCommandSystem_highlight_mode_always" text="总是" />
+
+    <string id="RTSCameraCommandSystem_command_queue_arrow_show_mode" text="何时显示命令箭头" />
+    <string id="RTSCameraCommandSystem_command_queue_arrow_show_mode_hint" text="命令队列中的命令目标将会用箭头连接起来。" />
+
+    <string id="RTSCameraCommandSystem_command_queue_formation_shape_show_mode" text="何时显示编队边框" />
+    <string id="RTSCameraCommandSystem_command_queue_formation_shape_show_mode_hint" text="编队边框将在移动目标处显示。" />
+
+    <string id="RTSCameraCommandSystem_formation_lock_condition" text="何时启用整体行军" />
+    <string id="RTSCameraCommandSystem_formation_lock_condition_hint" text="移动和转向指令中编队相对位置将保持不变。" />
+    <string id="RTSCameraCommandSystem_formation_lock_condition_option_never" text="从不启用" />
+    <string id="RTSCameraCommandSystem_formation_lock_condition_option_when_pressed" text="当按键按下时" />
+    <string id="RTSCameraCommandSystem_formation_lock_condition_option_when_not_pressed" text="当按键未按下时" />
+
+    <string id="RTSCameraCommandSystem_sync_locked_formation_speed_message" text="调整移动速度。" />
+    <string id="RTSCameraCommandSystem_formation_speed_sync_mode" text="编队速度同步模式" />
+    <string id="RTSCameraCommandSystem_formation_speed_sync_mode_hint" text="移动多个编队时同步编队速度的模式。禁用：不同步编队速度。线性：线性同步编队速度。追赶：同步编队速度以使最慢的编队追上其他编队。等待最后编队：同步编队速度以等待慢编队。" />
+    <string id="RTSCameraCommandSystem_formation_speed_sync_mode_option_disabled" text="禁用" />
+    <string id="RTSCameraCommandSystem_formation_speed_sync_mode_option_linear" text="线性" />
+    <string id="RTSCameraCommandSystem_formation_speed_sync_mode_option_catch_up" text="追赶" />
+    <string id="RTSCameraCommandSystem_formation_speed_sync_mode_option_wait_for_last_formation" text="等待最慢编队（默认）" />
+
+    <string id="RTSCamera_order_ui_clickable" text="命令界面可点击" />
+    <string id="RTSCamera_order_ui_clickable_hint" text="让命令界面可点击。重启游戏来生效。" />
+
+    <string id="RTSCameraCommandSystem_order_ui_clickable_extension" text="命令界面点击功能扩展" />
+    <string id="RTSCameraCommandSystem_order_ui_clickable_extension_hint" text="可在下达朝向或开战指令的同时按住{KeyName}，然后点击目标来指定命令的目标。" />
+    <string id="RTSCameraCommandSystem_click_enemy_to_select_target_for_command" text="点击敌军以选择命令目标" />
+    <string id="RTSCameraCommandSystem_click_ground_to_select_target_for_command" text="点击地面以选择命令目标" />
+
+    <string id="RTSCameraCommandSystem_face_enemy_by_default" text="默认面朝敌军" />
+    <string id="RTSCameraCommandSystem_face_enemy_by_default_hint" text="战斗开始时部队是否应该默认面朝敌军。" />
+    
+    <string id="RTSCameraCommandSystem_formation_options" text="阵型选项" />
+    <string id="RTSCameraCommandSystem_hollow_square_formation" text="启用空心方阵" />
+    <string id="RTSCameraCommandSystem_hollow_square_formation_hint" text="是否为玩家启用空心方阵。" />
+
+    <string id="RTSCameraCommandSystem_square_formation_corner_Fix" text="方阵角落修正" />
+    <string id="RTSCameraCommandSystem_square_formation_corner_Fix_hint" text="启用后，位于方阵角落的士兵将面向方阵的对角线方向，以确保更好的防御覆盖和更自然的外观。" />
+
+    <string id="RTSCameraCommandSystem_circle_formation_preference" text="圆阵偏好" />
+    <string id="RTSCameraCommandSystem_circle_formation_preference_hint" text="偏好最小、紧凑或松散圆阵。" />
+    <string id="RTSCameraCommandSystem_circle_formation_preference_option_minimum" text="最小圆阵" />
+    <string id="RTSCameraCommandSystem_circle_formation_preference_option_tight" text="紧凑圆阵" />
+    <string id="RTSCameraCommandSystem_circle_formation_preference_option_loose" text="松散圆阵" />
+
+    <string id="RTSCameraCommandSystem_override_mounted_units_interval_threshold" text="覆盖骑乘单位间隔阈值" />
+    <string id="RTSCameraCommandSystem_override_mounted_units_interval_threshold_hint" text="启用后，骑乘单位间隔阈值将被下面的数值覆盖。可能会导致其它相关模组的性能问题（比如TAOM魔戒人类纪元）。需要重启游戏生效。" />
+    <string id="RTSCameraCommandSystem_mounted_units_interval_threshold" text="骑乘单位间隔阈值" />
+    <string id="RTSCameraCommandSystem_mounted_units_interval_threshold_hint" text="编队中骑乘单位比例的阈值，以使单位间有更大间隔。游戏本体中默认为0.1。" />
+
+    <string id="RTSCameraCommandSystem_defensive_hold_options" text="防御保持选项" />
+    <string id="RTSCameraCommandSystem_add_defensive_hold_order" text="添加防御保持指令" />
+    <string id="RTSCameraCommandSystem_add_defensive_hold_order_hint" text="启用后，添加一个指令，使处于防御阵型的部队保持在原地并举盾，而不是离开原地去攻击敌军。" />
+    <string id="RTSCameraCommandSystem_defensive_hold_on" text="防御保持开启" />
+    <string id="RTSCameraCommandSystem_defensive_hold_off" text="防御保持关闭" />
+    <string id="RTSCameraCommandSystem_attack_if_hit" text="受到攻击时反击" />
+    <string id="RTSCameraCommandSystem_attack_if_hit_hint" text="启用后，处于防御阵型的部队在受到敌军攻击时会进行反击。" />
+
+    <string id="RTSCameraCommandSystem_advance_order_options" text="开战指令选项" />
+
+    <string id="RTSCameraCommandSystem_fix_advance_order_for_throwing_weapons" text="修正投掷武器的开战指令" />
+    <string id="RTSCameraCommandSystem_fix_advance_order_for_throwing_weapons_hint" text="启用后，装备投掷武器的部队将在保持距离的同时向目标投掷武器。" />
+
+    <string id="RTSCameraCommandSystem_apply_advance_order_fix_for_ai" text="为AI编队应用开战指令修正" />
+    <string id="RTSCameraCommandSystem_apply_advance_order_fix_for_ai_hint" text="启用后，AI编队也将应用投掷武器的开战指令修正。" />
+
+    <string id="RTSCameraCommandSystem_thrower_ratio_threshold" text="投掷兵比例阈值" />
+    <string id="RTSCameraCommandSystem_thrower_ratio_threshold_hint" text="启用投掷武器开战指令修正所需的投掷兵在编队中的最低比例。" />
+
+    <string id="RTSCameraCommandSystem_remaining_ammo_ratio_threshold" text="剩余弹药比例阈值" />
+    <string id="RTSCameraCommandSystem_remaining_ammo_ratio_threshold_hint" text="让编队保持距离所需的最低剩余弹药比例。" />
+
+    <string id="RTSCameraCommandSystem_shorten_range_based_on_remaining_ammo" text="根据剩余弹药缩短距离" />
+    <string id="RTSCameraCommandSystem_shorten_range_based_on_remaining_ammo_hint" text="剩余弹药越少，编队保持的距离越短。" />
+
+    <string id="RTSCameraCommandSystem_defensive_attack" text="优先攻击敌军的{TARGET_NAME}" />
+
+    <string id="RTSCameraCommandSystem_hotkeycategory" text="指挥系统按键" />
+    <string id="RTSCameraCommandSystem_select_formation" text="选择编队" />
+    <string id="RTSCameraCommandSystem_select_formation_hint" text="选择你的编队或发出让你的编队攻击指定的敌方编队的指令。" />
+    <string id="RTSCameraCommandSystem_keep_movement_order" text="保持移动指令 " />
+    <string id="RTSCameraCommandSystem_keep_movement_order_hint" text="按下以在攻击敌方编队的同时维持之前的移动指令不变。" />
+    <string id="RTSCameraCommandSystem_formation_lock_movement" text="切换整体行军" />
+    <string id="RTSCameraCommandSystem_formation_lock_movement_hint" text="按住以启用/关闭整体行军" />
+    <string id="RTSCameraCommandSystem_select_target_for_command" text="选择指令目标" />
+    <string id="RTSCameraCommandSystem_select_target_for_command_hint" text="按住以在开战/朝向指令中选择目标。" />
+    <string id="RTSCameraCommandSystem_command_queue" text="命令队列" />
+    <string id="RTSCameraCommandSystem_command_queue_hint" text="将命令添加到队列。士兵会一个个顺序执行队列中的命令。" />
+    <string id="RTSCameraCommandSystem_command_keep_formation_width" text="保持编队宽度" />
+    <string id="RTSCameraCommandSystem_keep_formation_width_hint" text="按住以在拖动编队时保持编队宽度；选择更多编队。" />
+
+    <string id="RTSCameraCommandSystem_tactic_level_required" text="你的战术等级至少需要{level}级" />
+
+    <string id="RTSCameraCommandSystem_order_queue_usage" text="命令队列：按住{KeyName}并下达命令以将命令添加到队列。你的部队将会一个个执行这些命令。" />
+    <string id="RTSCameraCommandSystem_lock_formation_usage" text="整体行军：如果你同时移动/转动多个编队，它们的相对位置/方向将会被锁定。" />
+    <string id="RTSCameraCommandSystem_lock_formation_width_usage" text="按住{KeyName}在地面拖动时，编队的相对位置和宽度将会被锁定。" />
+    <string id="RTSCameraCommandSystem_toggle_locking_usage" text="按住{KeyName}以开启/关闭整体行军。" />
+    <string id="RTSCameraCommandSystem_target_only_usage" text="例如，可让你的弓箭手待在原地同时攻击指定的目标。" />
+    <string id="RTSCameraCommandSystem_click_troop_card_usage" text="可通过点击兵牌来选择部队。" />
+
+    <string id="RTSCameraCommandSystem_add_order_to_queue" text="指令已添加到队列。" />
+    <string id="RTSCameraCommandSystem_execute_order_in_queue" text="正在执行队列中的指令。" />
+
+    <string id="RTSCameraCommandSystem_follow_entity" text="跟随" />
+    <string id="RTSCameraCommandSystem_use_entity" text="开始使用" />
+    <string id="RTSCameraCommandSystem_stop_use_entity" text="停止使用" />
+    <string id="RTSCameraCommandSystem_attack_entity" text="攻击" />
+    <string id="RTSCameraCommandSystem_point_defense" text="防守" />
+
+    <string id="RTSCameraCommandSystem_volley_order" text="齐射" />
+    <string id="RTSCameraCommandSystem_auto_volley" text="自动齐射" />
+    <string id="RTSCameraCommandSystem_auto_volley_hint" text="为选中的远程编队切换自动齐射模式。" />
+    <string id="RTSCameraCommandSystem_auto_volley_off" text="自动齐射关闭" />
+    <string id="RTSCameraCommandSystem_manual_volley" text="听令齐射" />
+    <string id="RTSCameraCommandSystem_manual_volley_hint" text="为选中的远程编队切换听令齐射模式。" />
+    <string id="RTSCameraCommandSystem_manual_volley_off" text="听令齐射关闭" />
+    <string id="RTSCameraCommandSystem_volley_disabled" text="齐射关闭" />
+    <string id="RTSCameraCommandSystem_volley_fire" text="齐射开火" />
+    <string id="RTSCameraCommandSystem_volley_fire_hint" text="让选中的远程编队齐射开火。" />
+
+    <string id="RTSCameraCommandSystem_volley_order_options" text="齐射指令选项" />
+    <string id="RTSCameraCommandSystem_enable_volley_related_features" text="启用齐射相关功能" />
+    <string id="RTSCameraCommandSystem_enable_volley_related_features_hint" text="禁用后，自动齐射、听令齐射、齐射开火，以及它们对应的热键和排队指令都会被关闭。" />
+
+    <string id="RTSCameraCommandSystem_volley_pre_aiming_mode" text="预瞄准模式" />
+    <string id="RTSCameraCommandSystem_volley_pre_aiming_mode_hint" text="如果启用预瞄准，部队将瞄准目标而不开火。" />
+    <string id="RTSCameraCommandSystem_volley_pre_aiming_mode_option_in_auto_volley" text="在自动齐射中" />
+    <string id="RTSCameraCommandSystem_volley_pre_aiming_mode_option_both_auto_and_manual_volley" text="自动齐射与听令齐射" />
+    <string id="RTSCameraCommandSystem_ready_ratio_in_auto_volley" text="自动齐射中的准备比例" />
+    <string id="RTSCameraCommandSystem_ready_ratio_in_auto_volley_hint" text="自动齐射模式下，在开火前做好准备的部队的最低比例。" />
+    <string id="RTSCameraCommandSystem_max_aiming_time" text="最大瞄准时间" />
+    <string id="RTSCameraCommandSystem_max_aiming_time_hint" text="在自动齐射模式下，部队被认为用于瞄准的最长时间。默认值为1.5秒。" />
+    <string id="RTSCameraCommandSystem_auto_volley_by_nonthrown_weapon_type" text="非投掷武器 按武器类型自动齐射" />
+    <string id="RTSCameraCommandSystem_auto_volley_by_nonthrown_weapon_type_hint" text="启用后，装备非投掷武器的部队将按武器类型进行自动齐射。" />
+    <string id="RTSCameraCommandSystem_auto_volley_by_thrown_weapon_type" text="投掷武器 按武器类型自动齐射" />
+    <string id="RTSCameraCommandSystem_auto_volley_by_thrown_weapon_type_hint" text="启用后，装备投掷武器的部队将按武器类型进行自动齐射。" />
+  </strings>
+</base>

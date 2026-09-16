@@ -1,0 +1,31 @@
+<Brushes>
+  <Brush Name="MissionLibrary.MissionMenuBrush">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="Frame1_canvas" />
+      <BrushLayer Name="Frame" ExtendTop="27" ExtendLeft="26" ExtendRight="27" ExtendBottom="29" Sprite="Frame1_frame" OverlayMethod="CoverWithTexture" OverlaySprite="stone_texture_overlay"/>
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1"/>
+        <BrushLayer Name="Frame" AlphaFactor="1"/>
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="MissionLibrary.TransparentBrush">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="Frame1_canvas" />
+      <BrushLayer Name="Frame" ExtendTop="27" ExtendLeft="26" ExtendRight="27" ExtendBottom="29" Sprite="Frame1_frame" OverlayMethod="CoverWithTexture" OverlaySprite="stone_texture_overlay"/>
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="0"/>
+        <BrushLayer Name="Frame" AlphaFactor="0"/>
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="MissionLibrary.Text.Usage" Font="FiraSansExtraCondensed-Regular" TextHorizontalAlignment="Left" TextVerticalAlignment="Center">
+    <Styles>
+      <Style Name="Default" FontColor="#E1E1E1FF" TextGlowColor="#000000FF" TextOutlineColor="#FFFFFF00" TextOutlineAmount="0" TextGlowRadius="0" TextBlur="0" FontSize="16" />
+    </Styles>
+  </Brush>
+</Brushes>
