@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="string">
+  <tags>
+    <tag language="简体中文" />
+  </tags>
+  <strings>
+    <string id="fia_item_stone" text="石料{@Plural}成堆的石料{\@}" />
+    <string id="fia_item_weapons" text="武器{@Plural}成捆的武器{\@}" />
+    <string id="fia_item_armor" text="盔甲{@Plural}成套的盔甲{\@}" />
+    <string id="fia_item_herbs" text="草药{@Plural}成捆的草药{\@}" />
+    <string id="fia_food_village" text="内政·村庄食物" />
+  </strings>
+</base>

@@ -74,22 +74,33 @@ namespace FeudalInternalAffairs
                     if (our == null) return true;
                     var enemyKingdom = GetOtherFaction(item, our) as Kingdom;
                     if (enemyKingdom == null) return true;
-
-                    // 由敌国自己的家族发起 -> 投票在敌国进行
-                    var proposer = enemyKingdom.RulingClan;
-                    if (proposer == null && enemyKingdom.Clans != null && enemyKingdom.Clans.Count > 0)
-                        proposer = enemyKingdom.Clans[0];
-                    if (proposer == null) return true;
-
-                    var decision = new MakePeaceKingdomDecision(proposer, our, tributeToPay, tributeDurationInDays, true, false);
-                    enemyKingdom.AddDecision(decision, true);
-                    MapSelection.Message("已向 " + (enemyKingdom.Name != null ? enemyKingdom.Name.ToString() : "?")
-                        + " 发起和谈投票, 等他们的领主表决");
-                    DLog.Force("发起和谈投票: 敌国=" + enemyKingdom.StringId);
+                    ProposePeace(our, enemyKingdom, tributeToPay, tributeDurationInDays);
                     return false;
                 }
                 catch (Exception ex) { DLog.Force("和谈投票失败: " + ex.Message); return true; }
             }
+        }
+
+        // 玩家发起和谈: 在敌国发起领主投票(对方同意才和)
+        // 外交面板(DiplomacyBehavior.PlayerMakePeace)与王国页共用这条路径
+        internal static bool ProposePeace(Kingdom our, Kingdom enemy, int tributeToPay, int tributeDurationInDays)
+        {
+            try
+            {
+                if (our == null || enemy == null) return false;
+                var proposer = enemy.RulingClan;
+                if (proposer == null && enemy.Clans != null && enemy.Clans.Count > 0)
+                    proposer = enemy.Clans[0];
+                if (proposer == null) return false;
+
+                var decision = new MakePeaceKingdomDecision(proposer, our, tributeToPay, tributeDurationInDays, true, false);
+                enemy.AddDecision(decision, true);
+                MapSelection.Message("已向 " + (enemy.Name != null ? enemy.Name.ToString() : "?")
+                    + " 发起和谈投票, 等他们的领主表决");
+                DLog.Force("发起和谈投票: 敌国=" + enemy.StringId);
+                return true;
+            }
+            catch (Exception ex) { DLog.Force("和谈投票失败: " + ex.Message); return false; }
         }
 
         // 从外交项里取"另一方阵营"

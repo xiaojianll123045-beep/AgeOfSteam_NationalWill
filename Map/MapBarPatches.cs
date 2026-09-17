@@ -45,12 +45,12 @@ namespace FeudalInternalAffairs
             foreach (var it in items)
             {
                 string id = it != null && it.ItemId != null ? it.ItemId : "";
-                bool isKingdom = id.IndexOf("kingdom", StringComparison.OrdinalIgnoreCase) >= 0;
-                // 我们自己的国策树按钮要保留(它借用了角色图标, id 会是 character_developer)
-                bool isOurs = it != null && it.NavigationElement is FocusTreeNavigationElement;
-                bool keep = isKingdom || isOurs || id.IndexOf("escape", StringComparison.OrdinalIgnoreCase) >= 0;
+                // 国家意志: 王国页面完全取缔 -> 连"王国"按钮一起隐藏; 只留系统菜单(esc)
+                // 我们自己的按钮(国旗不在这一栏)如仍存在也保留
+                bool isOurs = it != null && (it.NavigationElement is FocusTreeNavigationElement
+                                             || it.NavigationElement is BuildNavigationElement);
+                bool keep = isOurs || id.IndexOf("escape", StringComparison.OrdinalIgnoreCase) >= 0;
                 if (!keep) remove.Add(it);
-                else if (isKingdom && !it.IsEnabled) it.IsEnabled = true;
                 if (log) DLog.Info("地图栏按钮: " + id + (keep ? " [保留]" : " [隐藏]"));
             }
             if (remove.Count == 0) return;

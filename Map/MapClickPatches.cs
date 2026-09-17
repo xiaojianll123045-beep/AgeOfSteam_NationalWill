@@ -24,6 +24,10 @@ namespace FeudalInternalAffairs
                 try
                 {
                     if (!NationalWillOrders.IsActive) return true;
+                    // 点在左上角国旗上 -> 交给国家面板处理, 别当地图点击
+                    if (NationalPanel.IsMouseOnFlag()) return false;
+                    // 点在打开的侧边栏面板上 -> 不算地图点击(否则点面板按钮会同时给部队下令)
+                    if (PanelScreen.IsMouseOnPanel()) return false;
                     if (MapBoxSelect.BoxVisible) return false;   // 框选拖动中, 不当点击
                     // 点在选中圈范围内 = 点在该部队上(圈比图标大)
                     var ringHit = MapBoxSelect.HitSelectedRing();
@@ -53,6 +57,7 @@ namespace FeudalInternalAffairs
                 try
                 {
                     if (followModifierUsed || !NationalWillOrders.IsActive) return true;
+                    if (PanelScreen.IsMouseOnPanel()) { __result = true; return false; }   // 点面板不当成点部队
                     if (MapBoxSelect.BoxVisible) { __result = true; return false; }   // 框选拖动中, 不当点击
                     var party = __instance != null && __instance.MapEntity != null ? __instance.MapEntity.MobileParty : null;
                     if (party == null) return true;
@@ -109,6 +114,20 @@ namespace FeudalInternalAffairs
                     if (!NationalWillOrders.IsActive) return;
                     var screen = MapScreen.Instance;
                     if (screen == null) return;
+
+                    // 建造模式快捷键: Ctrl+Z 撤销 / ESC 退出
+                    if (BatchBuild.Active)
+                    {
+                        try
+                        {
+                            bool ctrl = TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftControl)
+                                     || TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.RightControl);
+                            if (ctrl && TaleWorlds.InputSystem.Input.IsKeyPressed(TaleWorlds.InputSystem.InputKey.Z)) BatchBuild.Undo();
+                            if (TaleWorlds.InputSystem.Input.IsKeyPressed(TaleWorlds.InputSystem.InputKey.Escape)) BatchBuild.Exit();
+                        }
+                        catch { }
+                    }
+
                     var mouse = TaleWorlds.InputSystem.Input.MousePositionPixel;
 
                     bool lPressed = TaleWorlds.InputSystem.Input.IsKeyPressed(TaleWorlds.InputSystem.InputKey.LeftMouseButton);
@@ -140,6 +159,30 @@ namespace FeudalInternalAffairs
 
                     bool wasPan = MapBoxSelect.HandleRightButton(rPressed, rDown, rReleased, mouse);
                     if (!rReleased || wasPan) return;
+
+                    // 建造模式: 右键单击 = 把方案排队到光标下的领地(设计 10.3)
+                    if (BatchBuild.Active)
+                    {
+                        BatchBuild.QueueAtCursor();
+                        return;
+                    }
+
+                    // 没选中部队时: 右键他国领土 -> 打开外交面板并选中该国
+                    if (MapSelection.Count == 0)
+                    {
+                        try
+                        {
+                            var pt = MapBoxSelect.CaptureGroundPoint();
+                            var at = TerritoryData.SettlementAt(pt.x, pt.y);
+                            var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                            if (at != null && at.OwnerClan != null && at.OwnerClan.Kingdom != null && at.OwnerClan.Kingdom != pk)
+                            {
+                                DiplomacyPanel.Open(at.OwnerClan.Kingdom);
+                                return;
+                            }
+                        }
+                        catch { }
+                    }
 
                     // 右键战场标记: 本国参战的地图战斗 -> 询问是否亲自指挥
                     var battle = BattleCommand.FindNearCursor(90f);
@@ -401,7 +444,8 @@ namespace FeudalInternalAffairs
                     }
                     else
                     {
-                        MapSelection.Message("已看到 " + settlement.Name + " —— 先左键选中一支我方部队, 可命令其前往");
+                        // 没选中部队 -> 打开定居点抽屉(设计 10.1)
+                        SettlementDrawer.Open(settlement);
                     }
                     return false;
                 }

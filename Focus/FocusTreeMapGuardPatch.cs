@@ -23,6 +23,8 @@ namespace FeudalInternalAffairs
                         FocusTreeScreen.PollInput();   // 顺便每帧处理滚轮/WASD/拖动
                         return false;
                     }
+                    // 侧边栏面板(PanelScreen)不再整体跳过地图视觉 tick —— 那会让地图全冻(用户反馈)。
+                    // 改为由 NavalVisualGuard 精准跳过海战DLC的船可视化。
                 }
                 catch { }
                 return true;
@@ -40,12 +42,15 @@ namespace FeudalInternalAffairs
         }
 
         // 国策树打开时: 屏蔽地图相机输入(WASD/滚轮别动地图)
+        // 另外: 鼠标压在侧边栏面板上时也屏蔽(否则滚轮会穿透去缩放地图, 而面板自己的列表滚不动)
         [HarmonyPatch(typeof(MapCameraView), "OnBeforeTick")]
         internal static class BlockMapCameraInput
         {
             private static bool Prefix()
             {
-                return !FocusTreeScreen.IsOpen;
+                if (FocusTreeScreen.IsOpen) return false;
+                try { if (PanelScreen.IsMouseOnPanel()) return false; } catch { }
+                return true;
             }
         }
 
@@ -57,6 +62,8 @@ namespace FeudalInternalAffairs
         // 地图快捷键(K王国/N百科)、F5快存、空格暂停、WASD相机、Ctrl作弊键等全部走这里。
         // 注意: InputContext 每个方法都有两个重载(公开的 Int32/String/InputKey 版 + 内部的 GameKey/HotKey 版),
         // 只按名称打补丁会 Ambiguous match, 必须显式指定参数类型。
+        // 只拦国策树(全屏界面)。侧边栏(抽屉/建造/外交/国家面板)是"非模态"的:
+        // 不拦键盘 —— 否则 1/2/3 时间流逝、WASD 相机都会失效(用户反馈)
         private static bool Blocked()
         {
             return FocusTreeScreen.IsOpen && !FocusTreeScreen.PollingInput;

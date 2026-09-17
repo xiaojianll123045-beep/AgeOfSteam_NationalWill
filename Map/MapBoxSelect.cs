@@ -143,7 +143,7 @@ namespace FeudalInternalAffairs
         }
 
         // 原版左键拖动取"按下点"的方式: 鼠标射线(近点/远点) + 地形射线检测
-        private static Vec3 CaptureGroundPoint()
+        internal static Vec3 CaptureGroundPoint()
         {
             try
             {

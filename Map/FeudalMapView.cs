@@ -10,15 +10,40 @@ namespace FeudalInternalAffairs
     {
         internal static FeudalMapView Current;
 
+        // 帧耗时诊断: 面板打开时若帧间隔异常大, 写日志(每 3 秒最多一条)
+        private static float _slowAcc;
+        private static float _lastLogTime;
+        private static readonly DateTime _startTime = DateTime.UtcNow;
+        private static void DiagFrameTime(float dt)
+        {
+            try
+            {
+                if (dt < 0.05f) return;   // 正常帧(<20ms 的间隔不会被记为慢)
+                _slowAcc += dt;
+                float now = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
+                if (now - _lastLogTime < 3f) return;
+                _lastLogTime = now;
+                DLog.Force("帧耗时诊断: 单帧 dt=" + (dt * 1000f).ToString("F0") + "ms (面板=" + PanelScreen.AnyOpen
+                    + ", 侧边栏数=" + (PanelScreen.AnyOpen ? 1 : 0) + "), 3秒内累计慢帧=" + (_slowAcc * 1000f).ToString("F0") + "ms");
+                _slowAcc = 0f;
+            }
+            catch { }
+        }
+
         protected override void OnMapScreenUpdate(float dt)
         {
             base.OnMapScreenUpdate(dt);
             try
             {
                 Current = this;
+                DiagFrameTime(dt);   // 帧耗时诊断(定位卡顿)
                 MapClickPatches.ArmyRightClickMenu.Tick();
                 MapVisionPatches.TickVisibility(dt);
                 TerritoryColorMode.Tick(dt);
+                SettlementDrawer.Tick(dt);
+                BuildPanel.Tick();
+                NationalPanel.Tick(dt);
+                PanelScreen.Tick(dt);   // 侧边栏刷新(层方式, 地图照常更新)
             }
             catch { }
         }

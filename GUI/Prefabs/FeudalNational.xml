@@ -1,0 +1,177 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+
+        <!-- ===== 左上角国旗(常驻, 点击开关面板) ===== -->
+        <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                      SuggestedWidth="124" SuggestedHeight="124" HorizontalAlignment="Left" VerticalAlignment="Top"
+                      MarginLeft="12" MarginTop="10" Brush="ButtonBrush2"
+                      Command.Click="ExecuteToggle" UpdateChildrenStates="true">
+          <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    MarginLeft="12" MarginRight="12" MarginTop="12" MarginBottom="12"
+                    Sprite="BlankWhiteSquare" Color="@FlagColor" />
+            <ImageIdentifierWidget DataSource="{Flag}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                   MarginLeft="12" MarginRight="12" MarginTop="12" MarginBottom="12"
+                                   ImageId="@Id" AdditionalArgs="@AdditionalArgs" TextureProviderName="@TextureProviderName" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="2" VerticalAlignment="Top"
+                    MarginLeft="10" MarginRight="10" MarginTop="10" Sprite="BlankWhiteSquare" Color="#C9A227CC" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="2" VerticalAlignment="Bottom"
+                    MarginLeft="10" MarginRight="10" MarginBottom="10" Sprite="BlankWhiteSquare" Color="#C9A227CC" />
+            <Widget WidthSizePolicy="Fixed" SuggestedWidth="2" HeightSizePolicy="StretchToParent" HorizontalAlignment="Left"
+                    MarginTop="10" MarginBottom="10" MarginLeft="10" Sprite="BlankWhiteSquare" Color="#C9A227CC" />
+            <Widget WidthSizePolicy="Fixed" SuggestedWidth="2" HeightSizePolicy="StretchToParent" HorizontalAlignment="Right"
+                    MarginTop="10" MarginBottom="10" MarginRight="10" Sprite="BlankWhiteSquare" Color="#C9A227CC" />
+          </Children>
+        </ButtonWidget>
+
+        <!-- ===== 侧边栏面板(滑入/滑出; 原版雕花边框, 必须用 BrushWidget 才会渲染笔刷) ===== -->
+        <BrushWidget IsVisible="@IsPanelVisible" WidthSizePolicy="Fixed" SuggestedWidth="440" HeightSizePolicy="StretchToParent"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="70" MarginLeft="@PanelOffset"
+                Brush="ArmyManagement.Panel.Left">
+          <Children>
+
+            <!-- 头部: 国旗 + 国名 + 统治者 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="104" VerticalAlignment="Top"
+                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000055">
+              <Children>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="78" SuggestedHeight="78"
+                        HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="14" Sprite="BlankWhiteSquare" Color="@FlagColor" />
+                <ImageIdentifierWidget DataSource="{Flag}" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                       SuggestedWidth="78" SuggestedHeight="78"
+                                       ImageId="@Id" AdditionalArgs="@AdditionalArgs" TextureProviderName="@TextureProviderName"
+                                       HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="14" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="104" MarginTop="22"
+                            Brush="MapTextBrushGal" Brush.FontSize="27" Color="#C9A227FF" Text="@KingdomName" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="104" MarginTop="60"
+                            Brush="MapTextBrushGal" Brush.FontSize="18" Color="#C8B98FFF" Text="@RulerName" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
+                    MarginTop="122" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF59" />
+
+            <!-- ===== 民族精神(预留) ===== -->
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="24" MarginTop="138"
+                        Brush="MapTextBrushGal" Brush.FontSize="21" Color="#C9A227FF" Text="民族精神" />
+            <ListPanel DataSource="{Spirits}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="24" MarginTop="170"
+                       StackLayout.LayoutMethod="HorizontalLeftToRight">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                        MarginRight="10" Sprite="BlankWhiteSquare" Color="#00000066">
+                  <Children>
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="1" VerticalAlignment="Bottom"
+                            MarginLeft="2" MarginRight="2" MarginBottom="2" Sprite="BlankWhiteSquare" Color="#C9A22744" />
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="1" HorizontalAlignment="Right"
+                            MarginTop="2" MarginBottom="2" MarginRight="2" Sprite="BlankWhiteSquare" Color="#C9A22744" />
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="26" SuggestedHeight="26"
+                            HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="@Icon" IsVisible="@IsFilled" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- ===== 国策 ===== -->
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="24" MarginTop="234"
+                        Brush="MapTextBrushGal" Brush.FontSize="21" Color="#C9A227FF" Text="国策" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
+                    MarginTop="266" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF59" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="24" MarginTop="288"
+                        Brush="MapTextBrushGal" Brush.FontSize="20" Color="#F0E4C8FF" Text="@FocusName" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="24" MarginTop="290"
+                        Brush="MapTextBrushGal" Brush.FontSize="17" Color="#C8B98FFF" Text="@FocusDays" />
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="190" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Top"
+                          MarginLeft="24" MarginTop="322" Brush="ButtonBrush2" Command.Click="ExecuteFocus" UpdateChildrenStates="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="打开国策树" />
+              </Children>
+            </ButtonWidget>
+
+            <!-- ===== 国家概况 ===== -->
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="24" MarginTop="388"
+                        Brush="MapTextBrushGal" Brush.FontSize="21" Color="#C9A227FF" Text="国家概况" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
+                    MarginTop="420" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF59" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="24" MarginTop="444"
+                        Brush="MapTextBrushGal" Brush.FontSize="19" Color="#C8B98FFF" Text="国库" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="24" MarginTop="444"
+                        Brush="MapTextBrushGal" Brush.FontSize="19" Color="#F0E4C8FF" Text="@Gold" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="24" MarginTop="474"
+                        Brush="MapTextBrushGal" Brush.FontSize="19" Color="#C8B98FFF" Text="兵力" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="24" MarginTop="474"
+                        Brush="MapTextBrushGal" Brush.FontSize="19" Color="#F0E4C8FF" Text="@Army" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="24" MarginTop="504"
+                        Brush="MapTextBrushGal" Brush.FontSize="19" Color="#C8B98FFF" Text="领土" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="24" MarginTop="504"
+                        Brush="MapTextBrushGal" Brush.FontSize="19" Color="#F0E4C8FF" Text="@Towns" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="24" MarginTop="534"
+                        Brush="MapTextBrushGal" Brush.FontSize="19" Color="#C8B98FFF" Text="影响力" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="24" MarginTop="534"
+                        Brush="MapTextBrushGal" Brush.FontSize="19" Color="#F0E4C8FF" Text="@Influence" />
+
+            <!-- ===== 底部入口(两行, 避免出框) ===== -->
+            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="24" MarginBottom="24"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <Children>
+                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                  <Children>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                  SuggestedWidth="160" SuggestedHeight="44" Brush="ButtonBrush2" Command.Click="ExecuteDiplomacy" UpdateChildrenStates="true">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="外交" />
+                      </Children>
+                    </ButtonWidget>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                  SuggestedWidth="160" SuggestedHeight="44" MarginLeft="16" Brush="ButtonBrush2" Command.Click="ExecuteMarket" UpdateChildrenStates="true">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="市场" />
+                      </Children>
+                    </ButtonWidget>
+                  </Children>
+                </ListPanel>
+                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MarginTop="12" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                  <Children>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                  SuggestedWidth="160" SuggestedHeight="44" Brush="ButtonBrush2" Command.Click="ExecuteBuild" UpdateChildrenStates="true">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="批量建造" />
+                      </Children>
+                    </ButtonWidget>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                  SuggestedWidth="160" SuggestedHeight="44" MarginLeft="16" Brush="ButtonBrush1" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="收起" />
+                      </Children>
+                    </ButtonWidget>
+                  </Children>
+                </ListPanel>
+              </Children>
+            </ListPanel>
+
+          </Children>
+        </BrushWidget>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

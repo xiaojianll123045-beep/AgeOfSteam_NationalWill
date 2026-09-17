@@ -164,9 +164,46 @@ namespace FeudalInternalAffairs
             Lines = new MBBindingList<FocusLineVM>();
             foreach (var def in FocusTreeData.All)
                 Items.Add(new FocusItemVM(def, OnItemSelected));
+            AddEconSelfTest();
 
             Layout();
             Refresh();
+        }
+
+        // 临时(P1 验收用): 在国策树底部显示 4 个新建商品的运行时名称/价格
+        // flags 里加 econ 才出现; 验收通过后删除本方法
+        private void AddEconSelfTest()
+        {
+            try
+            {
+                if (!DLog.Flag("econ")) return;
+                float y = 700f;
+                int i = 0;
+                foreach (var g in FeudalGoods.Main)
+                {
+                    if (!g.IsNew) continue;
+                    var item = FeudalGoods.Item(g.Id);
+                    var def = new FocusDefinition
+                    {
+                        Id = "econ_test_" + g.Id,
+                        Name = (item != null ? item.Name.ToString() : "!!取不到物品") + " [" + g.Id + "]",
+                        Icon = g.Sprite,
+                        Description = "基础价 " + g.BasePrice,
+                        Effects = item != null
+                            ? ("Value=" + item.Value + " 类别=" + (item.ItemCategory != null ? item.ItemCategory.StringId : "?")
+                               + " 网格=" + item.MultiMeshName)
+                            : "ItemObject 为空(注册失败)",
+                        PosX = 40f + i * 240f,
+                        PosY = y,
+                        Requires = null,
+                        Days = 1
+                    };
+                    Items.Add(new FocusItemVM(def, OnItemSelected));
+                    i++;
+                }
+                DLog.Force("经济自检: 国策树已附加 " + i + " 个新商品节点");
+            }
+            catch (Exception ex) { DLog.Force("经济自检异常: " + ex.Message); }
         }
 
         [DataSourceProperty]
@@ -334,6 +371,13 @@ namespace FeudalInternalAffairs
             {
                 if (item == null || item.Definition == null) return;
                 var def = item.Definition;
+
+                // 临时(P1 验收用): 自检节点只弹信息, 不进入国策流程
+                if (def.Id != null && def.Id.StartsWith("econ_test_", StringComparison.Ordinal))
+                {
+                    FocusTreeScreen.ShowInfo(def, "经济自检: " + def.Effects);
+                    return;
+                }
 
                 if (FocusTreeData.IsCompleted(def.Id)) { FocusTreeScreen.ShowInfo(def, "该政策已经完成。"); return; }
                 if (FocusTreeData.IsInProgress(def.Id)) { FocusTreeScreen.ShowInfo(def, "该政策正在进行中, 剩余 " + FocusTreeData.InProgress[def.Id] + " 天。"); return; }

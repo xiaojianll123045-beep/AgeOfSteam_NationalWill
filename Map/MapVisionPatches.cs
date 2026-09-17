@@ -92,9 +92,9 @@ namespace FeudalInternalAffairs
                 var kingdom = behavior.NationKingdom;
                 if (kingdom == null) return;
 
-                _tickTimer -= dt;
-                if (_tickTimer > 0f) return;
-                _tickTimer = 0.25f;
+            _tickTimer -= dt;
+            if (_tickTimer > 0f) return;
+            _tickTimer = 1.5f;   // 0.25s -> 1.5s: 每次要遍历全部王国/家族/部队并逐个设置可见性, 4Hz 会明显掉帧
 
                 RefreshCache(kingdom);
 

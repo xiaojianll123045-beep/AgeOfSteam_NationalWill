@@ -27,7 +27,6 @@ namespace FeudalInternalAffairs
                     typeof(NationSelectionPatches.NationSelect),
                     typeof(MapBarPatches.MapBarHidePatch),
                     typeof(MapBarPatches.MapBarHideTickPatch),
-                    typeof(FocusTreeButtonPatch.EnsureFocusTreeItem),
                     typeof(FocusTreeMapGuardPatch.SkipMapVisualTick),
                     typeof(FeudalMapViewPatch),
                     typeof(FocusTreeMapGuardPatch.BlockMapNavigationInput),
@@ -102,7 +101,12 @@ namespace FeudalInternalAffairs
                     typeof(KingdomTraitPatches.AseraiTradeIncome.Caravan),
                     typeof(KingdomTraitPatches.AseraiTradeIncome.Workshop),
                     typeof(KingdomTraitPatches.AseraiTradeIncome.Tariffs),
-                    typeof(KingdomTraitPatches.AseraiArcherAccuracy)
+                    typeof(KingdomTraitPatches.AseraiArcherAccuracy),
+                    typeof(ProductionTakeover.SkipVillageGoods),
+                    typeof(ProductionTakeover.SkipVillageFood),
+                    typeof(ProductionTakeover.FoodRatio),
+                    typeof(ProductionTakeover.TownFoodSource),
+                    typeof(MessageListShift)
                 };
                 int ok = 0;
                 foreach (var t in patches)
@@ -116,6 +120,7 @@ namespace FeudalInternalAffairs
                 }
                 DLog.Force("内政扩展加载完成, 补丁 " + ok + "/" + patches.Count);
                 KingdomTraitPatches.NavalTraitPatches.Apply(HarmonyInstance);
+                NavalVisualGuard.Apply(HarmonyInstance);
                 TerritoryColorMode.NameplateWidgetPatch.Apply(HarmonyInstance);
                 MapInfoSelectionPatch.OverrideInfoNaval.Apply(HarmonyInstance);
 
@@ -145,6 +150,7 @@ namespace FeudalInternalAffairs
         {
             base.OnApplicationTick(dt);
             try { BanStandaloneRts.Apply(HarmonyInstance); } catch { }
+            try { IconLoader.Tick(); } catch { }
         }
 
         protected override void OnGameStart(Game game, IGameStarter gameStarterObject)
@@ -152,13 +158,31 @@ namespace FeudalInternalAffairs
             base.OnGameStart(game, gameStarterObject);
             try
             {
+                // 商品注册必须早于存档数据加载(读档时 SyncData 在 OnGameInitializationFinished 之前跑)
+                if (game != null && game.GameType is Campaign) FeudalItems.Register(game, "OnGameStart");
                 if (gameStarterObject is CampaignGameStarter starter)
                 {
                     starter.AddBehavior(new NationalWillBehavior());
-                    DLog.Info("已注册 NationalWillBehavior");
+                    starter.AddBehavior(new EconomyBehavior());
+                    starter.AddBehavior(new DiplomacyBehavior());
+                    DLog.Info("已注册 NationalWillBehavior / EconomyBehavior / DiplomacyBehavior");
                 }
             }
             catch (Exception ex) { DLog.Force("OnGameStart 异常: " + ex.Message); }
+        }
+
+        // 游戏初始化完成 = XML 商品已加载完毕(兜底: 若 OnGameStart 时对象管理器还没就绪, 这里补注册)
+        public override void OnGameInitializationFinished(Game game)
+        {
+            base.OnGameInitializationFinished(game);
+            try
+            {
+                if (game != null && game.GameType is Campaign)
+                {
+                    FeudalItems.Register(game, "OnGameInitializationFinished");
+                }
+            }
+            catch (Exception ex) { DLog.Force("商品注册异常: " + ex.Message); }
         }
     }
 }

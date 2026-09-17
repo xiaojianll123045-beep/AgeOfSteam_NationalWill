@@ -103,7 +103,11 @@ namespace FeudalInternalAffairs
 
         internal static void Message(string text)
         {
-            try { InformationManager.DisplayMessage(new InformationMessage(text, Color.FromUint(4294953344U))); }
+            try
+            {
+                // 消息照常发; 面板打开时 SPChatLog 会被 MessageListShift 整体右滑让开(原版动画)
+                InformationManager.DisplayMessage(new InformationMessage(text, Color.FromUint(4294953344U)));
+            }
             catch { }
         }
     }

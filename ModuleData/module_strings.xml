@@ -374,4 +374,13 @@
   <string id="str_rts_camera_command_system_auto_volley_by_nonthrown_weapon_type_hint" text="{=RTSCameraCommandSystem_auto_volley_by_nonthrown_weapon_type_hint}When enabled, troops with non-thrown weapons will auto volley by weapon type." />
   <string id="str_rts_camera_command_system_auto_volley_by_thrown_weapon_type" text="{=RTSCameraCommandSystem_auto_volley_by_thrown_weapon_type}Auto Volley by Weapon Type for Thrown Weapons" />
   <string id="str_rts_camera_command_system_auto_volley_by_thrown_weapon_type_hint" text="{=RTSCameraCommandSystem_auto_volley_by_thrown_weapon_type_hint}When enabled, troops with thrown weapons will auto volley by weapon type." />
+  <!-- 内政扩展: 新建商品(4 种) + 商品类别名 -->
+  <string id="fia_item_stone" text="{=fia_item_stone}Stone{@Plural}loads of stone{\@}" />
+  <string id="fia_item_weapons" text="{=fia_item_weapons}Weapons{@Plural}bundles of weapons{\@}" />
+  <string id="fia_item_armor" text="{=fia_item_armor}Armor{@Plural}sets of armor{\@}" />
+  <string id="fia_item_herbs" text="{=fia_item_herbs}Herbs{@Plural}bundles of herbs{\@}" />
+  <string id="str_item_category.fia_stone" text="{=fia_item_stone}Stone{@Plural}loads of stone{\@}" />
+  <string id="str_item_category.fia_weapons" text="{=fia_item_weapons}Weapons{@Plural}bundles of weapons{\@}" />
+  <string id="str_item_category.fia_armor" text="{=fia_item_armor}Armor{@Plural}sets of armor{\@}" />
+  <string id="str_item_category.fia_herbs" text="{=fia_item_herbs}Herbs{@Plural}bundles of herbs{\@}" />
 </strings>

@@ -74,8 +74,29 @@ namespace FeudalInternalAffairs
             }
         }
 
-        internal static bool TryGetIdealTarget(MapCameraView view, out Vec3 target)
+        // 相机平滑飘到某个定居点(只改理想目标点, 让相机自己滑过去, 不瞬移)
+        internal static bool FlyTo(TaleWorlds.CampaignSystem.Settlements.Settlement s)
         {
+            try
+            {
+                if (s == null) return false;
+                var view = GetCameraView();
+                if (view == null) return false;
+                var target = s.Position.AsVec3() + Vec3.Up;
+                SetIdealTarget(view, target);
+                try { if (_targetDistanceProp == null) _targetDistanceProp = AccessTools.Property(typeof(MapCameraView), "TargetCameraDistance"); } catch { }
+                if (_targetDistanceProp != null) SetDistance(view, _targetDistanceProp, 90f);
+                DLog.Info("相机飘向 " + (s.Name != null ? s.Name.ToString() : s.StringId));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DLog.Force("相机飘移失败: " + ex.Message);
+                return false;
+            }
+        }
+
+        internal static bool TryGetIdealTarget(MapCameraView view, out Vec3 target)        {
             target = Vec3.Zero;
             try
             {

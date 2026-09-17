@@ -23,6 +23,34 @@ namespace FeudalInternalAffairs
         private string _focusState = "";
         private string _cameraState = "";
         private string _pendingCamera = null;   // 读档后等相机就绪再恢复视角
+        private Hero _originalRuler = null;     // 接管前的原统治者(玩家家族成为统治家族后 Kingdom.Leader 会变成玩家)
+        private bool _renamedToRuler;           // 是否已把玩家名字改成原元首的名字
+
+        // 国家的原统治者(用于界面显示"国家领袖")
+        public Hero OriginalRuler
+        {
+            get
+            {
+                try
+                {
+                    if (_originalRuler != null && !_originalRuler.IsDead) return _originalRuler;
+                    // 旧存档没有记录 -> 启发式: 本国里影响力+领地最多的非玩家家族领袖(通常就是原统治家族)
+                    var k = NationKingdom;
+                    var me = Clan.PlayerClan;
+                    if (k == null) return null;
+                    Clan best = null;
+                    float bestScore = -1f;
+                    foreach (var c in k.Clans)
+                    {
+                        if (c == null || c.Leader == null || ReferenceEquals(c, me)) continue;
+                        float score = c.Influence + c.Settlements.Count * 100f;
+                        if (score > bestScore) { bestScore = score; best = c; }
+                    }
+                    return best != null ? best.Leader : (k.Leader);
+                }
+                catch { return null; }
+            }
+        }
 
         public bool IsNationalWill
         {
@@ -74,6 +102,8 @@ namespace FeudalInternalAffairs
             {
                 dataStore.SyncData("FIA_NationKingdomId", ref _nationKingdomId);
                 dataStore.SyncData("FIA_SetupDone", ref _setupDone);
+                dataStore.SyncData("FIA_OriginalRuler", ref _originalRuler);
+                dataStore.SyncData("FIA_RenamedToRuler", ref _renamedToRuler);
                 // 存: 国策状态 + 地图视角位置
                 if (dataStore.IsSaving)
                 {
@@ -165,6 +195,8 @@ namespace FeudalInternalAffairs
                 var kingdom = NationKingdom;
                 var clan = Clan.PlayerClan;
                 if (kingdom != null && clan != null) NationalWillClan.EnsureIdentity(kingdom, clan);
+                // 旧存档: 读档后把玩家名字改成国家原元首的名字(只做一次)
+                EnsureRulerName();
                 TerritoryColorMode.Reset();
                 KingdomTerritoryOverlay.Reset();
             }
@@ -272,6 +304,12 @@ namespace FeudalInternalAffairs
             {
                 try
                 {
+                    // 先记住原统治者(界面要显示真正的国家领袖)
+                    if (_originalRuler == null && kingdom.Leader != null)
+                    {
+                        _originalRuler = kingdom.Leader;
+                        DLog.Force("已记录原统治者: " + _originalRuler.Name);
+                    }
                     kingdom.RulingClan = clan;
                     DLog.Force("玩家家族已成为 " + kingdom.Name + " 的统治家族");
                 }
@@ -279,6 +317,9 @@ namespace FeudalInternalAffairs
             }
 
             NationalWillClan.EnsureIdentity(kingdom, clan);
+
+            // 玩家名字改成国家原元首的名字(用户需求)
+            EnsureRulerName();
 
             _setupDone = true;
             // 国家一确定就立即把视角瞬移到版图中心(地图已就绪时一次成功)
@@ -313,6 +354,28 @@ namespace FeudalInternalAffairs
                     + " 目标国家=" + kingdom.StringId);
             }
             catch (Exception ex) { DLog.Force("诊断异常: " + ex.Message); }
+        }
+
+        // 把玩家(国家意志)的名字改成国家原元首的名字 —— 只做一次
+        private void EnsureRulerName()
+        {
+            try
+            {
+                if (_renamedToRuler) return;
+                var me = Hero.MainHero;
+                if (me == null) return;
+                var ruler = OriginalRuler;
+                if (ruler == null) return;
+                if (ReferenceEquals(ruler, me)) { _renamedToRuler = true; return; }
+                var full = ruler.Name;
+                if (full == null) return;
+                var first = ruler.FirstName;
+                if (first == null) first = full;
+                me.SetName(full, first);
+                _renamedToRuler = true;
+                DLog.Force("玩家已改名为国家元首: " + full);
+            }
+            catch (Exception ex) { DLog.Force("玩家改名失败: " + ex.Message); }
         }
 
         private static bool IsCharacterCreationActive()

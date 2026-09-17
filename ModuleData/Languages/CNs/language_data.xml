@@ -3,4 +3,5 @@
   <LanguageFile xml_path="CNs/RTSCamera-zho-CN.xml" />
   <LanguageFile xml_path="CNs/std_MissionLibrary-zho-CN.xml" />
   <LanguageFile xml_path="CNs/RTSCamera.CommandSystem-zho-CN.xml" />
+  <LanguageFile xml_path="CNs/FIA-zho-CN.xml" />
 </LanguageData>

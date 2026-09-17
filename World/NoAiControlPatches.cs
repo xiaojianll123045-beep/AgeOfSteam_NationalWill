@@ -22,18 +22,23 @@ namespace FeudalInternalAffairs
             }
         }
 
-        // AI 宣战: 跳过(所有 ApplyBy* 都走 ApplyInternal); 玩家自己发起的放行
+        // AI 宣战: 跳过(所有 ApplyBy* 都走 ApplyInternal); 玩家自己发起 / 同盟参战同步的放行
         [HarmonyPatch(typeof(DeclareWarAction), "ApplyInternal")]
         internal static class BlockDeclareWar
         {
             private static bool Prefix()
             {
-                try { return !NationalWillOrders.IsActive || DiplomacyPatches.PlayerDeclaringWar; }
+                try
+                {
+                    return !NationalWillOrders.IsActive
+                        || DiplomacyPatches.PlayerDeclaringWar
+                        || DiplomacyBehavior.AllyForcingWar;
+                }
                 catch { return true; }
             }
         }
 
-        // AI 和谈: 跳过; 但"领主投票通过的和谈"要放行(玩家发起的和谈就是走这条路)
+        // AI 和谈: 跳过; 但"领主投票通过的和谈"与"双方表决通过的和谈"要放行
         [HarmonyPatch(typeof(MakePeaceAction), "ApplyInternal")]
         internal static class BlockMakePeace
         {
@@ -42,7 +47,8 @@ namespace FeudalInternalAffairs
                 try
                 {
                     return !NationalWillOrders.IsActive
-                        || detail == MakePeaceAction.MakePeaceDetail.ByKingdomDecision;
+                        || detail == MakePeaceAction.MakePeaceDetail.ByKingdomDecision
+                        || DiplomacyBehavior.ForcingPeace;
                 }
                 catch { return true; }
             }
