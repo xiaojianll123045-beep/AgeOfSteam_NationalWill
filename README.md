@@ -69,7 +69,7 @@ dotnet build FeudalInternalAffairs.csproj -c Release -p:GameModulesDir="你的�
 
 ## 版本
 
-**v0.2.0**（版本号固定，不再递增）。
+**v0.2.0**。
 
 ## 参与贡献
 
