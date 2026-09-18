@@ -1,4 +1,4 @@
-# 内政扩展（国家意志） FeudalInternalAffairs
+# 内政与经济扩展（国家意志） FeudalInternalAffairs
 
 《骑马与砍杀 2：霸主》(Bannerlord) v1.4.8 的独立 mod。
 
@@ -30,7 +30,7 @@
 1. 需要游戏版本 **v1.4.8**，以及前置 mod：**Bannerlord.Harmony**、**Bannerlord.UIExtenderEx**
 2. 把 `FeudalInternalAffairs` 模块文件夹放进
    `Mount & Blade II Bannerlord\Modules\`（**只需这一个文件夹**，RTS Camera 源码已内置）
-3. 启动器里勾选 **内政扩展（国家意志）**
+3. 启动器里勾选 **内政与经济扩展（国家意志）**
 
 进入"亲自指挥"的战斗后会自动进入 RTS 上帝视角（相机飞到我方大军上方），**没有切换键**：
 WASD 平移、鼠标转视角、Q/E（或滚轮）升降、Shift 加速、Tab 切换部队标记。

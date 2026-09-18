@@ -1,0 +1,202 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+
+        <!-- ===== 财政(重构版; 布局: 顶部概览条 + 左栏收支 + 右栏税制/铸币/投资池) ===== -->
+        <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="680" HeightSizePolicy="StretchToParent"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
+          <Children>
+
+            <!-- 不透明底板(防地图元素透出; 留边保留边框) -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6"
+                    Sprite="BlankWhiteSquare" Color="#100C08EE" />
+
+            <!-- 标题栏 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" VerticalAlignment="Top"
+                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000055">
+              <Children>
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="29" Brush.FontColor="#C9A227FF" Text="财政" />
+                <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="38"
+                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="ButtonBrush1"
+                              Command.Click="ExecuteClose" UpdateChildrenStates="true">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="24" Text="X" />
+                  </Children>
+                </ButtonWidget>
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
+                    MarginTop="82" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF59" />
+
+            <!-- 顶部概览条 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="100" VerticalAlignment="Top"
+                    MarginTop="100" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000044" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="国库余额" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="128" Brush="MapTextBrushGal" Brush.FontSize="34" Brush.FontColor="#F0E4C8FF" Text="@Treasury" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="320" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="168" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF" Text="@CreditText" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        MarginRight="30" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="本月净额" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        MarginRight="30" MarginTop="126" Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="@NetColor" Text="@NetText" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="290" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        MarginRight="30" MarginTop="168" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF" Text="@LedgerText" />
+
+            <!-- 竖分隔线 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="1" SuggestedHeight="500" VerticalAlignment="Top"
+                    HorizontalAlignment="Left" MarginLeft="340" MarginTop="214" Sprite="BlankWhiteSquare" Color="#FFFFFF22" />
+
+            <!-- ============ 左栏: 收支 ============ -->
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="214" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#C9A227FF" Text="国家收入" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="250" MarginTop="214" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#39FF14FF" Text="@IncomeSum" />
+            <ListPanel DataSource="{IncomeRows}" WidthSizePolicy="Fixed" SuggestedWidth="290" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="248" MarginLeft="26"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="32">
+                  <Children>
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="200" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                MarginLeft="200" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@Color" Text="@Value" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="440" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#C9A227FF" Text="国家支出" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="250" MarginTop="440" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#D96A5AFF" Text="@ExpenseSum" />
+            <ListPanel DataSource="{ExpenseRows}" WidthSizePolicy="Fixed" SuggestedWidth="290" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="474" MarginLeft="26"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="32">
+                  <Children>
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="200" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                MarginLeft="200" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@Color" Text="@Value" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- ============ 右栏: 税制 / 铸币权 / 投资池 ============ -->
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="360" MarginTop="214" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#C9A227FF" Text="税制" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="540" MarginTop="216" Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#7A7060FF" Text="点格选档" />
+
+            <!-- 税行 x4: 名称 / 档位值 / 五格; 行位 248 + i*34 -->
+            <ListPanel DataSource="{PipsA}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="552" MarginTop="252"
+                       StackLayout.LayoutMethod="HorizontalLeftToRight">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="18" SuggestedHeight="16" MarginRight="3"
+                        Sprite="BlankWhiteSquare" Color="@Color" />
+              </ItemTemplate>
+            </ListPanel>
+            <ListPanel DataSource="{PipsB}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="552" MarginTop="286"
+                       StackLayout.LayoutMethod="HorizontalLeftToRight">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="18" SuggestedHeight="16" MarginRight="3"
+                        Sprite="BlankWhiteSquare" Color="@Color" />
+              </ItemTemplate>
+            </ListPanel>
+            <ListPanel DataSource="{PipsC}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="552" MarginTop="320"
+                       StackLayout.LayoutMethod="HorizontalLeftToRight">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="18" SuggestedHeight="16" MarginRight="3"
+                        Sprite="BlankWhiteSquare" Color="@Color" />
+              </ItemTemplate>
+            </ListPanel>
+            <ListPanel DataSource="{PipsD}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="552" MarginTop="354"
+                       StackLayout.LayoutMethod="HorizontalLeftToRight">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="18" SuggestedHeight="16" MarginRight="3"
+                        Sprite="BlankWhiteSquare" Color="@Color" />
+              </ItemTemplate>
+            </ListPanel>
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="360" MarginTop="250" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#39FF14FF" Text="@TaxA" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="430" MarginTop="250" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#39FF14FF" Text="@TaxLA" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="360" MarginTop="284" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#39FF14FF" Text="@TaxB" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="430" MarginTop="284" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#39FF14FF" Text="@TaxLB" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="360" MarginTop="318" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#39FF14FF" Text="@TaxC" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="430" MarginTop="318" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#39FF14FF" Text="@TaxLC" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="360" MarginTop="352" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#39FF14FF" Text="@TaxD" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="430" MarginTop="352" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#39FF14FF" Text="@TaxLD" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="360" MarginTop="386" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF" Text="@TaxEffect" />
+
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="360" MarginTop="440" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#C9A227FF" Text="铸币权" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="240" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="360" MarginTop="472" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#39FF14FF" Text="@MintText" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="240" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="360" MarginTop="494" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#C8B98FFF" Text="@MintSubText" />
+            <ListPanel DataSource="{PipsM}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="600" MarginTop="474"
+                       StackLayout.LayoutMethod="HorizontalLeftToRight">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="18" SuggestedHeight="16" MarginRight="3"
+                        Sprite="BlankWhiteSquare" Color="@Color" />
+              </ItemTemplate>
+            </ListPanel>
+
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="360" MarginTop="540" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#C9A227FF" Text="投资池" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="360" MarginTop="570" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#F0E4C8FF" Text="@PoolText" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="360" MarginTop="598" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF" Text="@PoolSubText" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="360" MarginTop="620" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF" Text="@PoolSubText2" />
+
+            <!-- 操作反馈 -->
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="620" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="700" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E8C33AFF" Text="@StatusText" />
+
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="620" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="740" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF"
+                        Text="说明: 收入=税/铸币/分红/出口 · 支出=关税/铸币销毁/利息/年金" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="620" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="764" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF"
+                        Text="铸币销毁按本国市场 20% 承担 · 工资/材料由建筑账目与领主承担(文档 19.9.3)" />
+
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="122" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="30" MarginBottom="26" Brush="ButtonBrush2" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Text="关闭" />
+              </Children>
+            </ButtonWidget>
+
+          </Children>
+        </BrushWidget>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

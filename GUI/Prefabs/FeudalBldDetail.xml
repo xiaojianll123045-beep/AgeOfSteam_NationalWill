@@ -1,0 +1,89 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+
+        <!-- ===== 建筑详情(文档 20.8; 对齐 V3 建筑详情) ===== -->
+        <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="680" HeightSizePolicy="StretchToParent"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
+          <Children>
+
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6" Sprite="BlankWhiteSquare" Color="#100C08EE" />
+
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" VerticalAlignment="Top"
+                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000055">
+              <Children>
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="29" Brush.FontColor="#C9A227FF" Text="@Title" />
+                <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="38"
+                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="ButtonBrush1"
+                              Command.Click="ExecuteClose" UpdateChildrenStates="true">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="24" Text="X" />
+                  </Children>
+                </ButtonWidget>
+              </Children>
+            </Widget>
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="80" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="@Subtitle" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
+                    MarginTop="112" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF59" />
+
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="132" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#F0E4C8FF" Text="@Line1" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="164" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="@Line2" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="192" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="@Line3" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="228" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#C9A227FF" Text="@HistText" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="290" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E8C33AFF" Text="@Status" />
+
+            <!-- 操作按钮(热区见 BldDetailPanel: MarginTop=430) -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="44"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="430" Brush="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="生产方法" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="44"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="190" MarginTop="430" Brush="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="赎买" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="44"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="354" MarginTop="430" Brush="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="没收" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="130" SuggestedHeight="44"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="518" MarginTop="430" Brush="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="出售" />
+              </Children>
+            </Widget>
+
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="494" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF"
+                        Text="说明: 赎买=花九年收入把领主/教会/行会产业买为王室; 没收=白拿但领主好感 -25(每年限一次); 出售=王室产业换现" />
+
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="122" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="26" MarginBottom="26" Brush="ButtonBrush2" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Text="关闭" />
+              </Children>
+            </ButtonWidget>
+
+          </Children>
+        </BrushWidget>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

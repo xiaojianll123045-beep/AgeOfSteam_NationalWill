@@ -10,12 +10,14 @@
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
           <Children>
 
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6" Sprite="BlankWhiteSquare" Color="#100C08EE" />
+
             <!-- 标题栏 -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" VerticalAlignment="Top"
                     MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000055">
               <Children>
                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="27" Color="#C9A227FF" Text="@Title" />
+                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="27" Brush.FontColor="#C9A227FF" Text="@Title" />
                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="38"
                               HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="ButtonBrush1"
                               Command.Click="ExecuteClose" UpdateChildrenStates="true">
@@ -31,12 +33,12 @@
             <!-- 提示 -->
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="424" HeightSizePolicy="CoverChildren"
                         HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="96"
-                        Brush="MapTextBrushGal" Brush.FontSize="16" Color="#C8B98FFF" Text="@Hint" />
+                        Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#C8B98FFF" Text="@Hint" />
 
             <!-- 方案统计 -->
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                         HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="140"
-                        Brush="MapTextBrushGal" Brush.FontSize="21" Color="#C9A227FF" Text="@PlanSummary" />
+                        Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#C9A227FF" Text="@PlanSummary" />
 
             <!-- ===== 方案列表(可滚动) ===== -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
@@ -60,11 +62,11 @@
                                     <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="34"
                                             VerticalAlignment="Center" Sprite="@Icon" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                                MarginLeft="10" Brush="MapTextBrushGal" Brush.FontSize="21" Color="#F0E4C8FF" Text="@Name" />
+                                                MarginLeft="10" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#F0E4C8FF" Text="@Name" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                                MarginLeft="12" Brush="MapTextBrushGal" Brush.FontSize="18" Color="#C8B98FFF" Text="@CategoryText" />
+                                                MarginLeft="12" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C8B98FFF" Text="@CategoryText" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                                MarginLeft="12" Brush="MapTextBrushGal" Brush.FontSize="20" Color="#C9A227FF" Text="@CountText" />
+                                                MarginLeft="12" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#C9A227FF" Text="@CountText" />
                                   </Children>
                                 </ListPanel>
                                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="32"

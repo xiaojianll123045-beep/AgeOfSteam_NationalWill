@@ -1,4 +1,5 @@
 ﻿using System;
+using TaleWorlds.CampaignSystem.Settlements;
 
 namespace FeudalInternalAffairs
 {
@@ -11,6 +12,19 @@ namespace FeudalInternalAffairs
         private static float _acc;
 
         internal static bool IsOpen { get { return PanelScreen.IsOpen(Key); } }
+
+        // "本城"模式下等玩家在地图上点城市(供 MapClickPatches 判断)
+        internal static bool IsPickingCity
+        {
+            get { try { return _vm != null && IsOpen && _vm.IsPickingCity; } catch { return false; } }
+        }
+
+        // 地图上点了城市 -> 显示该城市场(不打开定居点抽屉)
+        internal static void PickCity(Settlement s)
+        {
+            try { if (s != null && s.IsTown && _vm != null) _vm.SetTown(s.StringId); }
+            catch (Exception ex) { DLog.Force("选择城市市场失败: " + ex.Message); }
+        }
 
         internal static void Open(string townId)
         {
@@ -42,12 +56,24 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                // 悬停提示(每帧): 表格行区从 y=378 起(320 顶部区 + 28 表头 + 30 间距), 行高 48
+                // "本城"待选: 自己轮询左键(原版 SettlementVisual.OnMapClick 会被面板层吃掉)
+                if (_vm != null && _vm.IsPickingCity && !PanelScreen.IsMouseOnPanel()
+                    && TaleWorlds.InputSystem.Input.IsKeyPressed(TaleWorlds.InputSystem.InputKey.LeftMouseButton))
+                {
+                    try
+                    {
+                        var pt = MapBoxSelect.CaptureGroundPoint();
+                        var s = TerritoryData.SettlementAt(pt.x, pt.y);
+                        if (s != null && s.IsTown) _vm.SetTown(s.StringId);
+                    }
+                    catch { }
+                }
+                // 悬停提示(每帧): 表格行区从 y=378 起(320 顶部区 + 28 表头 + 30 间距), 行高 68
                 if (_vm != null)
                 {
                     var m = TaleWorlds.InputSystem.Input.MousePositionPixel;
                     if (PanelScreen.IsMouseOnPanel() && m.Y >= 378f)
-                        _vm.SetHover((int)((m.Y - 378f) / 48f), m.X, m.Y);
+                        _vm.SetHover((int)((m.Y - 378f) / 68f), m.X, m.Y);   // 行高 68(第二行字号加大后)
                     else
                         _vm.SetHover(-1, m.X, m.Y);
                 }

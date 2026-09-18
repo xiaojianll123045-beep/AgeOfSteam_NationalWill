@@ -10,12 +10,14 @@
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
           <Children>
 
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6" Sprite="BlankWhiteSquare" Color="#100C08EE" />
+
             <!-- 标题栏 -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" VerticalAlignment="Top"
                     MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000055">
               <Children>
                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="27" Color="#C9A227FF" Text="@Title" />
+                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="27" Brush.FontColor="#C9A227FF" Text="@Title" />
                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="38"
                               HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="ButtonBrush1"
                               Command.Click="ExecuteClose" UpdateChildrenStates="true">
@@ -31,7 +33,7 @@
             <!-- 副标题(态B) -->
             <TextWidget IsVisible="@IsBuildMode" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                         HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="94"
-                        Brush="MapTextBrushGal" Brush.FontSize="19" Color="#C8B98FFF" Text="@Subtitle" />
+                        Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#C8B98FFF" Text="@Subtitle" />
 
             <!-- 搜索框(态B) -->
             <Widget IsVisible="@IsBuildMode" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="486" SuggestedHeight="36"
@@ -75,9 +77,9 @@
                                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="30"
                                                 VerticalAlignment="Center" Sprite="@Sprite" />
                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                                    MarginLeft="10" Brush="MapTextBrushGal" Brush.FontSize="21" Color="#F0E4C8FF" Text="@Name" />
+                                                    MarginLeft="10" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#F0E4C8FF" Text="@Name" />
                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                                    MarginLeft="16" Brush="MapTextBrushGal" Brush.FontSize="18" Color="#C8B98FFF" Text="@Slots" />
+                                                    MarginLeft="16" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C8B98FFF" Text="@Slots" />
                                       </Children>
                                     </ListPanel>
                                   </Children>
@@ -125,15 +127,17 @@
                                     <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="34"
                                             VerticalAlignment="Center" Sprite="@Icon" Color="@IconColor" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                                MarginLeft="10" Brush="MapTextBrushGal" Brush.FontSize="21" Color="#F0E4C8FF" Text="@Name" />
+                                                MarginLeft="10" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#F0E4C8FF" Text="@Name" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                                MarginLeft="12" Brush="MapTextBrushGal" Brush.FontSize="19" Color="#C8B98FFF" Text="@CountText" />
+                                                MarginLeft="12" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#C8B98FFF" Text="@CountText" />
                                     <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="24" SuggestedHeight="24"
                                             VerticalAlignment="Center" MarginLeft="14" Sprite="@ModeSprite" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                                MarginLeft="4" Brush="MapTextBrushGal" Brush.FontSize="18" Color="#C8B98FFF" Text="@ModeText" />
+                                                MarginLeft="4" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C8B98FFF" Text="@ModeText" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                                MarginLeft="14" Brush="MapTextBrushGal" Brush.FontSize="19" Color="@StatusColor" Text="@Status" />
+                                                MarginLeft="14" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="@StatusColor" Text="@Status" />
+                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
+                                                MarginLeft="12" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="@StateColor" Text="@StateText" />
                                   </Children>
                                 </ListPanel>
                                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="32"

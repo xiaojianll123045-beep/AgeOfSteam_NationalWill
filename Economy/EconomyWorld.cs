@@ -57,6 +57,17 @@ namespace FeudalInternalAffairs
 
         internal static bool Initialized { get; private set; }
 
+        // 国库收支统一入口(6.1 国库=玩家金钱): 两边必须同步
+        // 旧代码直接改 Treasury.Gold 会被"每日同步 Gold=hero.Gold"抹掉 -> 收入全部白进
+        internal static void TreasuryAdd(int v)
+        {
+            if (v == 0) return;
+            Treasury.Gold += v;
+            try { if (TaleWorlds.CampaignSystem.Hero.MainHero != null) TaleWorlds.CampaignSystem.Hero.MainHero.ChangeHeroGold(v); } catch { }
+        }
+
+        internal static void TreasurySpend(int v) { TreasuryAdd(-v); }
+
         // 是否有实际数据(旧存档检测用)
         internal static bool HasAnyData
         {
@@ -150,7 +161,7 @@ namespace FeudalInternalAffairs
         internal static string SaveBuildings()
         {
             var sb = new StringBuilder();
-            sb.Append("v2;");
+            sb.Append("v3;");
             foreach (var kv in Buildings)
             {
                 var sb2 = kv.Value;
@@ -162,7 +173,10 @@ namespace FeudalInternalAffairs
                     if (g == null || string.IsNullOrEmpty(g.DefId) || g.Count <= 0) continue;
                     if (!first) sb.Append('|');
                     first = false;
-                    sb.Append(g.DefId).Append(',').Append(g.Count).Append(',').Append((int)g.Mode);
+                    sb.Append(g.DefId).Append(',').Append(g.Count).Append(',').Append((int)g.Mode)
+                      .Append(',').Append(FF(g.Cash)).Append(',').Append(FF(g.WageMult)).Append(',').Append(FF(g.Fill))
+                      .Append(',').Append(FF(g.Margin)).Append(',').Append(g.BankruptDays)
+                      .Append(',').Append(g.Owner);
                 }
                 if (sb2.Queue.Count > 0)
                 {
@@ -238,7 +252,18 @@ namespace FeudalInternalAffairs
             {
                 var f = text.Split(',');
                 if (f.Length < 3) return null;
-                return new BuildingGroup(f[0], PI(f[1]), (BuildMode)PI(f[2]));
+                var g = new BuildingGroup(f[0], PI(f[1]), (BuildMode)PI(f[2]));
+                if (f.Length >= 8)
+                {
+                    g.Cash = PF(f[3]);
+                    g.WageMult = PF(f[4]);
+                    g.Fill = PF(f[5]);
+                    g.Margin = PF(f[6]);
+                    g.BankruptDays = PI(f[7]);
+                }
+                else { g.WageMult = 1f; g.Fill = 1f; }
+                if (f.Length >= 9) g.Owner = PI(f[8]);
+                return g;
             }
             catch { return null; }
         }

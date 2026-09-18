@@ -99,11 +99,13 @@ namespace FeudalInternalAffairs
                 float sh = PanelScreen.ScreenHeight();
                 float row2 = sh - 24f - 44f;
                 float row1 = row2 - 12f - 44f;
-                PanelScreen.AddSpot(24f, row1, 160f, 44f, _sideVm.ExecuteDiplomacy);
-                PanelScreen.AddSpot(200f, row1, 160f, 44f, _sideVm.ExecuteMarket);
+                PanelScreen.AddSpot(24f, row1, 120f, 44f, _sideVm.ExecutePopulation);
+                PanelScreen.AddSpot(160f, row1, 120f, 44f, _sideVm.ExecuteMarket);
+                PanelScreen.AddSpot(296f, row1, 120f, 44f, _sideVm.ExecuteDiplomacy);
                 PanelScreen.AddSpot(24f, row2, 160f, 44f, _sideVm.ExecuteBuild);
                 PanelScreen.AddSpot(200f, row2, 160f, 44f, _sideVm.ExecuteClose);
-                DLog.Force("国家面板: 已注册 4 个按钮热区(行1 y=" + (int)row1 + " 行2 y=" + (int)row2 + ")");
+                PanelScreen.AddSpot(24f, 322f, 190f, 42f, _sideVm.ExecuteFocus);   // 打开国策树(修复: 之前只有 Command.Click, 收不到点击)
+                DLog.Force("国家面板: 已注册 5 个按钮热区(行1 y=" + (int)row1 + " 行2 y=" + (int)row2 + ")");
             }
             catch (Exception ex) { DLog.Force("注册热区失败: " + ex.Message); }
         }

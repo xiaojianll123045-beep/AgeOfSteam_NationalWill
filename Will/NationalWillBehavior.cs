@@ -94,6 +94,7 @@ namespace FeudalInternalAffairs
         {
             TerritoryColorMode.MarkDirty();
             KingdomTerritoryOverlay.MarkDirty();
+            try { DiploPlays.OnSettlementChanged(settlement, oldOwner, newOwner); } catch { }   // 第 22 章: 战争支持度
         }
 
         public override void SyncData(IDataStore dataStore)

@@ -13,6 +13,9 @@ namespace FeudalInternalAffairs
     // 同一时间只允许一个面板(开新的自动关旧的)。
     internal static class PanelScreen
     {
+        // 面板停靠位置: 左侧导航栏(宽 60)右侧
+        internal const float PanelX = 64f;
+
         private class Entry
         {
             internal GauntletLayer Layer;
@@ -32,6 +35,15 @@ namespace FeudalInternalAffairs
             switch (key)
             {
                 case "market": return 780f;
+                case "pop": return 620f;
+                case "fiscal": return 680f;
+                case "breg": return 680f;
+                case "soc": return 680f;
+                case "guild": return 620f;
+                case "stats": return 680f;
+                case "pol": return 680f;
+                case "play": return 680f;
+                case "bld": return 680f;
                 case "drawer": return 560f;
                 case "diplomacy": return 540f;
                 case "build": return 480f;
@@ -48,7 +60,7 @@ namespace FeudalInternalAffairs
                 if (Open.Count == 0) return false;
                 var m = TaleWorlds.InputSystem.Input.MousePositionPixel;
                 float w = CurrentPanelWidth();
-                return m.X >= 0f && m.X <= w;
+                return m.X >= PanelX - 6f && m.X <= PanelX + w;
             }
             catch { return false; }
         }
@@ -102,7 +114,7 @@ namespace FeudalInternalAffairs
                 if (e.CloseDelay > 0f) return;                  // 已经在关了
                 if (e.OnCloseAnim != null)
                 {
-                    e.CloseDelay = 0.18f;                       // 给动画留时间(原版过渡 0.14s)
+                    e.CloseDelay = 0.30f;                       // 给动画留时间(停靠偏移加大后滑出距离变长)
                     try { e.OnCloseAnim(); } catch { }
                     DLog.Force("侧边栏正在关闭(播滑出动画): " + key);
                     return;
@@ -142,6 +154,15 @@ namespace FeudalInternalAffairs
             try
             {
                 if (Open.ContainsKey("market")) return 780f;
+            if (Open.ContainsKey("pop")) return 620f;
+            if (Open.ContainsKey("fiscal")) return 680f;
+            if (Open.ContainsKey("breg")) return 680f;
+            if (Open.ContainsKey("soc")) return 680f;
+            if (Open.ContainsKey("guild")) return 620f;
+            if (Open.ContainsKey("stats")) return 680f;
+            if (Open.ContainsKey("pol")) return 680f;
+            if (Open.ContainsKey("play")) return 680f;
+            if (Open.ContainsKey("bld")) return 680f;
                 if (Open.ContainsKey("drawer")) return 560f;
                 if (Open.ContainsKey("diplomacy")) return 540f;
                 if (Open.ContainsKey("build")) return 480f;
@@ -248,7 +269,8 @@ namespace FeudalInternalAffairs
 
         internal static void AddSpot(float x, float y, float w, float h, Action act)
         {
-            try { Spots.Add(new Spot { X = x, Y = y, W = w, H = h, Act = act }); }
+            // 热区坐标全部按"面板内相对坐标"登记, 这里统一加上停靠偏移(面板在导航栏右侧)
+            try { Spots.Add(new Spot { X = x + PanelX, Y = y, W = w, H = h, Act = act }); }
             catch { }
         }
 
@@ -312,7 +334,7 @@ namespace FeudalInternalAffairs
                 if (_hideAcc >= 0.1f)
                 {
                     _hideAcc = 0f;
-                    try { ChatLogAvoid.SetOffset(CurrentPanelWidth()); } catch { }
+                    try { ChatLogAvoid.SetOffset(PanelX + CurrentPanelWidth()); } catch { }
                 }
 
                 // 每帧只跑"动画"(滑入/滑出, 极廉价); 数据刷新已改为按需, 不在这里做

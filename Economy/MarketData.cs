@@ -12,6 +12,7 @@ namespace FeudalInternalAffairs
         internal float PrevPrice;         // 昨日本地价(算变化%)
         internal float DailyProduction;   // 日产出(本地建筑)
         internal float DailyConsumption; // 日消耗(建筑 + 军队 + 民生)
+        internal float BuyOrders;         // 买单意图(v3.0 人口需求层写入, 文档 19.4/19.9)
 
         internal MarketEntry() { }
 

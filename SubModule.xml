@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Module>
-  <Name value="内政扩展"/>
+  <Name value="内政与经济扩展"/>
   <Id value="_FeudalInternalAffairs"/>
-  <Version value="v0.1.0"/>
+  <Version value="v0.2.0"/>
   <SingleplayerModule value="true"/>
   <MultiplayerModule value="false"/>
   <DependedModules>
@@ -16,7 +16,7 @@
   </DependedModules>
   <SubModules>
     <SubModule>
-      <Name value="内政扩展"/>
+      <Name value="内政与经济扩展"/>
       <DLLName value="FeudalInternalAffairs.dll"/>
       <SubModuleClassType value="FeudalInternalAffairs.SubModule"/>
       <Tags>

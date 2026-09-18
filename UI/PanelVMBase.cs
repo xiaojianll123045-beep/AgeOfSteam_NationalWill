@@ -7,6 +7,8 @@ namespace FeudalInternalAffairs
     // (prefab 里面板控件绑定 MarginLeft="@PanelOffset"; OpenPanelAnim/ClosePanelAnim 由 PanelScreen 调用)
     public class PanelVMBase : ViewModel
     {
+        // 面板停靠位置(导航栏右侧; 与 PanelScreen.PanelX 一致)
+        internal const float BaseX = 64f;
         private float _offset = -700f;   // 默认滑出屏幕外
         private float _target = -700f;
 
@@ -17,11 +19,11 @@ namespace FeudalInternalAffairs
             set { if (Math.Abs(_offset - value) > 0.5f) { _offset = value; OnPropertyChangedWithValue(value, "PanelOffset"); } }
         }
 
-        // 面板打开: 从屏幕外滑到 0
+        // 面板打开: 从左侧屏幕外滑到导航栏右侧的停靠位
         internal void OpenPanelAnim(float width)
         {
             _offset = -width;
-            _target = 0f;
+            _target = BaseX;
             PanelOffset = _offset;
         }
 

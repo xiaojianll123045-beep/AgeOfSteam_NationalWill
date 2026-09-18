@@ -171,6 +171,17 @@ namespace FeudalInternalAffairs
         [DataSourceProperty]
         public string Influence { get { return _influence; } set { if (_influence != value) { _influence = value; OnPropertyChangedWithValue(value, "Influence"); } } }
 
+        // v3.0: 人口 / 平均生活水平(文档 19.14.4)
+        private string _popTotal = "—", _popSol = "—";
+        [DataSourceProperty]
+        public string PopTotal { get { return _popTotal; } set { if (_popTotal != value) { _popTotal = value; OnPropertyChangedWithValue(value, "PopTotal"); } } }
+        [DataSourceProperty]
+        public string PopSol { get { return _popSol; } set { if (_popSol != value) { _popSol = value; OnPropertyChangedWithValue(value, "PopSol"); } } }
+
+        private string _poolText = "—";
+        [DataSourceProperty]
+        public string PoolText { get { return _poolText; } set { if (_poolText != value) { _poolText = value; OnPropertyChangedWithValue(value, "PoolText"); } } }
+
         // ================= 命令 =================
         public void ExecuteToggle()
         {
@@ -200,7 +211,7 @@ namespace FeudalInternalAffairs
             {
                 if (IsPanelOpen) return;
                 IsPanelOpen = true;
-                _target = 0f;
+                _target = 64f;   // 停靠在左侧导航栏右侧
                 IsPanelVisible = true;
                 Refresh();
                 DLog.Force("国家面板: 展开");
@@ -257,11 +268,43 @@ namespace FeudalInternalAffairs
             catch (Exception ex) { DLog.Force("打开市场面板失败: " + ex.Message); }
         }
 
+        public void ExecutePopulation()
+        {
+            try { PopPanel.Open(); }
+            catch (Exception ex) { DLog.Force("打开人口面板失败: " + ex.Message); }
+        }
+
         // ================= 刷新 =================
         internal void Refresh()
         {
             try
             {
+                // v3.0: 人口 + 平均生活水平(文档 19.14.4)
+                try
+                {
+                    float ttl = 0f, solNum = 0f;
+                    foreach (var pv in Pops.BySettlement)
+                    {
+                        var pl = pv.Value;
+                        if (pl == null) continue;
+                        for (int i = 0; i < pl.Count; i++)
+                        {
+                            var pp = pl[i];
+                            if (pp == null) continue;
+                            ttl += pp.Size; solNum += pp.WealthLevel * pp.Size;
+                        }
+                    }
+                    if (ttl > 0f)
+                    {
+                        PopTotal = ((int)ttl).ToString("N0") + " 人";
+                        float sol = solNum / ttl;
+                        PopSol = sol.ToString("F1") + " " + PopStrataVM.SolLabel(sol);
+                    }
+                    var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                    PoolText = pk != null ? ((int)InvestmentPool.Of(pk.StringId)).ToString("N0") : "—";
+                }
+                catch { }
+
                 var b = NationalWillOrders.Behavior;
                 var k = b != null ? b.NationKingdom : null;
                 if (k == null) return;

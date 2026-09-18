@@ -1,0 +1,51 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+
+        <!-- 左侧导航栏(参照维多利亚3左侧图标栏); 点击由 NavRail.cs 轮询处理, 这里只管画 -->
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="56" SuggestedHeight="644"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="4" MarginTop="146"
+                Sprite="BlankWhiteSquare" Color="#00000044" />
+
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="150" Sprite="fia_bld_townhall" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="204" Sprite="fia_cat_living" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="258" Sprite="fia_bld_builder" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="312" Sprite="fia_bld_market" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="366" Sprite="fia_cat_trade" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="420" Sprite="fia_bld_university" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="474" Sprite="fia_bld_bank" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="528" Sprite="fia_bld_temple" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="582" Sprite="fia_bld_tradepost" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="636" Sprite="fia_cat_logistics" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="690" Sprite="fia_cat_admin" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="744" Sprite="fia_cat_military" />
+
+        <!-- 悬停名称(NavRail.cs 每帧轮询鼠标 -> 槽位; 与本文件图标 y=150+54*i 对应) -->
+        <Widget IsVisible="@TipVisible" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="40"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="54" MarginTop="@TipY"
+                Sprite="BlankWhiteSquare" Color="#000000CC">
+          <Children>
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                        MarginLeft="16" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#F0E4C8FF" Text="@TipText" />
+          </Children>
+        </Widget>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

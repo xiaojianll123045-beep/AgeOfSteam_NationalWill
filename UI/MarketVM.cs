@@ -10,13 +10,62 @@ namespace FeudalInternalAffairs
     // 市场面板: 一行 = 一种商品(维多利亚3 风格: 价格条 + 变化% + 供需)
     public class MarketRowVM : ViewModel
     {
-        internal MarketRowVM(GoodDef g, float price, float prevPrice, float supply, float demand, float stock)
+        internal MarketRowVM(GoodDef g, float price, float prevPrice, float supply, float demand, float stock,
+            float buyOrders = 0f, float sellOrders = 0f, float mapi = 0f)
         {
             Good = g; _price = price; _prev = prevPrice; _supply = supply; _demand = demand; _stock = stock;
+            _buy = buyOrders; _sell = sellOrders; _mapi = mapi;
         }
 
         internal GoodDef Good { get; private set; }
         private readonly float _price, _prev, _supply, _demand, _stock;
+        private readonly float _buy, _sell, _mapi;   // v3.0: 买单/卖单/市场接入(文档 19.14.1)
+
+        // v3.0 第二行: 买单/卖单/市场余额/市场接入(文档 19.9)
+        [DataSourceProperty]
+        public string SubText
+        {
+            get
+            {
+                if (_buy <= 0f && _sell <= 0f && _mapi <= 0f) return "";
+                float bal = _buy - _sell;
+                string bals = (bal >= 0f ? "+" : "") + bal.ToString("F1");
+                return "买单 " + _buy.ToString("F1") + " · 卖单 " + _sell.ToString("F1")
+                     + " · 余额 " + bals + (_mapi > 0f ? " · 市场接入 " + (int)Math.Round(_mapi * 100f) + "%" : "");
+            }
+        }
+
+        [DataSourceProperty]
+        public string SubColor
+        {
+            get
+            {
+                float bal = _buy - _sell;
+                if (bal > 0.05f) return "#E8C33ACC";     // 需大于供 = 黄
+                if (bal < -0.05f) return "#7DC97DCC";    // 供大于需 = 绿
+                return "#8A8070CC";
+            }
+        }
+
+        // 市场平衡条(文档 19.14.1; 参照维多利亚3市场窗口行内的供需平衡条): 宽度 = 失衡程度, 颜色 = 方向
+        [DataSourceProperty]
+        public float BalBarWidth
+        {
+            get
+            {
+                float bal = _buy - _sell;
+                float baseN = Math.Max(Math.Max(_buy, _sell), 0.01f);
+                float t = Math.Abs(bal) / baseN;
+                if (t > 1f) t = 1f;
+                return t * 60f;
+            }
+        }
+
+        [DataSourceProperty]
+        public string BalBarColor
+        {
+            get { return _buy - _sell > 0.05f ? "#D96A5ACC" : "#39FF14FF"; }   // 缺货红 / 过剩绿
+        }
 
         [DataSourceProperty]
         public string Icon { get { return Good != null ? Good.Sprite : ""; } }
@@ -75,7 +124,7 @@ namespace FeudalInternalAffairs
                 if (_prev <= 0.01f) return "#C8B98FFF";
                 float d = _price - _prev;
                 if (d > 0.01f) return "#D96A5AFF";
-                if (d < -0.01f) return "#7DC97DFF";
+                if (d < -0.01f) return "#39FF14FF";
                 return "#C8B98FFF";
             }
         }
@@ -105,20 +154,19 @@ namespace FeudalInternalAffairs
         }
 
         [DataSourceProperty]
-        public string GapColor { get { return _demand - _supply > 0.05f ? "#E8C33AFF" : "#7DC97DFF"; } }
+        public string GapColor { get { return _demand - _supply > 0.05f ? "#E8C33AFF" : "#39FF14FF"; } }
     }
 
-    // 粮食安全页签: 一行 = 一个城市
+    // 粮食安全页签: 一行 = 一个城市(食物 = 所有 IsFood 商品; 日耗/日产来自市场真实流量)
     public class MarketFoodRowVM : ViewModel
     {
-        internal MarketFoodRowVM(string name, float stock, float need, int days)
+        internal MarketFoodRowVM(string name, float stock, float need, float prod, float days)
         {
-            _name = name; _stock = stock; _need = need; _days = days;
+            _name = name; _stock = stock; _need = need; _prod = prod; _days = days;
         }
 
         private readonly string _name;
-        private readonly float _stock, _need;
-        private readonly int _days;
+        private readonly float _stock, _need, _prod, _days;
 
         [DataSourceProperty]
         public string Name { get { return _name; } }
@@ -130,31 +178,42 @@ namespace FeudalInternalAffairs
         public string NeedText { get { return _need.ToString("F1"); } }
 
         [DataSourceProperty]
-        public string DaysText { get { return _days < 0 ? "∞" : _days.ToString(); } }
+        public string ProdText { get { return _prod.ToString("F1"); } }
+
+        [DataSourceProperty]
+        public string DaysText
+        {
+            get
+            {
+                if (_days < 0f) return "∞";
+                return _days >= 10f ? ((int)_days).ToString() : _days.ToString("F1");
+            }
+        }
 
         [DataSourceProperty]
         public string DaysColor
         {
             get
             {
-                if (_days < 0) return "#C8B98FFF";
-                if (_days < 3) return "#D96A5AFF";     // < 3 天 = 危险
-                if (_days < 7) return "#E8C33AFF";     // < 7 天 = 警告
-                return "#7DC97DFF";
+                if (_days < 0f) return "#C8B98FFF";
+                if (_days < 3f) return "#D96A5AFF";     // < 3 天 = 危险
+                if (_days < 7f) return "#E8C33AFF";     // < 7 天 = 警告
+                return "#39FF14FF";
             }
         }
     }
 
-    // 贸易页签: 一行 = 一个城市
+    // 贸易页签: 一行 = 一个城市(含商队列; 文档 20.10)
     public class MarketTradeRowVM : ViewModel
     {
-        internal MarketTradeRowVM(string name, int tradeCap, int importCap, int queued)
+        internal MarketTradeRowVM(string name, int tradeCap, int importCap, int queued, string caravans)
         {
-            _name = name; _trade = tradeCap; _import = importCap; _queued = queued;
+            _name = name; _trade = tradeCap; _import = importCap; _queued = queued; _caravans = caravans;
         }
 
         private readonly string _name;
         private readonly int _trade, _import, _queued;
+        private readonly string _caravans;
 
         [DataSourceProperty]
         public string Name { get { return _name; } }
@@ -167,6 +226,9 @@ namespace FeudalInternalAffairs
 
         [DataSourceProperty]
         public string QueuedText { get { return _queued.ToString(); } }
+
+        [DataSourceProperty]
+        public string CaravansText { get { return _caravans; } }
     }
 
     public class MarketVM : PanelVMBase
@@ -214,20 +276,31 @@ namespace FeudalInternalAffairs
         {
             get
             {
-                if (_national || _townId == null) return "本市场";
+                if (_national) return "本市场";
+                if (string.IsNullOrEmpty(_townId)) return "本城市场";
                 var t = FindTown(_townId);
                 return (t != null && t.Name != null ? t.Name.ToString() : "?") + " 市场";
             }
         }
+
+        // "本城"模式但还没选城: 列表清空, 提示点城市(用户需求)
+        [DataSourceProperty]
+        public bool IsPickingCity { get { return !_national && string.IsNullOrEmpty(_townId); } }
+
+        [DataSourceProperty]
+        public string PickText { get { return "请在地图上点击一座城市"; } }
 
         [DataSourceProperty]
         public string Hint
         {
             get
             {
+                if (IsPickingCity)
+                    return "本城市场: 请在地图上点击你想查看的城市(城镇图标)\n"
+                         + "点过了就会显示那座城市的本地价/产出/消耗; 点上面\"全国\"可以切回全国行情";
                 if (_tab == 2)
-                    return "粮食安全: 看各城「粮食库存 ÷ 每天口粮」; 少于 3 天(红)就要赶紧补粮\n" +
-                           "日消耗 = 繁荣度 / 1000 (城市人口的吃饭量)";
+                    return "粮食安全: 看各城「食物库存 ÷ 每天口粮」; 少于 3 天(红)就要赶紧补粮\n"
+                         + "日消耗/日产 = 该城人口实际吃掉的与每天产出的食物(吃不到会涨激进)";
                 if (_tab == 1)
                     return "调运/进口: 本国城市之间会自动搬运便宜的货(差价 >20% 时)\n" +
                            "市场建筑 = 提高每日搬运上限 · 贸易站 = 允许从国外进口(贵 30%)";
@@ -235,7 +308,9 @@ namespace FeudalInternalAffairs
                         ? "全国行情: 所有城市买卖汇总的基准价(金线=基础价, 红=偏贵 绿=便宜)\n"
                         : "本城行情: 本地价 = 基准价 × 本城紧缺程度(市场建筑能压低本地价)\n")
                      + "价格=卖价 · 变化=比昨天 · 产出/消耗=每天产/用多少 · 现存=市场里还有多少\n"
-                     + "缺口=消耗−产出(正数=不够用) · 商品行上停一下可看产地与简介 · 滚轮翻看";
+                     + "缺口=消耗−产出(正数=不够用) · 悬停看产地与简介 · 滚轮翻看 · 今日铸币 "
+                     + (MarketSim.LedgerToday >= 0f ? "+" : "") + ((int)MarketSim.LedgerToday)
+                     + " · 累计 " + (MarketSim.LedgerTotal >= 0f ? "+" : "") + ((int)MarketSim.LedgerTotal);
             }
         }
 
@@ -284,7 +359,7 @@ namespace FeudalInternalAffairs
             {
                 var r = HoverRow();
                 if (r == null || r.Good == null) return "";
-                return "产地建筑: " + ProducersOf(r.Good.Id) + "   ·   基础价 " + r.Good.BasePrice;
+                return "产地建筑: " + ProducersOf(r.Good.Id) + "   ·   基础价 " + r.Good.BasePrice + "   ·   现价 " + r.PriceText;
             }
         }
 
@@ -323,8 +398,8 @@ namespace FeudalInternalAffairs
                 {
                     float h = 1080f;
                     try { h = TaleWorlds.Engine.Screen.RealScreenResolutionHeight; } catch { }
-                    float nx = Math.Min(mx + 20f, 780f - 340f);
-                    float ny = Math.Min(my + 12f, h - 170f);
+                    float nx = Math.Min(mx + 20f, PanelScreen.PanelX + 780f - 384f);
+                    float ny = Math.Min(my + 12f, h - 230f);
                     if (Math.Abs(nx - _tipX) > 1f) { _tipX = nx; OnPropertyChanged("TooltipX"); }
                     if (Math.Abs(ny - _tipY) > 1f) { _tipY = ny; OnPropertyChanged("TooltipY"); }
                 }
@@ -383,7 +458,7 @@ namespace FeudalInternalAffairs
                 float h = 0f;
                 try { h = TaleWorlds.Engine.Screen.RealScreenResolutionHeight; } catch { }
                 if (h <= 100f) h = 1080f;
-                int n = (int)((h - 440f) / 48f);
+                int n = (int)((h - 460f) / 68f);
                 if (n < 4) n = 4;
                 if (n > FeudalGoods.Main.Count) n = FeudalGoods.Main.Count;
                 return n;
@@ -413,6 +488,7 @@ namespace FeudalInternalAffairs
         public void ExecuteToggleScope()
         {
             _national = !_national;
+            if (!_national) _townId = null;   // 切到"本城": 先清空, 等玩家在地图上点城市
             Refresh();
             Notify();
         }
@@ -455,6 +531,8 @@ namespace FeudalInternalAffairs
             OnPropertyChangedWithValue(Title, "Title");
             OnPropertyChangedWithValue(Hint, "Hint");
             OnPropertyChangedWithValue(ScopeText, "ScopeText");
+            OnPropertyChangedWithValue(IsPickingCity, "IsPickingCity");
+            OnPropertyChangedWithValue(PickText, "PickText");
         }
 
         public void ExecuteClose()
@@ -478,6 +556,7 @@ namespace FeudalInternalAffairs
                 Rows.Clear();
                 TradeRows.Clear();
                 FoodRows.Clear();
+                if (IsPickingCity) return;   // 等待选城: 列表留空(面板上有"请点击城市"提示)
                 if (_tab == 0) BuildGoods();
                 else if (_tab == 1) BuildTrade();
                 else BuildFood();
@@ -513,7 +592,10 @@ namespace FeudalInternalAffairs
                         e != null ? e.PrevPrice : 0f,
                         e != null ? e.DailyProduction : 0f,
                         e != null ? e.DailyConsumption : 0f,
-                        e != null ? e.Stock : 0f));
+                        e != null ? e.Stock : 0f,
+                        e != null ? e.BuyOrders : 0f,
+                        e != null ? e.DailyProduction : 0f,
+                        MarketSim.MapiOf(_townId)));
                 }
                 else
                 {
@@ -529,9 +611,21 @@ namespace FeudalInternalAffairs
                         var me = mk.Value.Get(g.Id);
                         if (me != null) stockSum += me.Stock;
                     }
-                    Rows.Add(new MarketRowVM(g, national.PriceOf(g.Id), prev, sell, buy, stockSum));
+                    Rows.Add(new MarketRowVM(g, national.PriceOf(g.Id), prev, sell, buy, stockSum, buy, sell, AvgMapi()));
                 }
             }
+        }
+
+        // 全国平均市场接入度(MAPI)
+        private static float AvgMapi()
+        {
+            try
+            {
+                float s = 0f; int n = 0;
+                foreach (var kv in EconomyWorld.Markets) { s += MarketSim.MapiOf(kv.Key); n++; }
+                return n > 0 ? s / n : 0.5f;
+            }
+            catch { return 0.5f; }
         }
 
         private void BuildTrade()
@@ -558,7 +652,8 @@ namespace FeudalInternalAffairs
                         }
                     }
                 }
-                TradeRows.Add(new MarketTradeRowVM(t.Name != null ? t.Name.ToString() : "?", trade, import, queued));
+                TradeRows.Add(new MarketTradeRowVM(t.Name != null ? t.Name.ToString() : "?", trade, import, queued,
+                    Caravans.LineOf(t.Settlement.StringId)));
             }
         }
 
@@ -570,11 +665,24 @@ namespace FeudalInternalAffairs
             {
                 if (t == null || !t.IsTown || t.Settlement == null) continue;
                 var roster = t.Settlement.ItemRoster;
-                var grain = FeudalGoods.Item(FeudalGoods.Grain);
-                float stock = roster != null && grain != null ? roster.GetItemNumber(grain) : 0f;
-                float need = t.Prosperity / 1000f;
-                int days = need > 0.01f ? (int)(stock / need) : -1;
-                FoodRows.Add(new MarketFoodRowVM(t.Name != null ? t.Name.ToString() : "?", stock, need, days));
+                var m = EconomyWorld.FindMarket(t.Settlement.StringId);
+                float stock = 0f, need = 0f, prod = 0f;
+                // 食物 = 所有 IsFood 商品(不只谷物; 文档 19.3 基本食物)
+                for (int i = 0; i < FeudalGoods.Main.Count; i++)
+                {
+                    var g = FeudalGoods.Main[i];
+                    if (g == null || !g.IsFood) continue;
+                    var item = FeudalGoods.Item(g.Id);
+                    if (item != null && roster != null) stock += roster.GetItemNumber(item);
+                    if (m != null)
+                    {
+                        var e = m.Get(g.Id);
+                        if (e != null) { need += e.DailyConsumption; prod += e.DailyProduction; }
+                    }
+                }
+                if (need <= 0.01f) need = t.Prosperity / 1000f;   // 兜底: 旧口径(繁荣/1000)
+                float days = need > 0.01f ? stock / need : -1f;
+                FoodRows.Add(new MarketFoodRowVM(t.Name != null ? t.Name.ToString() : "?", stock, need, prod, days));
             }
         }
 

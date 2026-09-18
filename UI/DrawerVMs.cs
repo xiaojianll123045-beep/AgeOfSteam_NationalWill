@@ -156,6 +156,7 @@ namespace FeudalInternalAffairs
         private readonly Action<DrawerRowVM> _onRemove;
 
         internal DrawerRowVM(BuildDef def, int count, int queued, BuildMode mode, bool stalled, string stallReason,
+            float fill, float cash, float cashCap, int owner,
             Action<DrawerRowVM> onAdd, Action<DrawerRowVM> onRemove)
         {
             Def = def;
@@ -164,9 +165,18 @@ namespace FeudalInternalAffairs
             Mode = mode;
             Stalled = stalled;
             StallReason = stallReason;
+            Fill = fill;
+            Cash = cash;
+            CashCap = cashCap;
+            Owner = owner;
             _onAdd = onAdd;
             _onRemove = onRemove;
         }
+
+        internal float Fill { get; private set; }
+        internal float Cash { get; private set; }
+        internal float CashCap { get; private set; }
+        internal int Owner { get; private set; }
 
         internal BuildDef Def { get; private set; }
         internal int Count { get; private set; }
@@ -204,6 +214,30 @@ namespace FeudalInternalAffairs
 
         [DataSourceProperty]
         public string ModeText { get { return BuildDefs.ModeName(Mode); } }
+
+        // v3.0 建筑经营状态(文档 19.14.3): 到岗率 + 现金储备
+        [DataSourceProperty]
+        public string StateText
+        {
+            get
+            {
+                if (Count <= 0) return "";
+                string t = "在岗" + (int)Math.Round(Fill * 100f) + "%";
+                // 文档 20.6: 钱柜 x/上限; 20.4: 所有者
+                if (CashCap > 1f) t += " 柜" + ((int)Cash) + "/" + ((int)CashCap);
+                else if (Math.Abs(Cash) >= 1000f) t += " 储" + (Cash / 1000f).ToString("F1") + "K";
+                else if (Math.Abs(Cash) >= 1f) t += " 储" + ((int)Math.Abs(Cash));
+                if (Cash < -1f) t += "(亏)";
+                t += " · " + Ownership.NameOf(Owner);
+                return t;
+            }
+        }
+
+        [DataSourceProperty]
+        public string StateColor
+        {
+            get { return Cash < -1f ? "#D96A5AFF" : (Fill < 0.6f ? "#E8C33AFF" : "#8A9A7AFF"); }
+        }
 
         [DataSourceProperty]
         public string ModeSprite { get { return BuildDefs.ModeSprite(Mode); } }
@@ -481,6 +515,10 @@ namespace FeudalInternalAffairs
                         g != null ? g.Mode : BuildMode.Wood,
                         g != null && g.Stalled,
                         g != null ? g.StallReason : null,
+                        g != null ? g.Fill : 0f,
+                        g != null ? g.Cash : 0f,
+                        g != null ? InvestmentPool.ChestCap(g, s) : 0f,
+                        g != null ? Ownership.OwnerOf(g, s) : 1,
                         OnRowAdd, OnRowRemove));
                 }
                 IsBuildMode = true;

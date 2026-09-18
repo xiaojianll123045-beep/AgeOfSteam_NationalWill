@@ -88,7 +88,7 @@ namespace FeudalInternalAffairs
                 {
                     var pk = PlayerKingdom();
                     if (pk == null || K == null) return "#E8D9B5FF";
-                    if (Diplomacy.IsAlly(pk, K)) return "#7DC97DFF";
+                    if (Diplomacy.IsAlly(pk, K)) return "#39FF14FF";
                     if (pk.IsAtWarWith(K)) return "#D96A5AFF";
                     return "#E8D9B5FF";
                 }
@@ -172,6 +172,63 @@ namespace FeudalInternalAffairs
             get { try { return Diplomacy.IsAlly(PlayerKingdom(), K); } catch { return false; } }
         }
 
+        // 单一行动按钮的文案(按状态自动切换: 求和/解除/缔结/宣战)
+        [DataSourceProperty]
+        public string ActionText
+        {
+            get
+            {
+                try
+                {
+                    if (CanMakePeace) return "求和";
+                    if (CanBreakAlly) return "解除";
+                    if (CanAlly) return "缔结";
+                    if (CanDeclareWar) return "宣战";
+                }
+                catch { }
+                return "—";
+            }
+        }
+
+        [DataSourceProperty]
+        public string ActionColor
+        {
+            get
+            {
+                try
+                {
+                    if (CanMakePeace) return "#E8C33AFF";
+                    if (CanBreakAlly) return "#D96A5AFF";
+                    if (CanAlly) return "#39FF14FF";
+                    if (CanDeclareWar) return "#D96A5AFF";
+                }
+                catch { }
+                return "#7A7060FF";
+            }
+        }
+
+        // 关系描述(亲密/友好/中立/冷淡/敌对/死敌)
+        [DataSourceProperty]
+        public string RelationDesc
+        {
+            get { try { return Diplomacy.Describe(Diplomacy.Get(PlayerKingdom(), K)); } catch { return ""; } }
+        }
+
+        // 关系值 + 描述(一行显示)
+        [DataSourceProperty]
+        public string RelationFull
+        {
+            get
+            {
+                try
+                {
+                    int v = Diplomacy.Get(PlayerKingdom(), K);
+                    return v + " · " + Diplomacy.Describe(v);
+                }
+                catch { return ""; }
+            }
+        }
+
         private static Kingdom PlayerKingdom()
         {
             var b = NationalWillOrders.Behavior;
@@ -196,11 +253,15 @@ namespace FeudalInternalAffairs
         {
             _onClose = onClose;
             Rows = new MBBindingList<DiplomacyRowVM>();
+            SelPips = new MBBindingList<PipVM>();
             Refresh();
         }
 
         [DataSourceProperty]
         public MBBindingList<DiplomacyRowVM> Rows { get; private set; }
+
+        [DataSourceProperty]
+        public MBBindingList<PipVM> SelPips { get; private set; }
 
         [DataSourceProperty]
         public string Title { get { return "外交"; } }
@@ -212,11 +273,67 @@ namespace FeudalInternalAffairs
             {
                 switch (_tab)
                 {
-                    case 0: return "交战国: 可在此求和";
+                    case 0: return "交战国: 点右侧[求和]发起双方领主表决";
                     case 1: return "同盟国: 一方遭入侵时盟友一起宣战(关系 ≥ " + Diplomacy.AllyThreshold + " 才能缔结)";
-                    default: return "所有国家的关系值(-100 ~ +100): 影响宣战 / 和谈 / 同盟";
+                    default: return "所有国家: 关系 ≥ " + Diplomacy.AllyThreshold + " 可[缔结], 否则可[宣战](先进入外交博弈)";
                 }
             }
+        }
+
+        // 顶部概览: 盟友/交战/恶名
+        [DataSourceProperty]
+        public string SummaryText
+        {
+            get
+            {
+                try
+                {
+                    var pk = PlayerKingdom();
+                    if (pk == null) return "";
+                    int allies = 0, wars = 0;
+                    foreach (var k in Kingdom.All)
+                    {
+                        if (k == null || k == pk || k.IsEliminated) continue;
+                        if (Diplomacy.IsAlly(pk, k)) allies++;
+                        else if (pk.IsAtWarWith(k)) wars++;
+                    }
+                    return "我方: " + pk.Name + "   盟友 " + allies + " · 交战 " + wars + " · 恶名 " + ((int)DiploPlays.InfamyOf(pk.StringId));
+                }
+                catch { return ""; }
+            }
+        }
+
+        [DataSourceProperty]
+        public string TabWarsText { get { return "战争 (" + CountTab(0) + ")"; } }
+        [DataSourceProperty]
+        public string TabAlliesText { get { return "同盟 (" + CountTab(1) + ")"; } }
+        [DataSourceProperty]
+        public string TabRelationsText { get { return "关系 (" + CountTab(2) + ")"; } }
+
+        [DataSourceProperty]
+        public string TabWarsColor { get { return _tab == 0 ? "#39FF14FF" : "#7A7060FF"; } }
+        [DataSourceProperty]
+        public string TabAlliesColor { get { return _tab == 1 ? "#39FF14FF" : "#7A7060FF"; } }
+        [DataSourceProperty]
+        public string TabRelationsColor { get { return _tab == 2 ? "#39FF14FF" : "#7A7060FF"; } }
+
+        private int CountTab(int tab)
+        {
+            try
+            {
+                var pk = PlayerKingdom();
+                if (pk == null) return 0;
+                int n = 0;
+                foreach (var k in Kingdom.All)
+                {
+                    if (k == null || k == pk || k.IsEliminated) continue;
+                    if (tab == 0 && !pk.IsAtWarWith(k)) continue;
+                    if (tab == 1 && !Diplomacy.IsAlly(pk, k)) continue;
+                    n++;
+                }
+                return n;
+            }
+            catch { return 0; }
         }
 
         [DataSourceProperty]
@@ -333,6 +450,13 @@ namespace FeudalInternalAffairs
             OnPropertyChangedWithValue(IsTabAllies, "IsTabAllies");
             OnPropertyChangedWithValue(IsTabRelations, "IsTabRelations");
             OnPropertyChangedWithValue(Hint, "Hint");
+            OnPropertyChangedWithValue(TabWarsText, "TabWarsText");
+            OnPropertyChangedWithValue(TabAlliesText, "TabAlliesText");
+            OnPropertyChangedWithValue(TabRelationsText, "TabRelationsText");
+            OnPropertyChangedWithValue(TabWarsColor, "TabWarsColor");
+            OnPropertyChangedWithValue(TabAlliesColor, "TabAlliesColor");
+            OnPropertyChangedWithValue(TabRelationsColor, "TabRelationsColor");
+            OnPropertyChangedWithValue(SummaryText, "SummaryText");
         }
 
         public void ExecuteClose()
@@ -361,6 +485,23 @@ namespace FeudalInternalAffairs
             OnPropertyChangedWithValue(SelRelationColor, "SelRelationColor");
             OnPropertyChangedWithValue(SelStance, "SelStance");
             OnPropertyChangedWithValue(SelDetail, "SelDetail");
+            // 关系条: 10 格, 从红到绿
+            try
+            {
+                SelPips.Clear();
+                int rel = _selected != null ? Diplomacy.Get(PlayerKingdom(), _selected) : 0;
+                int filled = (int)Math.Round((rel + 100) / 20f);
+                if (filled < 0) filled = 0;
+                if (filled > 10) filled = 10;
+                string on = rel >= 25 ? "#39FF14FF" : (rel <= -25 ? "#D96A5AFF" : "#E8C33AFF");
+                for (int i = 0; i < 10; i++)
+                {
+                    var pip = new PipVM();
+                    pip.Set(i < filled ? on : "#3A342ACC");
+                    SelPips.Add(pip);
+                }
+            }
+            catch { }
         }
 
         internal void Refresh()
@@ -386,6 +527,8 @@ namespace FeudalInternalAffairs
                 Rows.Clear();
                 for (int i = 0; i < list.Count; i++)
                     Rows.Add(new DiplomacyRowVM(list[i], i % 2 == 1, OnWar, OnPeace, OnAlly, OnBreak, OnSelect));
+                NotifyTabs();
+                if (_selected != null) NotifySelection();
             }
             catch (Exception ex) { DLog.Info("外交列表刷新异常: " + ex.Message); }
         }
@@ -398,16 +541,19 @@ namespace FeudalInternalAffairs
             {
                 if (row == null || row.K == null) return;
                 string name = row.K.Name.ToString();
-                MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
-                    "宣战", "确定向 " + name + " 宣战? (关系 -" + Math.Abs(Diplomacy.WarPenalty) + ", 其盟友会一起参战)",
-                    new List<InquiryElement> { new InquiryElement("yes", "宣战", null, true, null) },
-                    true, 1, 1, "确定", "取消",
-                    delegate (List<InquiryElement> sel)
-                    {
-                        if (sel != null && sel.Count > 0 && DiplomacyBehavior.PlayerDeclareWar(row.K))
-                            MapSelection.Message("已向 " + name + " 宣战");
-                        Refresh();
-                    }, null, null, false));
+                var pk = PlayerKingdom();
+                if (pk == null) return;
+                // 第 22 章: 统一入口——盟友战争直接参战 / 盟友博弈自动加入 / 否则开新博弈自选诉求
+                string msg;
+                var play = DiploPlays.PlayerDeclareOn(row.K, out msg);
+                if (play != null)
+                {
+                    MapSelection.Message("已向 " + name + " 发出宣战诏书 — 去『博弈』页选择你要的诉求");
+                    DiploPlayPanel.Open();
+                }
+                else if (!string.IsNullOrEmpty(msg))
+                    MapSelection.Message(msg);
+                Refresh();
             }
             catch (Exception ex) { DLog.Force("宣战失败: " + ex.Message); }
         }

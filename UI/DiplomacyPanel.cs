@@ -24,12 +24,12 @@ namespace FeudalInternalAffairs
                     PanelScreen.OpenPanel(Key, Movie, _vm, null,
                         delegate (float dt) { if (_vm != null) _vm.TickAnim(dt); OnTick(dt); },
                         delegate { if (_vm != null) _vm.ClosePanelAnim(540f); });
-                    RegisterSpots();
                 }
                 if (_vm != null)
                 {
                     if (select != null) _vm.SelectKingdom(select);
                     else _vm.Refresh();
+                    RegisterSpots();   // 必须先刷新出国家行, 再按行注册热区(否则行按钮点不动)
                 }
             }
             catch (Exception ex) { DLog.Force("打开外交面板失败: " + ex.Message); }
@@ -48,14 +48,14 @@ namespace FeudalInternalAffairs
                 _acc += dt;
                 if (_acc < 2f) return;
                 _acc = 0f;
-                if (_vm != null) _vm.Refresh();
+                if (_vm != null) { _vm.Refresh(); RegisterSpots(); }   // 列表行会随刷新增减, 热区跟着重建
             }
             catch { }
         }
 
         internal static void Tick(float dt) { }
 
-        // 热区(按 FeudalDiplomacy.xml: 面板宽 540, 无 MarginTop)
+        // 热区(按 FeudalDiplomacy.xml 优化版布局: 面板宽 540)
         private static void RegisterSpots()
         {
             try
@@ -64,23 +64,26 @@ namespace FeudalInternalAffairs
                 PanelScreen.ClearSpots();
                 float sh = PanelScreen.ScreenHeight();
                 PanelScreen.AddSpot(480f, 20f, 60f, 58f, _vm.ExecuteClose);        // X
-                PanelScreen.AddSpot(24f, 138f, 122f, 46f, _vm.ExecuteTabWars);     // 页签: 战争
-                PanelScreen.AddSpot(160f, 138f, 122f, 46f, _vm.ExecuteTabAllies);  // 页签: 同盟
-                PanelScreen.AddSpot(296f, 138f, 122f, 46f, _vm.ExecuteTabRelations); // 页签: 关系
-                PanelScreen.AddSpot(24f, sh - 24f - 42f, 122f, 42f, _vm.ExecuteClose); // 关闭
-                // 国家行(动态): 左段=选中看详情, 右两个按钮=求和/宣战 与 缔结/解除同盟
+                PanelScreen.AddSpot(24f, 116f, 150f, 40f, _vm.ExecuteTabWars);      // 页签: 战争
+                PanelScreen.AddSpot(180f, 116f, 150f, 40f, _vm.ExecuteTabAllies);   // 页签: 同盟
+                PanelScreen.AddSpot(336f, 116f, 150f, 40f, _vm.ExecuteTabRelations);// 页签: 关系
+                PanelScreen.AddSpot(26f, sh - 24f - 42f, 122f, 42f, _vm.ExecuteClose); // 关闭
+                // 国家行(动态): 左段=选中看详情, 右侧单一行动按钮(按状态自动: 求和/解除/缔结/宣战)
                 int i = 0;
                 foreach (var row in _vm.Rows)
                 {
                     if (row == null) continue;
-                    float y = 322f + i * 56f;
+                    float y = 354f + i * 54f;
                     if (y > sh - 120f) break;
                     var r = row;
-                    PanelScreen.AddSpot(14f, y, 270f, 56f, r.ExecuteSelect);
-                    if (r.CanMakePeace) PanelScreen.AddSpot(292f, y + 8f, 100f, 40f, r.ExecutePeace);
-                    else if (r.CanDeclareWar) PanelScreen.AddSpot(292f, y + 8f, 100f, 40f, r.ExecuteWar);
-                    if (r.CanAlly) PanelScreen.AddSpot(396f, y + 8f, 128f, 40f, r.ExecuteAlly);
-                    else if (r.CanBreakAlly) PanelScreen.AddSpot(396f, y + 8f, 128f, 40f, r.ExecuteBreakAlly);
+                    PanelScreen.AddSpot(14f, y, 384f, 54f, r.ExecuteSelect);
+                    PanelScreen.AddSpot(400f, y + 7f, 104f, 40f, delegate
+                    {
+                        if (r.CanMakePeace) r.ExecutePeace();
+                        else if (r.CanBreakAlly) r.ExecuteBreakAlly();
+                        else if (r.CanAlly) r.ExecuteAlly();
+                        else r.ExecuteWar();
+                    });
                     i++;
                 }
             }

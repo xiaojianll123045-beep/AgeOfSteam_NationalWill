@@ -437,6 +437,13 @@ namespace FeudalInternalAffairs
                     if (settlement == null) return true;
                     __result = true;
 
+                    // 市场面板处于"本城"待选状态: 点城市 = 选中该城市场(不打开定居点抽屉)
+                    if (MarketPanel.IsPickingCity && settlement.IsTown)
+                    {
+                        MarketPanel.PickCity(settlement);
+                        return false;
+                    }
+
                     var selected = MapSelection.Selected;
                     if (selected != null && NationalWillOrders.IsOurs(selected))
                     {

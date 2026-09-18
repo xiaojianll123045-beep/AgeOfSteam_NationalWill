@@ -43,6 +43,7 @@ namespace FeudalInternalAffairs
                 SettlementDrawer.Tick(dt);
                 BuildPanel.Tick();
                 NationalPanel.Tick(dt);
+                NavRail.Tick(dt);   // v3.0: 左侧导航栏
                 PanelScreen.Tick(dt);   // 侧边栏刷新(层方式, 地图照常更新)
             }
             catch { }

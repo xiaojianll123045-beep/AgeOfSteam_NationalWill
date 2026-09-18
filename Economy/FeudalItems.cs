@@ -14,6 +14,10 @@ namespace FeudalInternalAffairs
         internal const string WeaponsId = "fia_weapons";
         internal const string ArmorId = "fia_armor";
         internal const string HerbsId = "fia_herbs";
+        // v3.0 新增(文档 19.3): 葡萄酒 / 马匹 / 服务
+        internal const string WineId = "fia_wine";
+        internal const string HorseId = "fia_horse";
+        internal const string ServiceId = "fia_service";
 
         private static Game _game;
         private static bool _registered;
@@ -57,6 +61,10 @@ namespace FeudalInternalAffairs
                 CreateTradeGood(om, ArmorId, "fia_item_armor", "Armor", "sets of armor", "merchandise_ironware_horseshoe", 200);
                 // 草药: 借用原版亚麻束(形似草药)
                 CreateTradeGood(om, HerbsId, "fia_item_herbs", "Herbs", "bundles of herbs", "merchandise_flax", 45);
+                // v3.0: 葡萄酒(借用亚麻束外观) / 马匹(马蹄铁) / 服务(石堆=集市摊位)
+                CreateTradeGood(om, WineId, "fia_item_wine", "Wine", "jars of wine", "merchandise_flax", 50);
+                CreateTradeGood(om, HorseId, "fia_item_horse", "Horses", "herds of horses", "merchandise_ironware_horseshoe", 150);
+                CreateTradeGood(om, ServiceId, "fia_item_service", "Services", "market services", "merchandise_stones", 30);
                 _registered = true;
                 _game = game;
                 DLog.Info("商品: 注册来源=" + source);
@@ -85,7 +93,7 @@ namespace FeudalInternalAffairs
         private static void Dump()
         {
             var sb = new System.Text.StringBuilder();
-            foreach (var id in new[] { StoneId, WeaponsId, ArmorId, HerbsId })
+            foreach (var id in new[] { StoneId, WeaponsId, ArmorId, HerbsId, WineId, HorseId, ServiceId })
             {
                 var it = Get(id);
                 if (it == null) { sb.Append(id + "=失败 "); continue; }

@@ -40,6 +40,14 @@ namespace FeudalInternalAffairs
         internal bool Stalled;
         internal string StallReason;
 
+        // v3.0 建筑经营状态(文档 19.7; 存档随建筑组序列化)
+        internal float Cash;          // 现金储备(第纳尔, 可负)
+        internal float WageMult = 1f; // 工资出价系数 0.6~2.0
+        internal float Fill = 1f;     // 雇佣到岗率 0~1(默认 1: 尚未结算前按满产)
+        internal float Margin;        // 上期利润率(用于下期工资出价)
+        internal int BankruptDays;    // 连续资不抵债天数(>=90 停业)
+        internal int Owner = -1;      // v4.0 所有权(文档 20.4): -1=按默认推导 0王/1领/2教/3行/4私
+
         internal BuildingGroup() { }
 
         internal BuildingGroup(string defId, int count, BuildMode mode)

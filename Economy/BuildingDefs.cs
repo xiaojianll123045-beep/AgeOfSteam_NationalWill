@@ -35,8 +35,16 @@ namespace FeudalInternalAffairs
     {
         internal string Good;
         internal float[] V;
+        // v3.7 校准(19.12): 实测供给约为需求的 6 倍(粮食 产 1646 / 需 153), 价格被压向地板价(25%基础价) -> 建筑全亏
+        // 统一缩放所有"实物产出/投入"(效果类 @xxx 数值不缩放), 让供需回到同一量级
+        internal static float Scale = 1f / 6f;
 
-        internal float Value(BuildMode m) { return V[(int)m]; }
+        internal float Value(BuildMode m)
+        {
+            float v = V[(int)m];
+            if (Good != null && Good.StartsWith("@")) return v;
+            return v * Scale;
+        }
     }
 
     internal class BuildDef
@@ -216,6 +224,9 @@ namespace FeudalInternalAffairs
                 Outputs = { A(EffProsperity, 0.5f, 0.8f, 1.2f) }, Maintenance = F(2.0f, 1.4f, 0.9f), Work = WAdmin },
             new BuildDef { Id = "bank", Name = "银行", Sprite = "fia_bld_bank", Loc = BuildLoc.Town, Cat = BuildCat.Admin, CanBePrivate = false,
                 Outputs = { A(EffInterest, -1f, -2f, -3f) }, Maintenance = F(3.0f, 2.1f, 1.35f), Work = WAdmin },
+            // v4.0 铸币厂(文档 20.3): 王室专属; 与银矿配合产生铸币收入
+            new BuildDef { Id = "mint", Name = "铸币厂", Sprite = "fia_bld_bank", Loc = BuildLoc.Town, Cat = BuildCat.Admin, CanBePrivate = false,
+                Outputs = { A(EffTax, 0f, 0f, 0f) }, Maintenance = F(2.0f, 1.4f, 0.9f), Work = WAdmin },
             new BuildDef { Id = "university", Name = "大学", Sprite = "fia_bld_university", Loc = BuildLoc.Town, Cat = BuildCat.Admin, CanBePrivate = false,
                 Outputs = { A(EffFocusSpeed, 2f, 3f, 5f) }, Maintenance = F(3.0f, 2.1f, 1.35f), Work = WAdmin },
             new BuildDef { Id = "hospital", Name = "医院", Sprite = "fia_bld_hospital", Loc = BuildLoc.Town, Cat = BuildCat.Living, CanBePrivate = true,

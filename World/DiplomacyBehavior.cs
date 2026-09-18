@@ -10,6 +10,8 @@ namespace FeudalInternalAffairs
     {
         internal static DiplomacyBehavior Current;
         private string _relations = "";
+        private string _warDairy = "";   // AI 外交: 战争开始日/停战日(第 21 章后的外交补全)
+        private string _diploPlay = "";  // 第 22 章: 外交博弈存档
         private bool _empireAllianceDone;
         private static bool _joiningWar;
 
@@ -37,12 +39,21 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                if (dataStore.IsSaving) _relations = Diplomacy.Save();
+                if (dataStore.IsSaving)
+                {
+                    _relations = Diplomacy.Save();
+                    _warDairy = AiDiplomacy.Save();
+                    _diploPlay = DiploPlays.Save();
+                }
                 dataStore.SyncData("FIA_Diplomacy", ref _relations);
+                dataStore.SyncData("FIA_WarDairy", ref _warDairy);
+                dataStore.SyncData("FIA_DiploPlay", ref _diploPlay);
                 dataStore.SyncData("FIA_EmpireAlliance", ref _empireAllianceDone);
                 if (dataStore.IsLoading)
                 {
                     Diplomacy.Load(_relations);
+                    AiDiplomacy.Load(_warDairy);
+                    DiploPlays.Load(_diploPlay);
                     DLog.Force("读档: 国家关系 " + (Diplomacy.Save().Length > 3 ? "已载入" : "空"));
                 }
             }
@@ -56,7 +67,12 @@ namespace FeudalInternalAffairs
 
         private void OnGameLoaded(CampaignGameStarter starter)
         {
-            try { EnsureEmpireAlliance(); } catch { }
+            try
+            {
+                EnsureEmpireAlliance();
+                AiDiplomacy.CleanNativeWarPeaceDecisions();   // 清掉旧存档里的原版战争/和平决议
+            }
+            catch { }
         }
 
         // 帝国三国(西/南/北)互相缔结同盟 —— 开局设定, 只做一次
@@ -111,6 +127,8 @@ namespace FeudalInternalAffairs
 
                 int before = Diplomacy.Get(attacker, defender);
                 Diplomacy.Change(attacker, defender, Diplomacy.WarPenalty);
+                AiDiplomacy.NoteWar(attacker, defender);
+                DiploPlays.OnWarDeclared(attacker, defender);   // 第 22 章: 建立战时支持度
                 DLog.Force("外交: " + attacker.Name + " 对 " + defender.Name + " 宣战, 关系 "
                     + before + " -> " + Diplomacy.Get(attacker, defender));
 
@@ -160,6 +178,8 @@ namespace FeudalInternalAffairs
                 if (a == null || b == null) return;
                 int before = Diplomacy.Get(a, b);
                 Diplomacy.Change(a, b, Diplomacy.PeaceBonus);
+                AiDiplomacy.NotePeace(a, b);
+                DiploPlays.OnPeace(a, b);   // 第 22 章: 按战争表现执行诉求
                 DLog.Force("外交: " + a.Name + " 与 " + b.Name + " 停战, 关系 " + before + " -> " + Diplomacy.Get(a, b));
             }
             catch (Exception ex) { DLog.Force("和谈处理异常: " + ex.Message); }
@@ -196,6 +216,10 @@ namespace FeudalInternalAffairs
             {
                 Diplomacy.DailyDrift();
                 SyncAllyWars();
+                AiDiplomacy.CleanNativeWarPeaceDecisions();   // 兜底: 拦住的原版决议若还挂在队列里, 每天清一次
+                DiploPlays.Daily((int)TaleWorlds.CampaignSystem.CampaignTime.Now.ToDays);   // 第 22 章: 博弈推进/战时支持度
+                if (TaleWorlds.CampaignSystem.CampaignTime.Now.GetDayOfWeek == 0)
+                    AiDiplomacy.Month((int)TaleWorlds.CampaignSystem.CampaignTime.Now.ToDays);
             }
             catch { }
         }

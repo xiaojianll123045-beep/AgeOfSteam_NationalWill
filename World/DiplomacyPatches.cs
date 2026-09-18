@@ -35,7 +35,7 @@ namespace FeudalInternalAffairs
             }
         }
 
-        // 点"宣战": 直接开战(无代价, 不走本国投票)
+        // 点"宣战": 第 22 章起改为发出宣战诏书(开启外交博弈); 无法开博弈时兜底直接开战
         [HarmonyPatch(typeof(KingdomDiplomacyVM), "OnDeclareWar")]
         internal static class DeclareWarDirectly
         {
@@ -49,6 +49,15 @@ namespace FeudalInternalAffairs
                     var target = GetOtherFaction(item, our);
                     if (target == null) return true;
 
+                    var play = DiploPlays.StartPlay(our, target as Kingdom, true);
+                    if (play != null)
+                    {
+                        MapSelection.Message("已向 " + (target.Name != null ? target.Name.ToString() : "?") + " 发出宣战诏书(进入外交博弈)");
+                        DLog.Force("玩家发起外交博弈: " + our.StringId + " -> " + target.StringId);
+                        return false;
+                    }
+
+                    // 兜底: 直接开战(已有博弈/无法开博弈时)
                     PlayerDeclaringWar = true;
                     try { DeclareWarAction.ApplyByKingdomDecision(our, target); }
                     finally { PlayerDeclaringWar = false; }
@@ -81,26 +90,16 @@ namespace FeudalInternalAffairs
             }
         }
 
-        // 玩家发起和谈: 在敌国发起领主投票(对方同意才和)
+        // 玩家发起和谈: 统一走我们自己的双方领主表决(不再使用原版王国决议)
         // 外交面板(DiplomacyBehavior.PlayerMakePeace)与王国页共用这条路径
         internal static bool ProposePeace(Kingdom our, Kingdom enemy, int tributeToPay, int tributeDurationInDays)
         {
             try
             {
                 if (our == null || enemy == null) return false;
-                var proposer = enemy.RulingClan;
-                if (proposer == null && enemy.Clans != null && enemy.Clans.Count > 0)
-                    proposer = enemy.Clans[0];
-                if (proposer == null) return false;
-
-                var decision = new MakePeaceKingdomDecision(proposer, our, tributeToPay, tributeDurationInDays, true, false);
-                enemy.AddDecision(decision, true);
-                MapSelection.Message("已向 " + (enemy.Name != null ? enemy.Name.ToString() : "?")
-                    + " 发起和谈投票, 等他们的领主表决");
-                DLog.Force("发起和谈投票: 敌国=" + enemy.StringId);
-                return true;
+                return DiplomacyBehavior.PlayerMakePeace(enemy);
             }
-            catch (Exception ex) { DLog.Force("和谈投票失败: " + ex.Message); return false; }
+            catch (Exception ex) { DLog.Force("和谈失败: " + ex.Message); return false; }
         }
 
         // 从外交项里取"另一方阵营"

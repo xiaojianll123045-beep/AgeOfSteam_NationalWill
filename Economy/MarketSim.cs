@@ -14,17 +14,41 @@ namespace FeudalInternalAffairs
     //   5) 进出口(5.5, 有贸易站的城市)
     internal static class MarketSim
     {
+        // 铸币账本(文档 19.9.3; 正 = 净创造); PlayerToday = 玩家王国市场的份额(负 = 净销毁, 计入财政支出)
+        internal static float LedgerToday, LedgerTotal, LedgerTodayPlayer;
+        internal static int LastImported, LastExported;   // 统计页(文档 20.9)
+        // 净销毁由国库承担的比例(v3.9): 全额承担每天 -5.9K 直接把国库击穿, 只按铸币税口径承担 20%
+        // (其余按文档 19.9.3 由买方自行消化; 数值可调)
+        internal const float BurnTreasuryShare = 0.20f;
+        private static readonly Dictionary<string, bool> _playerMkt = new Dictionary<string, bool>();
         // 返回 [调运件数, 进口件数, 繁荣增量*10]
         internal static int[] Run()
         {
             int moved = 0, imported = 0, prosp = 0;
             try
             {
-                CivilianTick(ref prosp);   // 【必须最先】粮食+生活用品消耗先记账, 否则全国汇总(下面)读到的消耗全是 0
+                PopSim.DailyConsume(ref prosp);   // 【必须最先】人口按买包消费(文档 19.13.2 第 2 步); 旧 5.6 民用循环已被 19.x 取代
+                LedgerToday = 0f;
                 NationalPrices();          // 全国基准价 + 汇总买卖量(含今日消耗)
+                // 铸币: 有铸币厂时按 20.3 铸币权结算(这里只记账); 否则维持"净创造入国库/销毁按20%计支出"
+                if (!MintRight.HasMint)
+                {
+                    int mint = (int)LedgerTodayPlayer;
+                    if (mint > 0) { EconomyWorld.TreasuryAdd(mint); Fiscal.AddMint(mint); }
+                    else if (mint < 0)
+                    {
+                        int burn = (int)(-mint * BurnTreasuryShare);
+                        if (burn > 0) { EconomyWorld.TreasurySpend(burn); Fiscal.AddBurn(burn); }
+                    }
+                }
                 LocalPrices();
                 moved = Transfers();
-                imported = Imports();
+                int imp = Imports();
+                int exp = Exports();
+                imported = imp + exp;
+                LastImported = imp;
+                LastExported = exp;
+                Caravans.Daily();          // 商队损耗(文档 20.10)
             }
             catch (Exception ex) { DLog.Force("市场结算异常: " + ex.Message); }
             return new[] { moved, imported, prosp };
@@ -34,26 +58,71 @@ namespace FeudalInternalAffairs
         private static void NationalPrices()
         {
             var n = EconomyWorld.National;
+            var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+            CachePlayerMarkets(pk);
+            LedgerTodayPlayer = 0f;
             foreach (var g in FeudalGoods.Main)
             {
                 float buy = 0f, sell = 0f;
+                float pBuy = 0f, pSell = 0f;
                 foreach (var kv in EconomyWorld.Markets)
                 {
                     var m = kv.Value;
                     if (m == null) continue;
                     var e = m.Get(g.Id);
                     if (e == null) continue;
-                    buy += e.DailyConsumption;
+                    buy += e.BuyOrders;
                     sell += e.DailyProduction;
+                    bool own;
+                    if (_playerMkt.TryGetValue(kv.Key, out own) && own) { pBuy += e.BuyOrders; pSell += e.DailyProduction; }
                 }
-                float target = g.BasePrice * (1f + 0.75f * Ratio(buy, sell));
+                float denom = Math.Min(buy, sell);
+                if (denom < 0.01f) denom = 0.01f;
+                float t = (buy - sell) / denom;                 // 文档 19.9.2 V3 精确式: (买-卖)/min(买,卖)
+                if (t > 1f) t = 1f;
+                if (t < -1f) t = -1f;
+                float target = g.BasePrice * (1f + 0.75f * t);  // 25%~175% 基础价
                 float cur = n.PriceOf(g.Id);
                 if (n.PrevBasePrice.ContainsKey(g.Id)) n.PrevBasePrice[g.Id] = cur;
                 else n.PrevBasePrice.Add(g.Id, cur);
                 n.SetPrice(g.Id, MoveTowards(cur, target, MarketRules.MaxDailyPriceMove));
+                // 铸币成色 -> 物价通胀(文档 20.3: 成色越低物价涨得越快)
+                if (MintRight.DailyInflation > 0f) n.SetPrice(g.Id, n.PriceOf(g.Id) * (1f + MintRight.DailyInflation));
                 if (n.BuyVolume.ContainsKey(g.Id)) n.BuyVolume[g.Id] = buy; else n.BuyVolume.Add(g.Id, buy);
                 if (n.SellVolume.ContainsKey(g.Id)) n.SellVolume[g.Id] = sell; else n.SellVolume.Add(g.Id, sell);
+                // 铸币/烧钱账本(文档 19.9.3): 卖>买 市场净创造货币, 买>卖 净销毁
+                float ledger = (sell - buy) * n.PriceOf(g.Id);
+                LedgerToday += ledger;
+                LedgerTotal += ledger;
+                LedgerTodayPlayer += (pSell - pBuy) * n.PriceOf(g.Id);
             }
+        }
+
+        // 玩家王国市场缓存(每日一次; 铸币收支只算自己王国)
+        private static void CachePlayerMarkets(Kingdom pk)
+        {
+            _playerMkt.Clear();
+            if (pk == null) return;
+            try
+            {
+                foreach (var kv in EconomyWorld.Markets)
+                {
+                    bool own = false;
+                    try
+                    {
+                        var sid = kv.Key;
+                        foreach (var s in Settlement.All)
+                        {
+                            if (s == null || s.StringId != sid) continue;
+                            own = s.MapFaction == pk;
+                            break;
+                        }
+                    }
+                    catch { }
+                    _playerMkt[kv.Key] = own;
+                }
+            }
+            catch { }
         }
 
         // ==================== 2) 本地价 ====================
@@ -63,20 +132,57 @@ namespace FeudalInternalAffairs
             {
                 var m = kv.Value;
                 if (m == null || string.IsNullOrEmpty(m.TownId)) continue;
-                float bonus = PriceBonusOf(m.TownId);   // 市场建筑: 负值 = 改善
-                foreach (var g in FeudalGoods.Main)
-                {
-                    var e = m.Get(g.Id);
-                    if (e == null) continue;
-                    float scarcity = Scarcity(e.DailyConsumption, e.DailyProduction);
-                    float basePrice = EconomyWorld.National.PriceOf(g.Id);
-                    float target = basePrice * scarcity * (1f + bonus);
+                    float bonus = PriceBonusOf(m.TownId);   // 市场建筑的价格改善(负值 = 改善)
+                    foreach (var g in FeudalGoods.Main)
+                    {
+                        var e = m.Get(g.Id);
+                        if (e == null) continue;
+                        // 本地价 = V3 精确式(本地买卖单); 实际价 = MAPI×全国价 + (1-MAPI)×本地价(文档 19.9.2)
+                        float lBuy = e.BuyOrders, lSell = e.DailyProduction;
+                        float ld = Math.Min(lBuy, lSell);
+                        if (ld < 0.01f) ld = 0.01f;
+                        float lt = (lBuy - lSell) / ld;
+                        if (lt > 1f) lt = 1f;
+                        if (lt < -1f) lt = -1f;
+                        float localPrice = g.BasePrice * (1f + 0.75f * lt) * (1f + bonus);
+                        float basePrice = EconomyWorld.National.PriceOf(g.Id);
+                        float mapi = MapiOf(m.TownId);
+                        float target = mapi * basePrice + (1f - mapi) * localPrice;
                     if (target < g.BasePrice * MarketRules.MinPriceFactor) target = g.BasePrice * MarketRules.MinPriceFactor;
                     if (target > g.BasePrice * MarketRules.MaxPriceFactor) target = g.BasePrice * MarketRules.MaxPriceFactor;
                     e.PrevPrice = e.Price;
                     e.Price = MoveTowards(e.Price, target, MarketRules.MaxDailyPriceMove);
                 }
             }
+        }
+
+        // 市场接入度 -> MAPI(文档 19.9.2): 市场/贸易站/驿站/仓库/粮仓提供接入分(基准 20), 结果 0.5~1.0
+        internal static float MapiOf(string townId)
+        {
+            try
+            {
+                var sb = EconomyWorld.Find(townId);
+                if (sb == null) return 0.5f;
+                float score = 10f;   // 城镇自带基础道路/市集
+                for (int i = 0; i < sb.Groups.Count; i++)
+                {
+                    var grp = sb.Groups[i];
+                    if (grp == null || grp.Count <= 0) continue;
+                    switch (grp.DefId)
+                    {
+                        case "market": score += 6f * grp.Count; break;
+                        case "trade_post": score += 6f * grp.Count; break;
+                        case "caravan_post": score += 5f * grp.Count; break;
+                        case "warehouse": score += 3f * grp.Count; break;
+                        case "granary": score += 3f * grp.Count; break;
+                    }
+                }
+                float v = 0.5f + 0.5f * (score / 20f);
+                if (v > 1f) v = 1f;
+                if (v < 0.5f) v = 0.5f;
+                return v;
+            }
+            catch { return 0.5f; }
         }
 
         // ==================== 3) 民用消耗 + 繁荣 ====================
@@ -210,7 +316,81 @@ namespace FeudalInternalAffairs
             return moved;
         }
 
-        // ==================== 5) 进出口(5.5) ====================
+        // 交战判定 / 同盟计数(19.9.4)
+        private static bool AnyWar(Kingdom pk)
+        {
+            try
+            {
+                foreach (var k in Kingdom.All)
+                {
+                    if (k == null || k == pk || k.IsEliminated) continue;
+                    if (FactionManager.IsAtWarAgainstFaction(pk, k)) return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static int AllyCount(Kingdom pk)
+        {
+            int n = 0;
+            try
+            {
+                foreach (var k in Kingdom.All)
+                {
+                    if (k == null || k == pk || k.IsEliminated) continue;
+                    if (pk.IsAllyWith(k)) n++;
+                }
+            }
+            catch { }
+            return n;
+        }
+
+        // 出口(19.9.4): 本地价远低于基准 -> 卖到国外, 收入入国库
+        private static int Exports()
+        {
+            int exported = 0;
+            try
+            {
+                var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                if (pk == null || AnyWar(pk)) return 0;
+                bool ally = AllyCount(pk) > 0;
+                float capMult = ally ? 1.5f : 1f;
+                foreach (var t in pk.Fiefs)
+                {
+                    if (t == null || !t.IsTown || t.Settlement == null) continue;
+                    var roster = t.Settlement.ItemRoster;
+                    var m = EconomyWorld.FindMarket(t.Settlement.StringId);
+                    if (roster == null || m == null) continue;
+                    int cap = (int)(ImportCapacityOf(t.Settlement.StringId) * capMult * (1f + Guilds.CapacityBonus()));
+                    if (cap <= 0) continue;
+                    foreach (var g in FeudalGoods.Main)
+                    {
+                        var e = m.Get(g.Id);
+                        if (e == null) continue;
+                        float basePrice = EconomyWorld.National.PriceOf(g.Id);
+                        if (e.Price > basePrice * 0.85f) continue;    // 价差 <15% -> 路线自动取消
+                        var item = FeudalGoods.Item(g.Id);
+                        if (item == null) continue;
+                        int have = roster.GetItemNumber(item);
+                        int can = Math.Min(cap, have - 30);           // 保留本地底仓
+                        if (can <= 0) continue;
+                        roster.AddToCounts(item, -can);
+                        int rev = (int)Math.Round(can * basePrice * (ally ? 1.0f : 0.9f));
+                        EconomyWorld.TreasuryAdd(rev);
+                        Fiscal.AddExport(rev);
+                        exported += can;
+                        if (DLog.Flag("econ"))
+                            DLog.Info("贸易路线(出口): " + g.Id + " " + can + " 件 " + t.Name + " 收入 " + rev);
+                    }
+                }
+            }
+            catch (Exception ex) { DLog.Info("出口异常: " + ex.Message); }
+            return exported;
+        }
+
+        // ==================== 5) 贸易路线: 进口(5.5 -> 19.9.4 升级) ====================
+        // 文档 19.9.4: 固定量路线 + 关税 20% + 价差不足自动取消 + 同盟扩量 1.5x + 交战强制取消
         private static int Imports()
         {
             int imported = 0;
@@ -218,13 +398,16 @@ namespace FeudalInternalAffairs
             {
                 var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
                 if (pk == null) return 0;
+                bool atWar = AnyWar(pk);
+                if (atWar) return 0;                                  // 交战: 路线强制取消
+                float capMult = AllyCount(pk) > 0 ? 1.5f : 1f;        // 同盟: 容量 ×1.5
                 foreach (var t in pk.Fiefs)
                 {
                     if (t == null || !t.IsTown || t.Settlement == null) continue;
                     var roster = t.Settlement.ItemRoster;
                     var m = EconomyWorld.FindMarket(t.Settlement.StringId);
                     if (roster == null || m == null) continue;
-                    int cap = ImportCapacityOf(t.Settlement.StringId);
+                    int cap = (int)(ImportCapacityOf(t.Settlement.StringId) * capMult * (1f + Guilds.CapacityBonus()));
                     if (cap <= 0) continue;   // 没有贸易站 -> 不能进出口
 
                     foreach (var g in FeudalGoods.Main)
@@ -233,7 +416,7 @@ namespace FeudalInternalAffairs
                         if (e == null) continue;
                         var item = FeudalGoods.Item(g.Id);
                         if (item == null) continue;
-                        // 本地价高于全国基准 30% 以上 -> 进口有利可图
+                        // 本地价高于全国基准 30% 以上 -> 进口有利可图(价差不足则路线自动取消)
                         float basePrice = EconomyWorld.National.PriceOf(g.Id);
                         if (e.Price < basePrice * (1f + MarketRules.ImportPremium)) continue;
                         int room = cap;
@@ -243,12 +426,14 @@ namespace FeudalInternalAffairs
                         int can = Math.Min(room, limit - stock);
                         if (can <= 0) continue;
                         roster.AddToCounts(item, can);
-                        // 进口成本(溢价部分)由国库承担
-                        int cost = (int)Math.Round(can * basePrice * MarketRules.ImportPremium);
+                        // 关税(19.9.4): |价差| 的 20% 由国库承担
+                        int cost = (int)Math.Round(can * Math.Abs(e.Price - basePrice) * 0.20f);
+                        if (cost <= 0) cost = (int)Math.Round(can * basePrice * 0.05f);
                         SpendGold(cost);
+                        Fiscal.AddTariff(cost);
                         imported += can;
                         if (DLog.Flag("econ"))
-                            DLog.Info("进口: " + g.Id + " " + can + " 件 -> " + t.Name + " 花费 " + cost);
+                            DLog.Info("贸易路线(进口): " + g.Id + " " + can + " 件 -> " + t.Name + " 关税 " + cost);
                     }
                 }
             }
@@ -260,8 +445,8 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                if (amount <= 0 || Hero.MainHero == null) return;
-                Hero.MainHero.ChangeHeroGold(-amount);
+                if (amount <= 0) return;
+                EconomyWorld.TreasurySpend(amount);   // 关税从国库出(6.1: 国库=玩家金钱, 统一入口)
             }
             catch { }
         }

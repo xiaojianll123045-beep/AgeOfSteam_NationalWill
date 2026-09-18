@@ -118,7 +118,7 @@ namespace FeudalInternalAffairs
                     }
                     catch (Exception ex) { DLog.Force("补丁失败 " + t.Name + ": " + ex.Message); }
                 }
-                DLog.Force("内政扩展加载完成, 补丁 " + ok + "/" + patches.Count);
+                DLog.Force("内政与经济扩展加载完成, 补丁 " + ok + "/" + patches.Count);
                 KingdomTraitPatches.NavalTraitPatches.Apply(HarmonyInstance);
                 NavalVisualGuard.Apply(HarmonyInstance);
                 TerritoryColorMode.NameplateWidgetPatch.Apply(HarmonyInstance);

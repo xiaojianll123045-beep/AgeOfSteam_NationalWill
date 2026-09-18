@@ -24,6 +24,15 @@ namespace FeudalInternalAffairs
     // 商品总表: 19 种主商品 + 8 种特产(见设计文档 4.1 / 12.8)
     internal static class FeudalGoods
     {
+        // 按 id 找商品定义(主商品 + 特产)
+        internal static GoodDef Def(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            for (int i = 0; i < Main.Count; i++) if (Main[i].Id == id) return Main[i];
+            for (int i = 0; i < Specialty.Count; i++) if (Specialty[i].Id == id) return Specialty[i];
+            return null;
+        }
+
         // 商品简介(市场悬停提示用; 见设计文档 4.1)
         internal static string DescOf(string id)
         {
@@ -81,6 +90,11 @@ namespace FeudalInternalAffairs
         internal const string Pottery = "pottery";
         internal const string Herbs = "fia_herbs";
 
+        // ---- v3.0 新增商品(文档 19.3): 葡萄酒 / 马匹 / 服务 ----
+        internal const string Wine = "fia_wine";
+        internal const string Horse = "fia_horse";
+        internal const string Service = "fia_service";
+
         // ---- 特产 id ----
         internal const string Grape = "grape";
         internal const string Olives = "olives";
@@ -112,7 +126,11 @@ namespace FeudalInternalAffairs
             new GoodDef { Id = Clay,      ItemId = Clay,      Name = "黏土", BasePrice = 18,  Sprite = "fia_goods_clay" },
             new GoodDef { Id = Beer,      ItemId = Beer,      Name = "酒",   BasePrice = 50,  Sprite = "fia_goods_beer",      IsLiving = true },
             new GoodDef { Id = Pottery,   ItemId = Pottery,   Name = "陶器", BasePrice = 210, Sprite = "fia_goods_pottery",   IsLiving = true },
-            new GoodDef { Id = Herbs,     ItemId = Herbs,     Name = "草药", BasePrice = 45,  Sprite = "fia_goods_herbs",     IsNew = true }
+            new GoodDef { Id = Herbs,     ItemId = Herbs,     Name = "草药", BasePrice = 45,  Sprite = "fia_goods_herbs",     IsNew = true },
+            // v3.0 新增(文档 19.3 / 19.4): 葡萄酒(酿酒坊 葡萄2→1)、马匹(牧场副产)、服务(集市/神庙/大学/酒馆产出, 当日即销)
+            new GoodDef { Id = Wine,      ItemId = Wine,      Name = "葡萄酒", BasePrice = 50,  Sprite = "fia_goods_grape",    Category = "加工品" },
+            new GoodDef { Id = Horse,     ItemId = Horse,     Name = "马匹",   BasePrice = 150, Sprite = "fia_bld_pasture",    Category = "原料" },
+            new GoodDef { Id = Service,   ItemId = Service,   Name = "服务",   BasePrice = 30,  Sprite = "fia_cat_admin",      Category = "生活用品" }
         };
 
         // ---- 特产(8): 只有特产农场产出, 不参与常规配方 ----

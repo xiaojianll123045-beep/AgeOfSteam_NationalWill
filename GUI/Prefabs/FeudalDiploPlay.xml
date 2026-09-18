@@ -1,0 +1,474 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+
+        <!-- ===== 外交博弈(文档 22 章; 版式参照维多利亚 3) ===== -->
+        <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="680" HeightSizePolicy="StretchToParent"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
+          <Children>
+
+            <!-- 不透明底板 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6"
+                    Sprite="BlankWhiteSquare" Color="#100C08EE" />
+
+            <!-- 标题栏 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" VerticalAlignment="Top"
+                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000055">
+              <Children>
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="#C9A227FF" Text="@PlayTitle" />
+                <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="38"
+                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="ButtonBrush1"
+                              Command.Click="ExecuteClose" UpdateChildrenStates="true">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="24" Text="X" />
+                  </Children>
+                </ButtonWidget>
+              </Children>
+            </Widget>
+
+            <!-- 页签 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="120" SuggestedHeight="38"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="86" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@TabOverviewColor" Text="总览" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="38"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="156" MarginTop="86" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@TabInvolvedColor" Text="卷入的国家" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
+                    MarginTop="132" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF59" />
+
+            <!-- 分区底板(纯视觉) -->
+            <Widget IsVisible="@ShowOverview" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="150" VerticalAlignment="Top"
+                    MarginTop="136" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000070" />
+            <Widget IsVisible="@ShowOverview" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="148" VerticalAlignment="Top"
+                    MarginTop="436" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000070" />
+            <Widget IsVisible="@ShowOverview" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="164" VerticalAlignment="Top"
+                    MarginTop="598" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000070" />
+            <Widget IsVisible="@ShowOverview" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="268" SuggestedHeight="22" VerticalAlignment="Top"
+                    HorizontalAlignment="Left" MarginLeft="108" MarginTop="382" Sprite="BlankWhiteSquare" Color="#00000090" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="72" VerticalAlignment="Top"
+                    MarginTop="872" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000033" />
+
+            <!-- ============ 总览页 ============ -->
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="144" Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#C9A227FF" Text="外交操作" />
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="174" Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#7A7060FF" Text="@PhaseHint" />
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="212" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#F0E4C8FF" Text="@ManeuverLine" />
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="238" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@RoleColor" Text="@RoleText" />
+
+            <!-- 双方卡片 -->
+            <Widget IsVisible="@ShowOverview" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="300" SuggestedHeight="86"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="284" Sprite="BlankWhiteSquare" Color="#00000090" />
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="40" MarginTop="294" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#F0E4C8FF" Text="@InitName" />
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="40" MarginTop="328" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#C8B98FFF" Text="@InitStats" />
+            <Widget IsVisible="@ShowOverview" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="300" SuggestedHeight="86"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="354" MarginTop="284" Sprite="BlankWhiteSquare" Color="#00000090" />
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="368" MarginTop="294" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#F0E4C8FF" Text="@TargetName" />
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="368" MarginTop="328" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#C8B98FFF" Text="@TargetStats" />
+
+            <!-- 激化度 -->
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="382" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="激化度" />
+            <ListPanel IsVisible="@ShowOverview" DataSource="{EscPips}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="112" MarginTop="384"
+                       StackLayout.LayoutMethod="HorizontalLeftToRight">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="22" SuggestedHeight="18" MarginRight="4"
+                        Sprite="BlankWhiteSquare" Color="@Color" />
+              </ItemTemplate>
+            </ListPanel>
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="392" MarginTop="382" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#F0E4C8FF" Text="@EscText" />
+
+            <!-- 支持 -->
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="414" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#7DC97DFF" Text="@SupportA" />
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="354" MarginTop="414" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#D96A5AFF" Text="@SupportB" />
+
+            <!-- 战争目标 -->
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="444" Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#C9A227FF" Text="战争目标" />
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="Fixed" SuggestedWidth="400" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="200" MarginTop="452" Brush="MapTextBrushGal" Brush.FontSize="13" Brush.FontColor="#7A7060FF" Text="@GoalHint" />
+
+            <ListPanel IsVisible="@ShowOverview" DataSource="{DemandsA}" WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="478" MarginLeft="30"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="28">
+                  <Children>
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="290" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="@Color" Text="@Text" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+            <ListPanel IsVisible="@ShowOverview" DataSource="{DemandsB}" WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="478" MarginLeft="354"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="28">
+                  <Children>
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="290" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="@Color" Text="@Text" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- 添加战争目标 -->
+            <Widget IsVisible="@ShowOverviewActions" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="118" SuggestedHeight="34"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="566" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#39FF14FF" Text="索要割地" />
+              </Children>
+            </Widget>
+            <Widget IsVisible="@ShowOverviewActions" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="118" SuggestedHeight="34"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="152" MarginTop="566" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#39FF14FF" Text="索要赔款" />
+              </Children>
+            </Widget>
+            <Widget IsVisible="@ShowOverviewActions" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="118" SuggestedHeight="34"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="278" MarginTop="566" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#39FF14FF" Text="要求纳贡" />
+              </Children>
+            </Widget>
+            <Widget IsVisible="@ShowOverviewActions" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="118" SuggestedHeight="34"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="404" MarginTop="566" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#39FF14FF" Text="羞辱对方" />
+              </Children>
+            </Widget>
+            <Widget IsVisible="@ShowOverviewActions" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="118" SuggestedHeight="34"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="530" MarginTop="566" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#39FF14FF" Text="要求通商" />
+              </Children>
+            </Widget>
+
+            <!-- 倾向 -->
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="612" Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#C9A227FF" Text="倾向" />
+            <Widget IsVisible="@ShowOverviewActions" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="130" SuggestedHeight="34"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="518" MarginTop="604" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#39FF14FF" Text="拉拢国家" />
+              </Children>
+            </Widget>
+            <TextWidget IsVisible="@ShowOverview" WidthSizePolicy="Fixed" SuggestedWidth="440" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="120" MarginTop="620" Brush="MapTextBrushGal" Brush.FontSize="13" Brush.FontColor="#7A7060FF" Text="@LeanHint" />
+            <ListPanel IsVisible="@ShowOverview" DataSource="{Leaners}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="644" MarginLeft="30" MarginRight="26"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30" Sprite="ArmyManagement\voter_tuple" Color="#FFFFFFE6">
+                  <Children>
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="140" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#F0E4C8FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="130" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                MarginLeft="150" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#C8B98FFF" Text="@Status" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="70" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                MarginLeft="280" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="@PrefColor" Text="@Pref" />
+                    <Widget IsVisible="@CanSway" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="88" SuggestedHeight="26"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Sprite="ButtonBrush2">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#39FF14FF" Text="拉拢" />
+                      </Children>
+                    </Widget>
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- ============ 卷入的国家页(两栏: 倾向我方 / 倾向对方) ============ -->
+            <TextWidget IsVisible="@ShowInvolved" WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="144" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#7DC97DFF" Text="@InitHeader" />
+            <TextWidget IsVisible="@ShowInvolved" WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="354" MarginTop="144" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#D96A5AFF" Text="@TargetHeader" />
+            <TextWidget IsVisible="@ShowInvolved" WidthSizePolicy="Fixed" SuggestedWidth="630" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="166" Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#7A7060FF" Text="盟友会自动参战; 其他国家需要你点行右侧『拉拢』用条件争取(正处于交战的国家不能拉)" />
+            <ListPanel IsVisible="@ShowInvolved" DataSource="{LeanersA}" WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="190" MarginLeft="30"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="44" Sprite="ArmyManagement\voter_tuple" Color="#FFFFFFE6">
+                  <Children>
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="150" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                MarginTop="2" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#F0E4C8FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="210" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                MarginTop="24" Brush="MapTextBrushGal" Brush.FontSize="13" Brush.FontColor="#7A7060FF" Text="@DescLine" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                MarginLeft="216" MarginTop="4" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="@PrefColor" Text="@Pref" />
+                    <Widget IsVisible="@CanSway" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="76" SuggestedHeight="28"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Sprite="ButtonBrush2">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#39FF14FF" Text="拉拢" />
+                      </Children>
+                    </Widget>
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+            <ListPanel IsVisible="@ShowInvolved" DataSource="{LeanersB}" WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="190" MarginLeft="354"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="44" Sprite="ArmyManagement\voter_tuple" Color="#FFFFFFE6">
+                  <Children>
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="150" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                MarginTop="2" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#F0E4C8FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="210" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                MarginTop="24" Brush="MapTextBrushGal" Brush.FontSize="13" Brush.FontColor="#7A7060FF" Text="@DescLine" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                MarginLeft="216" MarginTop="4" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="@PrefColor" Text="@Pref" />
+                    <Widget IsVisible="@CanSway" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="76" SuggestedHeight="28"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Sprite="ButtonBrush2">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#39FF14FF" Text="拉拢" />
+                      </Children>
+                    </Widget>
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <TextWidget IsVisible="@ShowWorld" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="380" Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#C9A227FF" Text="世界其它博弈" />
+            <ListPanel IsVisible="@ShowWorld" DataSource="{Plays}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="406" MarginLeft="30" MarginRight="26"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30" Sprite="ArmyManagement\voter_tuple" Color="#FFFFFFE6">
+                  <Children>
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@Color" Text="@Title" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="180" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                MarginLeft="310" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF" Text="@Info" />
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="88" SuggestedHeight="26"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Sprite="ButtonBrush2">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#39FF14FF" Text="查看" />
+                      </Children>
+                    </Widget>
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- ============ 行动(总览页底部) ============ -->
+            <Widget IsVisible="@ShowOverviewBackDown" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="220" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="806" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8C33AFF" Text="放弃(退让)" />
+              </Children>
+            </Widget>
+            <Widget IsVisible="@ShowOverviewGiveIn" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="220" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="806" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#D96A5AFF" Text="屈服(接受诉求)" />
+              </Children>
+            </Widget>
+            <Widget IsVisible="@IsThird" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="200" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="806" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#39FF14FF" Text="加入发起方" />
+              </Children>
+            </Widget>
+            <Widget IsVisible="@IsThird" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="200" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="236" MarginTop="806" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#39FF14FF" Text="加入防御方" />
+              </Children>
+            </Widget>
+            <Widget IsVisible="@IsThird" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="200" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="446" MarginTop="806" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#C8B98FFF" Text="保持中立" />
+              </Children>
+            </Widget>
+
+            <!-- ============ 选地模式 ============ -->
+            <TextWidget IsVisible="@IsPicking" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="144" Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#39FF14FF" Text="选择要割让的领地" />
+            <Widget IsVisible="@IsPicking" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="104" SuggestedHeight="34"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="546" MarginTop="138" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C8B98FFF" Text="取消" />
+              </Children>
+            </Widget>
+            <ListPanel IsVisible="@IsPicking" DataSource="{Candidates}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="178" MarginLeft="30" MarginRight="26"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="34" Sprite="ArmyManagement\voter_tuple" Color="#FFFFFFE6">
+                  <Children>
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#F0E4C8FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                MarginLeft="300" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#7A7060FF" Text="@Dist" />
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="100" SuggestedHeight="32"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Sprite="ButtonBrush2">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#39FF14FF" Text="选择" />
+                      </Children>
+                    </Widget>
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- ============ 拉拢条件(参照 V3 拉拢界面) ============ -->
+            <TextWidget IsVisible="@IsSwaying" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="144" Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#39FF14FF" Text="@SwayTitle" />
+            <TextWidget IsVisible="@IsSwaying" WidthSizePolicy="Fixed" SuggestedWidth="500" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="178" Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#7A7060FF" Text="以未来利益换取他们参战(消耗 20 机动点; 对方按 好感+条件价值 决定是否接受)" />
+            <Widget IsVisible="@IsSwaying" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="104" SuggestedHeight="34"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="546" MarginTop="138" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C8B98FFF" Text="取消" />
+              </Children>
+            </Widget>
+            <ListPanel IsVisible="@IsSwaying" DataSource="{SwayList}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="206" MarginLeft="30" MarginRight="26"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="46" Sprite="ArmyManagement\voter_tuple" Color="#FFFFFFE6">
+                  <Children>
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="190" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@Color" Text="@Name" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                MarginLeft="200" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#C8B98FFF" Text="@Cost" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                MarginLeft="272" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#39FF14FF" Text="@Value" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="200" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                MarginLeft="330" Brush="MapTextBrushGal" Brush.FontSize="13" Brush.FontColor="#7A7060FF" Text="@Desc" />
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="104" SuggestedHeight="32"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Sprite="ButtonBrush2">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#39FF14FF" Text="提供" />
+                      </Children>
+                    </Widget>
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- ============ 拉拢对象选择(总览「拉拢国家」按钮进来) ============ -->
+            <TextWidget IsVisible="@IsSwayPicking" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="144" Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#39FF14FF" Text="选择拉拢对象" />
+            <TextWidget IsVisible="@IsSwayPicking" WidthSizePolicy="Fixed" SuggestedWidth="500" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="178" Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#7A7060FF" Text="盟友会自动参战(不在此列); 交战中的国家无法拉拢; 选中后进入条件页" />
+            <Widget IsVisible="@IsSwayPicking" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="104" SuggestedHeight="34"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="546" MarginTop="138" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C8B98FFF" Text="取消" />
+              </Children>
+            </Widget>
+            <ListPanel IsVisible="@IsSwayPicking" DataSource="{SwayCands}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="206" MarginLeft="30" MarginRight="26"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="44" Sprite="ArmyManagement\voter_tuple" Color="#FFFFFFE6">
+                  <Children>
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="200" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                MarginTop="2" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#F0E4C8FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                MarginTop="26" Brush="MapTextBrushGal" Brush.FontSize="13" Brush.FontColor="#7A7060FF" Text="@DescLine" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                MarginLeft="420" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="@PrefColor" Text="@Pref" />
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="104" SuggestedHeight="32"
+                            HorizontalAlignment="Right" VerticalAlignment="Center" Sprite="ButtonBrush2">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#39FF14FF" Text="选择" />
+                      </Children>
+                    </Widget>
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- ============ 自定义金额(赔款/纳贡; 参照 V3 自选赔款) ============ -->
+            <TextWidget IsVisible="@IsAmountPicking" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="144" Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#39FF14FF" Text="@AmountTitle" />
+            <TextWidget IsVisible="@IsAmountPicking" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="196" Brush="MapTextBrushGal" Brush.FontSize="40" Brush.FontColor="#F0E4C8FF" Text="@AmountText" />
+            <TextWidget IsVisible="@IsAmountPicking" WidthSizePolicy="Fixed" SuggestedWidth="600" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="258" Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#7A7060FF" Text="范围 500 ~ 30000 第纳尔; 赔款=一次性, 纳贡=每月金额(12 个月)" />
+            <Widget IsVisible="@IsAmountPicking" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="290" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#C8B98FFF" Text="-1000" />
+              </Children>
+            </Widget>
+            <Widget IsVisible="@IsAmountPicking" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="186" MarginTop="290" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#C8B98FFF" Text="-500" />
+              </Children>
+            </Widget>
+            <Widget IsVisible="@IsAmountPicking" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="346" MarginTop="290" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#39FF14FF" Text="+500" />
+              </Children>
+            </Widget>
+            <Widget IsVisible="@IsAmountPicking" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="506" MarginTop="290" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#39FF14FF" Text="+1000" />
+              </Children>
+            </Widget>
+            <Widget IsVisible="@IsAmountPicking" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="220" SuggestedHeight="44"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="346" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#39FF14FF" Text="确定" />
+              </Children>
+            </Widget>
+            <Widget IsVisible="@IsAmountPicking" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="220" SuggestedHeight="44"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="256" MarginTop="346" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#C8B98FFF" Text="取消" />
+              </Children>
+            </Widget>
+
+            <!-- 状态 -->
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="620" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="880" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#E8C33AFF" Text="@StatusText" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="620" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="912" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#7A7060FF" Text="@OthersText" />
+
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="122" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="30" MarginBottom="26" Brush="ButtonBrush2" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Text="关闭" />
+              </Children>
+            </ButtonWidget>
+
+          </Children>
+        </BrushWidget>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

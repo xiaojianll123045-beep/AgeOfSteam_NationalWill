@@ -123,6 +123,7 @@ namespace FeudalInternalAffairs
                         if (e == null) continue;
                         e.DailyProduction = 0f;
                         e.DailyConsumption = 0f;
+                        e.BuyOrders = 0f;
                     }
                 }
                 BuildStorageCache();
@@ -138,6 +139,9 @@ namespace FeudalInternalAffairs
                     built += r[0]; stalled += r[1]; produced += r[2]; consumed += r[3];
                     cAdv += r[4]; cDone += r[5]; cStall += r[6];
                 }
+
+                // 2.5) 人口就业与建筑经营(v3.0 文档 19.7; 必须在市场汇总之前)
+                PopJob.RunDaily();
 
                 // 3) 市场结算(价格/民用消耗/繁荣/调运/进口) + 刷新市场库存镜像
                 var mk = MarketSim.Run();
@@ -308,7 +312,7 @@ namespace FeudalInternalAffairs
                     {
                         roster.AddToCounts(p.Item, -p.Amount);
                         consumed += p.Amount;
-                        if (md != null) md.GetOrCreate(p.GoodId).DailyConsumption += p.Amount;
+                        if (md != null) { var me = md.GetOrCreate(p.GoodId); me.DailyConsumption += p.Amount; me.BuyOrders += p.Amount; }
                     }
 
                     // ---- 产出 ----
@@ -319,7 +323,10 @@ namespace FeudalInternalAffairs
                         string goodId = ResolveOutputGood(s, outp.Good);
                         var it = FeudalGoods.Item(goodId);
                         if (it == null) continue;
-                        int got = MBRandom.RoundRandomized(outp.Value(mode) * g.Count);
+                        // 实物产出按到岗率缩放(文档 19.7.2: 与记账口径一致) + 行会加成 + 政治修正(第 21 章)
+                        string catName = BuildDefs.CategoryName(def.Cat);
+                        float guildMult = (1f + Guilds.OutputBonus(catName)) * Politics.OutputMult(catName) * Politics.SettlementOutputMult(s);
+                        int got = MBRandom.RoundRandomized(outp.Value(mode) * g.Count * (g.Fill > 0.001f ? g.Fill : 1f) * guildMult);
                         if (got <= 0) continue;
                         // 库存上限(12.10)
                         int have = roster.GetItemNumber(it);
