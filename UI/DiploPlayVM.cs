@@ -82,14 +82,14 @@ namespace FeudalInternalAffairs
         internal readonly int OfferIndex;
         private readonly string _name, _cost, _value, _desc, _color;
 
-        internal OfferRowVM(int idx, SwayKind kind, bool valid, string why)
+        internal OfferRowVM(int idx, SwayKind kind, bool valid, string why, string acceptHint, bool willAccept)
         {
             OfferIndex = idx;
             _name = DiploPlays.SwayOfferName(kind);
             _cost = "机动 20";
             _value = "+" + DiploPlays.SwayOfferValue(kind);
-            _desc = valid ? DiploPlays.SwayOfferDesc(kind) : why;
-            _color = valid ? "#F0E4C8FF" : "#7A7060FF";
+            _desc = (valid ? DiploPlays.SwayOfferDesc(kind) : why) + (valid && acceptHint.Length > 0 ? " ｜ " + acceptHint : "");
+            _color = valid ? (willAccept ? "#39FF14FF" : "#F0E4C8FF") : "#7A7060FF";
         }
 
         [DataSourceProperty] public string Name { get { return _name; } }
@@ -539,12 +539,24 @@ namespace FeudalInternalAffairs
                 SwayList.Clear();
                 var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
                 var p = DiploPlays.PlayerPlay();
+                var who = DiploPlays.K(_swayTargetId);
+                int pref = 0;
+                if (p != null && pk != null && who != null)
+                {
+                    bool isInit = p.InitiatorId == pk.StringId;
+                    pref = DiploPlays.Preference(p, who, isInit ? 0 : 1);
+                }
                 for (int i = 0; i < 6; i++)
                 {
                     var k = (SwayKind)i;
                     string why = "";
                     bool valid = p != null && pk != null && DiploPlays.SwayOfferValid(p, pk, k, out why);
-                    SwayList.Add(new OfferRowVM(i, k, valid, why));
+                    int acc = pref + DiploPlays.SwayOfferValue(k);
+                    bool willAccept = acc >= 30;
+                    string hint = valid
+                        ? ("当前好感 " + pref + " → " + (willAccept ? "对方会接受" : "对方会拒绝(还差 " + (30 - acc) + ")"))
+                        : "";
+                    SwayList.Add(new OfferRowVM(i, k, valid, why, hint, willAccept));
                 }
                 OnPropertyChangedWithValue(_swayTitle, "SwayTitle");
             }
