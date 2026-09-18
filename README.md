@@ -77,8 +77,6 @@ dotnet build FeudalInternalAffairs.csproj -c Release -p:GameModulesDir="你的�
 
 请按职能目录组织代码（`Map/` `Will/` `World/` `Focus/` `Creation/` `Battle/` `Core/` `Economy/` `UI/`；内嵌 RTS Camera 源码在 `ThirdParty/RTSCamera/`）。Harmony 补丁需显式注册，不使用 `PatchAll`。
 
-面向国策内容作者的完整系统说明见仓库根目录外的主设计文档（含数值表与写作规范）。
-
 ## 致谢
 
 - 战场指挥与镜头系统基于 [RTS Camera](https://github.com/lzh-mb-mod/RTSCamera) 与 [MissionLibrary](https://github.com/lzh-mb-mod/MissionLibrary)（MIT，Copyright (c) 2020 Li Zhenhuan / lizhenhuan1019@qq.com），**源码已并入本项目** `ThirdParty/RTSCamera/`（保留 MIT LICENSE），并做了必要修改（内嵌单模块化、缺失的方法扩展、命令系统装配等）。
