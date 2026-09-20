@@ -145,17 +145,18 @@ namespace FeudalInternalAffairs
                 }
                 float titheBase = (landBase + pollBase) * 0.4f;
                 float[] bases = { landBase, pollBase, titheBase, marketBase };
-                float pMult = Politics.TaxIncomeMult();   // 第 21 章: 法令特权/王权合法性影响实征率
+                float pMult = Politics.TaxIncomeMult();   // 第 21 章: 王权/权威合法性影响实收
+                int titheGot = 0;
                 for (int i = 0; i < 4; i++)
                 {
                     int v = (int)Math.Round(bases[i] * Mult[Level[i]] * pMult);
                     if (v <= 0) continue;
                     MonthIncome[i] += v;
                     total += v;
-                    if (i == 2) Ownership.ChurchPool += v;            // 什一税 -> 教会池
-                    else EconomyWorld.TreasuryAdd(v);                 // 其余 -> 国库
+                    if (i == 2) { Ownership.ChurchPool += v; titheGot += v; }   // 什一税 -> 教会池(不入国库)
+                    else EconomyWorld.TreasuryAdd(v);                           // 其余 -> 国库
                 }
-                if (total > 0) Fiscal.AddTax(total);
+                if (total > 0) Fiscal.AddTax(total - titheGot);   // 财政账只记"进国库的部分"(否则净额虚高)
             }
             catch (Exception ex) { DLog.Force("税制结算异常: " + ex.Message); }
             return total;

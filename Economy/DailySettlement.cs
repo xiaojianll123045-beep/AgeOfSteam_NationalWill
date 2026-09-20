@@ -325,7 +325,7 @@ namespace FeudalInternalAffairs
                         if (it == null) continue;
                         // 实物产出按到岗率缩放(文档 19.7.2: 与记账口径一致) + 行会加成 + 政治修正(第 21 章)
                         string catName = BuildDefs.CategoryName(def.Cat);
-                        float guildMult = (1f + Guilds.OutputBonus(catName)) * Politics.OutputMult(catName) * Politics.SettlementOutputMult(s);
+                        float guildMult = (1f + Guilds.OutputBonus(catName)) * Politics.OutputMult(catName) * Politics.SettlementOutputMult(s) * WarEconomy.OutputMultOf(s.StringId);   // v4.72: 焦土(被掠夺村庄产出-50% 30天)
                         int got = MBRandom.RoundRandomized(outp.Value(mode) * g.Count * (g.Fill > 0.001f ? g.Fill : 1f) * guildMult);
                         if (got <= 0) continue;
                         // 库存上限(12.10)

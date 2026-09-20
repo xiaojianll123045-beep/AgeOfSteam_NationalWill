@@ -5,8 +5,8 @@
   </Constants>
   <VisualDefinitions>
     <VisualDefinition Name="ChatLogParent" TransitionDuration="0.14">
-      <VisualState State="Default" PositionXOffset="0" />
-      <VisualState State="Offset" PositionXOffset="780" />
+      <VisualState State="Default" PositionXOffset="70" />
+      <VisualState State="Offset" PositionXOffset="760" />
     </VisualDefinition>
   </VisualDefinitions>
   <Window>

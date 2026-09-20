@@ -157,29 +157,35 @@ namespace FeudalInternalAffairs
                 IncomeRows.Clear();
                 ExpenseRows.Clear();
                 _treasury = ((int)EconomyWorld.Treasury.Gold).ToString("N0");
-                int inc = Fiscal.Mint + Fiscal.Export + Fiscal.Dividend + Fiscal.Tax, exp = Fiscal.Tariff + Fiscal.Burn;
+                int inc = Fiscal.TodayIncome, exp = Fiscal.TodayExpense;
                 _incomeSum = "+" + inc.ToString("N0");
                 _expenseSum = exp == 0 ? "0" : "-" + exp.ToString("N0");
-                int net = inc - exp;
+                int net = 0;
+                try { net = Fiscal.TodayGoldDelta(EconomyWorld.Treasury.Gold); } catch { net = Fiscal.TodayIncome - Fiscal.TodayExpense; }
                 _net = (net >= 0 ? "+" : "") + net.ToString("N0");
                 _netColor = net >= 0 ? "#39FF14FF" : "#D96A5AFF";
 
-                // 显示"本月累计"(上月的滚存见顶部"上月净额")
-                if (Fiscal.Tax != 0) IncomeRows.Add(new FiscalRowVM("税收(土地/人头/什一/市场)", Fiscal.Tax, true));
-                if (Fiscal.Mint != 0) IncomeRows.Add(new FiscalRowVM("铸币收入(市场净创造)", Fiscal.Mint, true));
-                if (Fiscal.Export != 0) IncomeRows.Add(new FiscalRowVM("出口收入(贸易路线)", Fiscal.Export, true));
-                if (Fiscal.Dividend != 0) IncomeRows.Add(new FiscalRowVM("国有建筑分红", Fiscal.Dividend, true));
-                if (IncomeRows.Count == 0) IncomeRows.Add(new FiscalRowVM("本月暂无收入", 0, true));
+                // 显示"今日"(日口径; 月累计滚存见顶部"今日净额"旁边的国库)
+                if (Fiscal.TodayTax != 0) IncomeRows.Add(new FiscalRowVM("税收(土地/人头/市场, 什一入教会池)", Fiscal.TodayTax, true));
+                if (Fiscal.TodayMint != 0) IncomeRows.Add(new FiscalRowVM("铸币收入(市场净创造)", Fiscal.TodayMint, true));
+                if (Fiscal.TodayExport != 0) IncomeRows.Add(new FiscalRowVM("出口收入(贸易路线)", Fiscal.TodayExport, true));
+                if (Fiscal.TodayDividend != 0) IncomeRows.Add(new FiscalRowVM("国有建筑分红", Fiscal.TodayDividend, true));
+                if (Fiscal.TodayCourt < 0) IncomeRows.Add(new FiscalRowVM("外交往来(赔款/贡金/保释金等)", -Fiscal.TodayCourt, true));
+                if (IncomeRows.Count == 0) IncomeRows.Add(new FiscalRowVM("今日暂无收入", 0, true));
 
-                if (Fiscal.Burn != 0) ExpenseRows.Add(new FiscalRowVM("铸币销毁(本国市场×20%)", Fiscal.Burn, false));
-                if (Fiscal.Tariff != 0) ExpenseRows.Add(new FiscalRowVM("进口关税(贸易路线)", Fiscal.Tariff, false));
-                if (ExpenseRows.Count == 0) ExpenseRows.Add(new FiscalRowVM("本月暂无支出", 0, false));
+                if (Fiscal.TodayBurn != 0) ExpenseRows.Add(new FiscalRowVM("铸币销毁(本国市场×20%)", Fiscal.TodayBurn, false));
+                if (Fiscal.TodayTariff != 0) ExpenseRows.Add(new FiscalRowVM("进口关税(贸易路线)", Fiscal.TodayTariff, false));
+                if (Fiscal.TodayInterest != 0) ExpenseRows.Add(new FiscalRowVM("信贷利息(钱庄/债主)", Fiscal.TodayInterest, false));
+                if (Fiscal.TodayFee != 0) ExpenseRows.Add(new FiscalRowVM("行会年金(特许状)", Fiscal.TodayFee, false));
+                if (Fiscal.TodayMilitary != 0) ExpenseRows.Add(new FiscalRowVM("国防军军费(募兵/军饷/建军)", Fiscal.TodayMilitary, false));
+                if (Fiscal.TodayCourt > 0) ExpenseRows.Add(new FiscalRowVM("宫廷与外交往来(宴会/赏赐/赔款/购买)", Fiscal.TodayCourt, false));
+                if (ExpenseRows.Count == 0) ExpenseRows.Add(new FiscalRowVM("今日暂无支出", 0, false));
 
                 // 投资池(V3 财政窗口同款: 独立于国库的第二本账, 分红注入 -> 私人建造)
                 var k = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
                 string kid = k != null ? k.StringId : null;
                 _poolText = "本国投资池: " + ((int)InvestmentPool.Of(kid)).ToString("N0") + " 第纳尔";
-                _poolSubText = "本月私人建造 " + InvestmentPool.MonthBuilt + " 次 · 累计建成 " + InvestmentPool.TotalBuilt + " 次";
+                _poolSubText = "本月私人建造 " + InvestmentPool.MonthBuilt + " 次(月度结算) · 累计建成 " + InvestmentPool.TotalBuilt + " 次";
                 _poolSub2Text = "领主私产 " + ((int)Ownership.LordPool) + " · 教会池 " + ((int)Ownership.ChurchPool)
                     + " · 行会基金 " + ((int)Ownership.GuildFund);
                 _ledgerText = "铸币账本(今日/累计): " + ((int)MarketSim.LedgerToday) + " / " + ((int)MarketSim.LedgerTotal);

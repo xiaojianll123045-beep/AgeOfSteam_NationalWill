@@ -424,6 +424,7 @@ namespace FeudalInternalAffairs
         {
             try
             {
+                int before = Petitions.Count;
                 if (Petitions.Count >= 3) return;
                 // 领主: 减税
                 if ((TaxPolicy.Level[0] >= 3 || TaxPolicy.Level[1] >= 3) && CanAdd("tax_cut"))
@@ -456,8 +457,26 @@ namespace FeudalInternalAffairs
                     if (worst != null && CanAdd("title"))
                         AddPetition(new Petition { Kind = "title", Estate = 0, ClanId = worst.ClanId, Text = worst.Name + " 请求授予头衔", Expire = day + 14 });
                 }
+                int added = Petitions.Count - before;
+                if (added > 0) ShowPetitionPopup(added);   // v4.59: 新请愿弹窗通知玩家(用户需求)
             }
             catch { }
+        }
+
+        // v4.59: 新请愿 -> 弹窗(用户需求)
+        private static void ShowPetitionPopup(int count)
+        {
+            try
+            {
+                string last = Petitions.Count > 0 ? Petitions[Petitions.Count - 1].Text : "";
+                string text = (count == 1 ? last : ("新增 " + count + " 条请愿, 最近一条: " + last))
+                    + "\n前往政治页处理: 同意可安抚对应阶层; 14 天内不回应将激化民怨。";
+                InformationManager.ShowInquiry(new InquiryData(
+                    "民众请愿", text, true, true, "前往政治页", "稍后处理",
+                    delegate { try { PoliticsPanel.Open(); } catch { } }, null,
+                    "", 0f, null, null, null), true, false);
+            }
+            catch (Exception ex) { DLog.Force("请愿弹窗异常: " + ex.Message); }
         }
 
         private static bool CanAdd(string kind)
@@ -609,6 +628,7 @@ namespace FeudalInternalAffairs
             {
                 if (EconomyWorld.Treasury.Gold < 1500) return "国库不足(需 1500 第纳尔)";
                 EconomyWorld.TreasurySpend(1500);
+                Fiscal.AddCourt(1500);
                 foreach (var kv in Lords) { kv.Value.Attitude = Clamp(kv.Value.Attitude + 6, -100, 100); kv.Value.Anger = Clamp(kv.Value.Anger - 5, 0, 100); }
                 Aggregate();
                 DLog.Force("政治: 举办宴会(全体领主态度 +6)");
@@ -623,6 +643,7 @@ namespace FeudalInternalAffairs
             {
                 if (EconomyWorld.Treasury.Gold < 800) return "国库不足(需 800 第纳尔)";
                 EconomyWorld.TreasurySpend(800);
+                Fiscal.AddCourt(800);
                 Legitimacy = ClampF(Legitimacy + 1f, 0f, 100f);
                 Pops.ShiftRadicals(-0.005f);
                 DLog.Force("政治: 王室巡游(合法性 +1, 激进 -0.5%)");
@@ -639,6 +660,7 @@ namespace FeudalInternalAffairs
                 if (clanId == null || !Lords.TryGetValue(clanId, out lp)) return "领主不存在";
                 if (EconomyWorld.Treasury.Gold < 500) return "国库不足(需 500 第纳尔)";
                 EconomyWorld.TreasurySpend(500);
+                Fiscal.AddCourt(500);
                 Ownership.LordPool += 500f;
                 lp.Attitude = Clamp(lp.Attitude + 8, -100, 100);
                 lp.Anger = Clamp(lp.Anger - 6, 0, 100);
@@ -769,7 +791,7 @@ namespace FeudalInternalAffairs
                         DLog.Force("政治: 同意减税请愿 -> 四税各降一档");
                         break;
                     case "compensation":
-                        if (EconomyWorld.Treasury.Gold >= 3000) EconomyWorld.TreasurySpend(3000);
+                        if (EconomyWorld.Treasury.Gold >= 3000) { EconomyWorld.TreasurySpend(3000); Fiscal.AddCourt(3000); }
                         Ownership.LordPool += 3000f;
                         if (p.ClanId != null) TouchLord(p.ClanId, 15, -15);
                         DLog.Force("政治: 同意赔偿请愿(3000)");
@@ -953,6 +975,7 @@ namespace FeudalInternalAffairs
                 if (EconomyWorld.Treasury.Gold < 5000) return "国库不足(需 5000 第纳尔)";
                 if (Authority < 100f) return "权威不足(需 100)";
                 EconomyWorld.TreasurySpend(5000);
+                Fiscal.AddCourt(5000);
                 Authority -= 100f;
                 CivilWar = false;
                 foreach (var kv in Lords) { kv.Value.Anger = Clamp(kv.Value.Anger + 10, 0, 100); kv.Value.Fear = Clamp(kv.Value.Fear + 20, 0, 100); }
@@ -973,6 +996,7 @@ namespace FeudalInternalAffairs
                 if (!CivilWar) return "当前没有内战";
                 if (EconomyWorld.Treasury.Gold < 3000) return "国库不足(需 3000 第纳尔)";
                 EconomyWorld.TreasurySpend(3000);
+                Fiscal.AddCourt(3000);
                 CivilWar = false;
                 foreach (var kv in Lords) { kv.Value.Anger = Clamp(kv.Value.Anger - 30, 0, 100); kv.Value.Attitude = Clamp(kv.Value.Attitude + 8, -100, 100); }
                 Authority = Math.Max(0f, Authority - 40f);

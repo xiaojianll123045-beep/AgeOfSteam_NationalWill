@@ -51,6 +51,7 @@ namespace FeudalInternalAffairs
                 int cost = Math.Max(500, CharterCost - 500 * Politics.LawLevel(4));
                 if (EconomyWorld.Treasury.Gold < cost) return "国库不足(需 " + cost.ToString("N0") + ")";
                 EconomyWorld.TreasurySpend(cost);
+                Fiscal.AddCourt(cost);
                 Chartered.Add(id);
                 DLog.Force("行会: 授予特许状 " + def.Name + " 花费 " + cost);
                 return "已授予特许状: " + def.Name;
@@ -198,6 +199,7 @@ namespace FeudalInternalAffairs
                 if (Founded.Contains(id)) return "已成立";
                 if (EconomyWorld.Treasury.Gold < def.Cost) return "国库不足(需 " + def.Cost.ToString("N0") + ")";
                 EconomyWorld.TreasurySpend(def.Cost);
+                Fiscal.AddCourt(def.Cost);
                 Founded.Add(id);
                 DLog.Force("行会: 成立 " + def.Name + " 花费 " + def.Cost + " 效果: " + def.Desc);
                 return "已成立: " + def.Name;

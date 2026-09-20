@@ -5,11 +5,27 @@ using TaleWorlds.Library;
 
 namespace FeudalInternalAffairs
 {
+    // v4.60: 导航栏常驻名称一行(小字半透明白 + 黑描边, 悬停仍有大提示框)
+    public class NavLabelVM : ViewModel
+    {
+        private readonly string _text;
+        internal NavLabelVM(string text) { _text = text; }
+        [DataSourceProperty] public string Text { get { return _text; } }
+    }
+
     public class NavRailVM : ViewModel
     {
         private bool _tipVisible;
         private string _tipText = "";
         private float _tipY;
+
+        public NavRailVM()
+        {
+            Labels = new MBBindingList<NavLabelVM>();
+            for (int i = 0; i < NavRail.Names.Length; i++) Labels.Add(new NavLabelVM(NavRail.Names[i]));
+        }
+
+        [DataSourceProperty] public MBBindingList<NavLabelVM> Labels { get; private set; }
 
         [DataSourceProperty] public bool TipVisible { get { return _tipVisible; } }
         [DataSourceProperty] public string TipText { get { return _tipText; } }
@@ -62,10 +78,12 @@ namespace FeudalInternalAffairs
         private const int SlotStats = 9;
         private const int SlotPolitics = 10;
         private const int SlotPlay = 11;
-        private const int SlotCount = 12;
+        private const int SlotArmy = 12;
+        private const int SlotTroops = 13;   // v4.100: 军队总览
+        private const int SlotCount = 14;
 
         // 悬停名称(顺序与槽位一致)
-        internal static readonly string[] Names = { "国家", "人口", "建筑", "市场", "外交", "国策", "财政", "社会", "行会", "统计", "政治", "博弈" };
+        internal static readonly string[] Names = { "国家", "人口", "建筑", "市场", "外交", "国策", "财政", "社会", "行会", "统计", "政治", "博弈", "军务", "军队" };
 
         internal static string NameOf(int idx) { return idx >= 0 && idx < Names.Length ? Names[idx] : ""; }
 
@@ -120,6 +138,8 @@ namespace FeudalInternalAffairs
                     case SlotStats: StatsPanel.Open(); break;
                     case SlotPolitics: PoliticsPanel.Open(); break;
                     case SlotPlay: DiploPlayPanel.Open(); break;
+                    case SlotArmy: ArmyPanel.Open(); break;
+                    case SlotTroops: TroopsPanel.Open(); break;
                 }
             }
             catch (Exception ex) { DLog.Force("导航栏打开页面失败(" + idx + "): " + ex.Message); }
@@ -139,8 +159,10 @@ namespace FeudalInternalAffairs
                 case SlotSociety: return SocietyPanel.IsOpen;
                 case SlotGuild: return GuildPanel.IsOpen;
                 case SlotStats: return StatsPanel.IsOpen;
-                case SlotPolitics: return PoliticsPanel.IsOpen;
-                case SlotPlay: return DiploPlayPanel.IsOpen;
+                    case SlotPolitics: return PoliticsPanel.IsOpen;
+                    case SlotPlay: return DiploPlayPanel.IsOpen;
+                    case SlotArmy: return ArmyPanel.IsOpen;
+                    case SlotTroops: return TroopsPanel.IsOpen;
             }
             return false;
         }
@@ -163,6 +185,8 @@ namespace FeudalInternalAffairs
                     case SlotStats: StatsPanel.Close(); break;
                     case SlotPolitics: PoliticsPanel.Close(); break;
                     case SlotPlay: DiploPlayPanel.Close(); break;
+                    case SlotArmy: ArmyPanel.Close(); break;
+                    case SlotTroops: TroopsPanel.Close(); break;
                 }
             }
             catch (Exception ex) { DLog.Force("导航栏关闭页面失败(" + idx + "): " + ex.Message); }
@@ -178,10 +202,17 @@ namespace FeudalInternalAffairs
                     if (_layer != null) CloseLayer();
                     return;
                 }
-                if (_layer != null) return;
+                if (_layer != null)
+                {
+                    if (ReferenceEquals(_map, map)) return;   // 同一个地图屏, 层有效
+                    // 地图屏被重建(游戏内读档等) -> 旧层随旧屏失效, 重建
+                    DLog.Force("导航栏: 地图屏已重建, 重新挂导航");
+                    CloseLayer();
+                }
                 if (!NationalWillOrders.ShouldControlCamera) return;
+                if (NationPickMode.Active) return;   // v4.75e: 选国阶段不显示导航栏
                 _vm = new NavRailVM();
-                _layer = new GauntletLayer("FeudalNavRail", 330, false);   // 深度需高于侧边栏面板(320), 悬停名称才能盖在面板上
+                _layer = new GauntletLayer("FeudalNavRail", 348, false);   // v4.103: 图标/名字/悬停提示要显示在最上层(高于侧边栏345); 消息流已右移70避让, 不会再与导航栏重叠
                 _layer.LoadMovie(Movie, _vm);
                 map.AddLayer(_layer);
                 _map = map;

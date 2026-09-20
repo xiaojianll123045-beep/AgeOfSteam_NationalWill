@@ -105,16 +105,21 @@
                                   HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="14" Brush="ButtonBrush2"
                                   Command.Click="ExecuteSelect" UpdateChildrenStates="true">
                       <Children>
-                        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                    HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="10" MarginRight="10"
-                                   StackLayout.LayoutMethod="HorizontalLeftToRight">
+                                   StackLayout.LayoutMethod="VerticalTopToBottom">
                           <Children>
-                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                        Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#F0E4C8FF" Text="@Name" />
-                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                        MarginLeft="24" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@RelationColor" Text="@RelationFull" />
-                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                        MarginLeft="24" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="@StanceColor" Text="@StanceText" />
+                            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                       StackLayout.LayoutMethod="HorizontalLeftToRight">
+                              <Children>
+                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
+                                            Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#F0E4C8FF" Text="@Name" />
+                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
+                                            MarginLeft="24" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@RelationColor" Text="@RelationFull" />
+                              </Children>
+                            </ListPanel>
+                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left"
+                                        MarginTop="2" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="@StanceColor" Text="@StanceText" />
                           </Children>
                         </ListPanel>
                       </Children>

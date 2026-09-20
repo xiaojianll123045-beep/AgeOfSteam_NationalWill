@@ -215,11 +215,13 @@ namespace FeudalInternalAffairs
                 {
                     var a = all[i];
                     if (a == pk) continue;                            // 玩家王国的战争由玩家决定
+                    if (WarEconomy.IsCrisis(a)) continue;             // v4.72: 经济危机国不发动新战争
                     if (WarsOf(a) >= 2) continue;                     // 已经在两线作战, 不再开战
                     for (int j = 0; j < all.Count; j++)
                     {
                         var b = all[j];
                         if (b == a) continue;
+                        if (WarEconomy.IsCrisis(b)) continue;         // v4.72: 不打经济崩溃的国家(除非已在战)
                         bool peace = true;
                         try { peace = !a.IsAtWarWith(b); } catch { }
                         if (!peace) continue;
@@ -313,7 +315,7 @@ namespace FeudalInternalAffairs
             return Math.Max(1f, s);
         }
 
-        // 和谈多数条件(3 选 2, 按阵营整体评估): 阵营军力差距>=1.6 / 任一阵营敌人>=3 / 已打满 84 天
+        // 和谈多数条件(5 选 2, 按阵营整体评估): 军力差距>=1.6 / 任一阵营敌人>=3 / 打满 84 天 / 任一国有经济危机 / 任一国有厌战>=60 (v4.72/4.73)
         private static bool PeaceConditionsMetSides(List<Kingdom> sideA, List<Kingdom> sideB, int warDays)
         {
             try
@@ -325,9 +327,37 @@ namespace FeudalInternalAffairs
                 if (ratio >= 1.6f) conds++;
                 if (ea >= 3 || eb >= 3) conds++;
                 if (warDays >= 84) conds++;
+                if (AnyCrisis(sideA) || AnyCrisis(sideB)) conds++;   // v4.72: 经济崩了就想谈
+                if (MaxWearSide(sideA) >= 60f || MaxWearSide(sideB) >= 60f) conds++;   // v4.73: 厌战了就想谈
                 return conds >= 2;
             }
             catch { return false; }
+        }
+
+        private static float MaxWearSide(List<Kingdom> side)
+        {
+            float m = 0f;
+            try
+            {
+                for (int i = 0; i < side.Count; i++)
+                {
+                    float w = WarWeariness.MaxWearOf(side[i]);
+                    if (w > m) m = w;
+                }
+            }
+            catch { }
+            return m;
+        }
+
+        private static bool AnyCrisis(List<Kingdom> side)
+        {
+            try
+            {
+                for (int i = 0; i < side.Count; i++)
+                    if (side[i] != null && WarEconomy.IsCrisis(side[i])) return true;
+            }
+            catch { }
+            return false;
         }
 
         // 整条阵营一起停战(所有交战对)
@@ -397,9 +427,14 @@ namespace FeudalInternalAffairs
             catch (Exception ex) { DLog.Force("AI 宣战失败: " + ex.Message); }
         }
 
-        // ================= 清除原版战争/和平决议 =================
+        // ================= 清除原版战争/和平决议(已停用!) =================
+        // 原因: 从原版 KingdomDecisionManager 里 RemoveDecision 会让决策系统状态不一致,
+        //       原版随后处理"被取消的决策"时原生崩溃(0xC0000005, 日志 "has been cancelled" 后崩)。
+        //       战争/和平实际由动作层 BlockDeclareWar / BlockMakePeace 拦截, 不需要动决策系统。
         internal static void CleanNativeWarPeaceDecisions()
         {
+            return;
+#pragma warning disable CS0162
             try
             {
                 foreach (var k in Kingdom.All)
@@ -425,6 +460,7 @@ namespace FeudalInternalAffairs
                 }
             }
             catch { }
+#pragma warning restore CS0162
         }
 
         // ================= 存档 FIA_WarDairy =================

@@ -160,8 +160,11 @@ namespace FeudalInternalAffairs
     // 粮食安全页签: 一行 = 一个城市(食物 = 所有 IsFood 商品; 日耗/日产来自市场真实流量)
     public class MarketFoodRowVM : ViewModel
     {
-        internal MarketFoodRowVM(string name, float stock, float need, float prod, float days)
+        internal readonly string SettlementId;   // v4.58: 点城市名跳视角
+
+        internal MarketFoodRowVM(string settlementId, string name, float stock, float need, float prod, float days)
         {
+            SettlementId = settlementId;
             _name = name; _stock = stock; _need = need; _prod = prod; _days = days;
         }
 
@@ -206,8 +209,11 @@ namespace FeudalInternalAffairs
     // 贸易页签: 一行 = 一个城市(含商队列; 文档 20.10)
     public class MarketTradeRowVM : ViewModel
     {
-        internal MarketTradeRowVM(string name, int tradeCap, int importCap, int queued, string caravans)
+        internal readonly string SettlementId;   // v4.58: 点城市名跳视角
+
+        internal MarketTradeRowVM(string settlementId, string name, int tradeCap, int importCap, int queued, string caravans)
         {
+            SettlementId = settlementId;
             _name = name; _trade = tradeCap; _import = importCap; _queued = queued; _caravans = caravans;
         }
 
@@ -549,6 +555,43 @@ namespace FeudalInternalAffairs
             Notify();
         }
 
+        // v4.58: 城市名点击 -> 视野飞到该城(用户需求)
+        internal void FlyToTown()
+        {
+            try { PanelScreen.JumpToSettlement(FindTownSettlement(_townId)); } catch { }
+        }
+
+        internal void FlyToTradeRow(int i)
+        {
+            try
+            {
+                if (i < 0 || i >= TradeRows.Count) return;
+                PanelScreen.JumpToSettlement(FindTownSettlement(TradeRows[i].SettlementId));
+            }
+            catch { }
+        }
+
+        internal void FlyToFoodRow(int i)
+        {
+            try
+            {
+                if (i < 0 || i >= FoodRows.Count) return;
+                PanelScreen.JumpToSettlement(FindTownSettlement(FoodRows[i].SettlementId));
+            }
+            catch { }
+        }
+
+        private static Settlement FindTownSettlement(string sid)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(sid)) return null;
+                var t = FindTown(sid);
+                return t != null ? t.Settlement : null;
+            }
+            catch { return null; }
+        }
+
         internal void Refresh()
         {
             try
@@ -652,7 +695,7 @@ namespace FeudalInternalAffairs
                         }
                     }
                 }
-                TradeRows.Add(new MarketTradeRowVM(t.Name != null ? t.Name.ToString() : "?", trade, import, queued,
+                TradeRows.Add(new MarketTradeRowVM(t.Settlement.StringId, t.Name != null ? t.Name.ToString() : "?", trade, import, queued,
                     Caravans.LineOf(t.Settlement.StringId)));
             }
         }
@@ -682,7 +725,7 @@ namespace FeudalInternalAffairs
                 }
                 if (need <= 0.01f) need = t.Prosperity / 1000f;   // 兜底: 旧口径(繁荣/1000)
                 float days = need > 0.01f ? stock / need : -1f;
-                FoodRows.Add(new MarketFoodRowVM(t.Name != null ? t.Name.ToString() : "?", stock, need, prod, days));
+                FoodRows.Add(new MarketFoodRowVM(t.Settlement.StringId, t.Name != null ? t.Name.ToString() : "?", stock, need, prod, days));
             }
         }
 

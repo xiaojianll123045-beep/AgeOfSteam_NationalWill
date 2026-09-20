@@ -20,6 +20,7 @@ namespace FeudalInternalAffairs
     // 地图上的大字国家名(领土中心)
     internal struct TintLabel
     {
+        public string Id;      // v4.80: 稳定标识(Kingdom.StringId) —— 渲染端据此固定槽位, 避免列表顺序变动导致"标签换国"跳变
         public float X, Y;
         public string Text;
         public string Color;
@@ -119,19 +120,37 @@ namespace FeudalInternalAffairs
                 if (fullDist < startDist + 4f) fullDist = startDist + 4f;
 
                 float dist = view.CameraDistance;
-                // 拉远(距离变大) -> 颜色变浓
-                float a = (dist - startDist) / (fullDist - startDist);
-                if (a < 0f) a = 0f;
-                if (a > 1f) a = 1f;
-
-                bool full = a >= 0.999f;
-                Active = a > 0.01f;
+                // v4.69: 非默认模式(无条件政治/数据模式) -> 恒显示, 不随缩放淡入
+                // v4.75: 选国模式 -> 恒显示(国家名和国家颜色正常填充)
+                bool always = MapDataMode.AlwaysOn || NationPickMode.Active;
+                float a;
+                bool full;
+                if (always)
+                {
+                    a = 1f;
+                    full = false;
+                }
+                else
+                {
+                    // 拉远(距离变大) -> 颜色变浓
+                    a = (dist - startDist) / (fullDist - startDist);
+                    if (a < 0f) a = 0f;
+                    if (a > 1f) a = 1f;
+                    full = a >= 0.999f;
+                }
+                Active = always || a > 0.01f;
                 Alpha = a;
                 FullyZoomed = full;
 
-                // 拉远超过阈值(默认 130)就隐藏城市/军团名牌; flags: hidecity=130
+                // 拉远超过阈值就隐藏城市/军团名牌(仅"有条件政治"模式); 数据模式要始终看得到数值
                 if (_hideCityDist < 0f) _hideCityDist = DLog.FlagFloat("hidecity", 700f);
-                HideNameplates = dist > _hideCityDist;
+                HideNameplates = !always && dist > _hideCityDist;
+
+                if (MapDataMode.AlwaysOn)
+                {
+                    _dataTimer -= dt;
+                    if (_dataTimer <= 0f) { _dataTimer = 30f; MapDataMode.MarkDirty(); }   // v4.70: 30 秒刷新一次(贴图重建成本高)
+                }
                 if (Active && !_loggedActive)
                 {
                     _loggedActive = true;
@@ -146,6 +165,7 @@ namespace FeudalInternalAffairs
                     if (Tiles.Count > 0) Tiles.Clear();
                     if (Labels.Count > 0) Labels.Clear();
                     CenterKingdomName = "";
+                    SettlementNameplatesVMMixin.SyncFromTerritory();   // v4.75m: 清空也要同步(顶层标签)
                     return;
                 }
 
@@ -189,7 +209,13 @@ namespace FeudalInternalAffairs
                              || Math.Abs(dist - _lastDist) > 0.6f
                              || Math.Abs(a - _lastAlpha) > 0.02f
                              || Math.Abs(bearing - _lastBearing) > 0.002f;   // 旋转也要重算(国名要跟着转)
-                if (!_dirty && !moved) return;
+                if (!_dirty && !moved)
+                {
+                    // v4.75e: 相机可能被别的逻辑平滑移动(如点城市名飞行/原版回主角),
+                    // 色块可以不动, 但国名/数值标签必须每帧按真实相机重算坐标(否则错位)
+                    RefreshLabelsOnly(a);
+                    return;
+                }
                 _dirty = false;
                 _lastX = cx; _lastY = cy; _lastDist = dist; _lastAlpha = a; _lastBearing = bearing;
 
@@ -255,6 +281,36 @@ namespace FeudalInternalAffairs
             catch { return null; }
         }
 
+        // v4.79i: 供名牌 VM 每帧时机调用(与城市名牌同帧同序计算, 根治移动抖动)
+        internal static void RefreshLabelsNow()
+        {
+            try
+            {
+                if (!Active) return;
+                RefreshLabelsOnly(Alpha);
+            }
+            catch { }
+        }
+
+        // v4.75e: 只刷新标签(每帧, 跟随真实相机; 不重建色块)
+        private static void RefreshLabelsOnly(float alpha)
+        {
+            try
+            {
+                Labels.Clear();
+                var camera = GetCamera();
+                if (camera == null) return;
+                float sw = 1920f, sh = 1080f;
+                try { sw = Screen.RealScreenResolutionWidth; sh = Screen.RealScreenResolutionHeight; } catch { }
+                if (sw < 100f) sw = 1920f;
+                if (sh < 100f) sh = 1080f;
+                if (MapDataMode.IsPolitical) BuildLabels(camera, alpha, sw, sh);
+                else BuildDataLabels(camera, sw, sh);
+                SettlementNameplatesVMMixin.SyncFromTerritory();   // v4.75m: 每帧(label-only 帧)同步顶层标签
+            }
+            catch { }
+        }
+
         private static void Paint(float cx, float cy, float dist, float alpha)
         {
             Tiles.Clear();
@@ -278,7 +334,10 @@ namespace FeudalInternalAffairs
             if (sh < 100f) sh = 1080f;
 
             // 覆盖层正常时完全不用色块(避免构建期间满屏方块); 只有覆盖层彻底失败才兜底
+            // v4.70: 数据模式也走覆盖层同源着色(不再用色块拼, 视觉与政治地图一致)
+            bool dataMode = !MapDataMode.IsPolitical;
             bool needTiles = KingdomTerritoryOverlay.Failed;
+            if (dataMode) PrepareDataColors();
 
             for (float x = cx - half; needTiles && x <= cx + half; x += cell)
             {
@@ -286,6 +345,13 @@ namespace FeudalInternalAffairs
                 {
                     var k = OwnerCached(x, y);
                     if (k == null) continue;
+                    string color;
+                    if (dataMode)
+                    {
+                        color = DataColorOf(TerritoryData.SettlementAt(x, y));
+                        if (color == null) continue;
+                    }
+                    else color = ColorString(k, alphaStep);
 
                     float h = 0f;
                     Vec3 n = Vec3.Up;
@@ -309,14 +375,100 @@ namespace FeudalInternalAffairs
                         X = sx - size * 0.5f,
                         Y = sy - size * 0.5f,
                         Size = size * 1.04f,
-                        Color = ColorString(k, alphaStep)
+                        Color = color
                     });
                     if (Tiles.Count >= MaxTiles) break;
                 }
                 if (Tiles.Count >= MaxTiles) break;
             }
 
-            BuildLabels(camera, alpha, sw, sh);
+            if (dataMode) BuildDataLabels(camera, sw, sh);
+            else BuildLabels(camera, alpha, sw, sh);
+            SettlementNameplatesVMMixin.SyncFromTerritory();   // v4.75m: 重算帧也要同步顶层标签
+        }
+
+        // v4.69: 数据模式辅助(颜色缓存 + 名牌数值标签)
+        private static readonly Dictionary<string, string> _dataColor = new Dictionary<string, string>();
+        private static int _dataColorVer = int.MinValue;
+        private static float _dataMax = 1f;
+        private static float _dataTimer;
+
+        private static void PrepareDataColors()
+        {
+            try
+            {
+                if (_dataColorVer == MapDataMode.Version) return;
+                _dataColorVer = MapDataMode.Version;
+                _dataColor.Clear();
+                _dataMax = Math.Max(1f, MapDataMode.MaxValue());
+            }
+            catch { }
+        }
+
+        private static string DataColorOf(TaleWorlds.CampaignSystem.Settlements.Settlement st)
+        {
+            try
+            {
+                if (st == null) return null;
+                string c;
+                if (_dataColor.TryGetValue(st.StringId, out c)) return c;
+                string dummy;
+                int v = MapDataMode.ValueOf(st, out dummy);
+                if (v < 0) c = null;
+                else
+                {
+                    float t = v / _dataMax;
+                    if (MapDataMode.Current == MapData.Radicals) t = 1f - t;   // 激进越少越绿
+                    c = MapDataMode.Gradient(t) + "E6";
+                }
+                if (_dataColor.Count < 4096) _dataColor[st.StringId] = c;
+                return c;
+            }
+            catch { return null; }
+        }
+
+        // 数据模式: 数值显示在"名牌上方"(用名牌 VM 的三档列表拿真实屏幕位置与档位高度)
+        private static void BuildDataLabels(Camera camera, float sw, float sh)
+        {
+            try
+            {
+                var vm = SettlementNameplatesVMMixin.Instance;
+                if (vm == null) return;
+                AddDataLabelsFrom(vm.SmallNameplates, 22f, sw, sh);
+                AddDataLabelsFrom(vm.MediumNameplates, 22f, sw, sh);
+                AddDataLabelsFrom(vm.LargeNameplates, 22f, sw, sh);
+            }
+            catch { }
+        }
+
+        private static void AddDataLabelsFrom(System.Collections.Generic.IEnumerable<SandBox.ViewModelCollection.Nameplate.SettlementNameplateVM> list,
+            float upOffset, float sw, float sh)
+        {
+            try
+            {
+                if (list == null) return;
+                foreach (var np in list)
+                {
+                    if (np == null) continue;
+                    var st = np.Settlement;
+                    if (st == null) continue;
+                    string txt;
+                    int v = MapDataMode.ValueOf(st, out txt);
+                    if (v < 0 || string.IsNullOrEmpty(txt)) continue;
+                    var pos = np.Position;
+                    if (pos.X < -200f || pos.Y < -200f || pos.X > sw + 200f || pos.Y > sh + 200f) continue;
+                    Labels.Add(new TintLabel
+                    {
+                        Id = st.StringId,
+                        X = pos.X - txt.Length * 4.2f,
+                        Y = pos.Y - upOffset,
+                        Text = txt,
+                        Color = "#FFFFFFEE",
+                        FontSize = 15
+                    });
+                }
+            }
+            catch { }
         }
 
         // 各国领土中心的大字国家名(位置=领土质心, 字号按领土大小自适应)
@@ -350,6 +502,7 @@ namespace FeudalInternalAffairs
                     int fs = (int)Math.Round(baseSize * (0.55f + 0.45f * alpha));
                     Labels.Add(new TintLabel
                     {
+                        Id = k.StringId,
                         X = sx - name.Length * fs * 0.27f,
                         Y = sy - fs * 0.6f,
                         Text = name,

@@ -100,12 +100,13 @@ namespace FeudalInternalAffairs
     public class PoliticsPanelVM : PanelVMBase
     {
         private readonly Action _onClose;
-        private const int MaxRows = 10;
+        private const int MaxRows = 8;
         private readonly List<LordRowVM> _allRows = new List<LordRowVM>();
         private int _scroll;
+        private int _tab;              // 0=领主 1=法令 2=请愿 (v4.61)
         private int _lawSelected = -1;
 
-        private string _authText = "", _legitText = "", _tyrannyText = "", _warText = "", _warColor = "", _councilText = "", _status = "", _lawHint = "", _petitionHint = "";
+        private string _authText = "", _authLabel = "", _legitText = "", _tyrannyText = "", _warText = "", _warColor = "", _councilText = "", _cloutText = "", _status = "", _lawHint = "", _petitionHint = "";
 
         public PoliticsPanelVM(Action onClose)
         {
@@ -122,7 +123,9 @@ namespace FeudalInternalAffairs
         public MBBindingList<LawRowVM> LawRows { get; private set; }
         public MBBindingList<PetitionRowVM> PetitionRows { get; private set; }
 
-        [DataSourceProperty] public string AuthText { get { return _authText; } }
+        [DataSourceProperty] public string AuthNumText { get { return _authText; } }
+        [DataSourceProperty] public string AuthLabelText { get { return _authLabel; } }
+        [DataSourceProperty] public string CloutText { get { return _cloutText; } }
         [DataSourceProperty] public string LegitText { get { return _legitText; } }
         [DataSourceProperty] public string TyrannyText { get { return _tyrannyText; } }
         [DataSourceProperty] public string WarText { get { return _warText; } }
@@ -141,11 +144,12 @@ namespace FeudalInternalAffairs
             try { return i >= 0 && i < Rows.Count ? Rows[i] : null; } catch { return null; }
         }
 
-        // 滚轮翻看领主名册
+        // v4.61: 滚轮翻看领主名册(窗口偏移; 仅领主页签)
         internal void ScrollStep(int dir)
         {
             try
             {
+                if (_tab != 0) return;
                 int max = Math.Max(0, _allRows.Count - MaxRows);
                 _scroll += dir;
                 if (_scroll < 0) _scroll = 0;
@@ -153,6 +157,38 @@ namespace FeudalInternalAffairs
                 RebuildRows();
             }
             catch { }
+        }
+
+        // ---- 页签(v4.61 重构: 领主/法令/请愿) ----
+        internal int Tab { get { return _tab; } }
+
+        internal void SetTab(int t)
+        {
+            try { _tab = t < 0 ? 0 : (t > 2 ? 2 : t); NotifyTabs(); }
+            catch { }
+        }
+
+        [DataSourceProperty] public bool ShowLord { get { return _tab == 0; } }
+        [DataSourceProperty] public bool ShowLaw { get { return _tab == 1; } }
+        [DataSourceProperty] public bool ShowPetit { get { return _tab == 2; } }
+        [DataSourceProperty] public string TabLordColor { get { return _tab == 0 ? "#E8C33AFF" : "#8A8070FF"; } }
+        [DataSourceProperty] public string TabLawColor { get { return _tab == 1 ? "#E8C33AFF" : "#8A8070FF"; } }
+        [DataSourceProperty] public string TabPetitColor { get { return _tab == 2 ? "#E8C33AFF" : "#8A8070FF"; } }
+        [DataSourceProperty] public bool TabLineLord { get { return _tab == 0; } }
+        [DataSourceProperty] public bool TabLineLaw { get { return _tab == 1; } }
+        [DataSourceProperty] public bool TabLinePetit { get { return _tab == 2; } }
+
+        private void NotifyTabs()
+        {
+            OnPropertyChangedWithValue(ShowLord, "ShowLord");
+            OnPropertyChangedWithValue(ShowLaw, "ShowLaw");
+            OnPropertyChangedWithValue(ShowPetit, "ShowPetit");
+            OnPropertyChangedWithValue(TabLordColor, "TabLordColor");
+            OnPropertyChangedWithValue(TabLawColor, "TabLawColor");
+            OnPropertyChangedWithValue(TabPetitColor, "TabPetitColor");
+            OnPropertyChangedWithValue(TabLineLord, "TabLineLord");
+            OnPropertyChangedWithValue(TabLineLaw, "TabLineLaw");
+            OnPropertyChangedWithValue(TabLinePetit, "TabLinePetit");
         }
 
         // ---- 操作 ----
@@ -237,24 +273,24 @@ namespace FeudalInternalAffairs
                 Politics.RefreshLords();
                 Politics.Aggregate();
 
-                _authText = "权威 " + ((int)Politics.Authority) + " / 1000 (恢复 +" + ((int)Politics.MonthRegen()) + "/月)";
-                _legitText = "合法性 " + ((int)Politics.Legitimacy) + "%";
-                _tyrannyText = "暴政 " + Politics.Tyranny.ToString("F1");
+                _authText = ((int)Politics.Authority) + " / 1000";
+                _authLabel = "权威 · 每月 +" + ((int)Politics.MonthRegen());
+                _legitText = ((int)Politics.Legitimacy) + "%";
+                _tyrannyText = Politics.Tyranny.ToString("F1");
                 if (Politics.CivilWar)
                 {
-                    _warText = "【内战】税收 -40% · 全境产出 -15% · 权威每日流失(可镇压或妥协) ｜ 阶段: " + Politics.StageText();
+                    _warText = "【内战】税收 -40% · 全境产出 -15% ｜ 阶段: " + Politics.StageText();
                     _warColor = "#FF4B4BFF";
                 }
                 else if (Politics.NobleAnger >= 60)
                 {
                     _warText = "局势: " + Politics.StageText() + " ｜ 领主愤怒 " + Politics.NobleAnger
-                        + " (≥90 且合法性<25 将爆发内战) ｜ 王室势力 " + ((int)Politics.CrownClout()) + " vs 领主 " + Politics.NobleClout;
+                        + " ｜ ⚠ 愤怒≥90 且合法性<25 将爆发内战";
                     _warColor = Politics.NobleAnger >= 75 ? "#FF4B4BFF" : "#E8C33AFF";
                 }
                 else
                 {
-                    _warText = "局势: " + Politics.StageText() + " · 领主愤怒 " + Politics.NobleAnger + " · 大领主势力 " + Politics.NobleClout
-                        + " vs 王室 " + ((int)Politics.CrownClout());
+                    _warText = "局势: " + Politics.StageText() + " ｜ 领主愤怒 " + Politics.NobleAnger + " ｜ 政局尚稳";
                     _warColor = "#7A7060FF";
                 }
 
@@ -268,6 +304,8 @@ namespace FeudalInternalAffairs
                     if (!string.IsNullOrEmpty(id) && Politics.Lords.TryGetValue(id, out lp)) who = lp.Name;
                     _councilText += Politics.SeatNames[i] + " " + who;
                 }
+                _cloutText = "大领主势力 " + Politics.NobleClout + " vs 王室 " + ((int)Politics.CrownClout())
+                    + " ｜ 领主愤怒 " + Politics.NobleAnger + " ｜ 合法性 " + ((int)Politics.Legitimacy) + "%";
 
                 // 阶层
                 EstateRows.Clear();
@@ -292,21 +330,25 @@ namespace FeudalInternalAffairs
                 for (int i = 0; i < views.Count; i++) _allRows.Add(new LordRowVM(views[i]));
                 int max = Math.Max(0, _allRows.Count - MaxRows);
                 if (_scroll > max) _scroll = max;
+                if (_scroll < 0) _scroll = 0;
                 RebuildRows();
 
                 _lawHint = _lawSelected >= 0
                     ? "已选: " + Politics.LawNames[_lawSelected] + " · 点『提案』表决 / 『强推』双倍权威"
                     : "成本=权威 · 点任意法令行可看效果与领主表决名单";
 
-                OnPropertyChangedWithValue(_authText, "AuthText");
+                OnPropertyChangedWithValue(_authText, "AuthNumText");
+                OnPropertyChangedWithValue(_authLabel, "AuthLabelText");
                 OnPropertyChangedWithValue(_legitText, "LegitText");
                 OnPropertyChangedWithValue(_tyrannyText, "TyrannyText");
                 OnPropertyChangedWithValue(_warText, "WarText");
                 OnPropertyChangedWithValue(_warColor, "WarColor");
                 OnPropertyChangedWithValue(_councilText, "CouncilText");
+                OnPropertyChangedWithValue(_cloutText, "CloutText");
                 OnPropertyChangedWithValue(_status, "StatusText");
                 OnPropertyChangedWithValue(_lawHint, "LawHint");
                 OnPropertyChangedWithValue(_petitionHint, "PetitionHint");
+                NotifyTabs();
             }
             catch (Exception ex) { DLog.Force("政治页刷新失败: " + ex.Message); }
         }
@@ -316,7 +358,7 @@ namespace FeudalInternalAffairs
             try
             {
                 Rows.Clear();
-                for (int i = 0; i < MaxRows && _scroll + i < _allRows.Count; i++) Rows.Add(_allRows[_scroll + i]);
+                for (int i = 0; i < MaxRows && _scroll + i < _allRows.Count; i++) Rows.Add(_allRows[_scroll + i]);   // v4.61: 窗口滚动(8 行)
             }
             catch { }
         }

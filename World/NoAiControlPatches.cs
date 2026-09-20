@@ -40,9 +40,9 @@ namespace FeudalInternalAffairs
             }
         }
 
-        // 原版决议拦截: 战争/和平决议所有国家都拦(全走我们的接口);
-        // 贸易协定/同盟决议只拦玩家王国(不能让 AI 替玩家签条约); 其他类型(政策/选举/驱逐)放行
-        [HarmonyPatch(typeof(Kingdom), "AddDecision")]
+        // 原版决议拦截(已停用! 保留代码备查):
+        // 拦截 Kingdom.AddDecision 会让原版决策系统状态不一致(投票/取消时原生崩溃 0xC0000005),
+        // 战争/和平改由动作层 BlockDeclareWar / BlockMakePeace 拦截, 效果相同且安全。
         internal static class BlockWarPeaceDecision
         {
             private static bool Prefix(Kingdom __instance, KingdomDecision kingdomDecision)

@@ -59,6 +59,7 @@ namespace FeudalInternalAffairs
                 PanelScreen.ClearSpots();
                 float sh = PanelScreen.ScreenHeight();
                 PanelScreen.AddSpot(Width - 60f, 20f, 60f, 58f, _vm.ExecuteClose);
+                PanelScreen.AddSpot(Width - 244f, 20f, 168f, 58f, MapDataModeUi.Open);   // v4.69: 地图模式
                 PanelScreen.AddSpot(26f, sh - 26f - 42f, 122f, 42f, _vm.ExecuteClose);
             }
             catch (Exception ex) { DLog.Force("统计页热区失败: " + ex.Message); }

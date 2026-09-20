@@ -146,7 +146,7 @@ namespace FeudalInternalAffairs
                     if (warDays > 0) { daysSum += warDays; daysN++; }
 
                     float rel = Get(k, enemy);
-                    float p = 0.5f + rel / 300f + warDays / 300f;
+                    float p = 0.5f + rel / 300f + warDays / 300f + WarWeariness.WearOf(k, enemy) / 250f;   // v4.73: 厌战高 -> 更赞成停战
                     if (p < 0.05f) p = 0.05f;
                     if (p > 0.95f) p = 0.95f;
 

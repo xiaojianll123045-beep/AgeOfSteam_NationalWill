@@ -87,7 +87,7 @@ namespace FeudalInternalAffairs
                         {
                             // 领主讨债: 强制清 30% 债 + 没收一处领主建筑
                             int bail = (int)(debt * 0.3f);
-                            if (bail > 0) EconomyWorld.TreasuryAdd(bail);
+                            if (bail > 0) { EconomyWorld.TreasuryAdd(bail); Fiscal.AddCourt(-bail); }
                             Ownership.ConfiscateOneLord();
                             Pops.ShiftRadicals(0.03f);
                             DLog.Force("信贷: 领主讨债 清债 " + bail + " 并没收一处领主建筑");
@@ -96,7 +96,7 @@ namespace FeudalInternalAffairs
                         {
                             // 破产: 清债; 激进飙升; 建筑储备清零; 铸币权降档
                             int d2 = Debt;
-                            if (d2 > 0) EconomyWorld.TreasuryAdd(d2);
+                            if (d2 > 0) { EconomyWorld.TreasuryAdd(d2); Fiscal.AddCourt(-d2); }
                             BankruptCount++;
                             CleanDays = 0;
                             Pops.ShiftRadicals(0.10f);
@@ -120,7 +120,7 @@ namespace FeudalInternalAffairs
             {
                 int debt = Debt;
                 string s = "信用额度 " + Limit.ToString("N0") + " · 负债 " + debt.ToString("N0")
-                    + " · 月利率 " + (MonthlyRate * 100f).ToString("F1") + "%";
+                    + " · 日息 " + (MonthlyRate / 7f * 100f).ToString("F2") + "%";
                 if (InDefault) s += " · 违约倒计时 " + DefaultWarnDays + " 天";
                 return s;
             }

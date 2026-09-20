@@ -43,13 +43,19 @@ namespace FeudalInternalAffairs
 
         // 国策树打开时: 屏蔽地图相机输入(WASD/滚轮别动地图)
         // 另外: 鼠标压在侧边栏面板上时也屏蔽(否则滚轮会穿透去缩放地图, 而面板自己的列表滚不动)
+        // v4.79k 修复: 选国侧栏是非模态(滚轮自轮询/交互全走热区), 不能因它屏蔽相机 —— 否则
+        //   选国面板打开且鼠标在右侧时 WASD 全部失效(用户反馈"开局一段时间不能移动"的根因)
         [HarmonyPatch(typeof(MapCameraView), "OnBeforeTick")]
         internal static class BlockMapCameraInput
         {
             private static bool Prefix()
             {
                 if (FocusTreeScreen.IsOpen) return false;
-                try { if (PanelScreen.IsMouseOnPanel()) return false; } catch { }
+                try
+                {
+                    if (PanelScreen.IsMouseOnPanel() && !NationPickPanel.IsOpen) return false;
+                }
+                catch { }
                 return true;
             }
         }

@@ -12,6 +12,14 @@ namespace FeudalInternalAffairs
     {
         private float _x;
         private float _y;
+        private string _color = "#CCFFFFFF";
+
+        [DataSourceProperty]
+        public string RingColor
+        {
+            get { return _color; }
+            set { if (_color != value) { _color = value; OnPropertyChangedWithValue(value, "RingColor"); } }
+        }
 
         [DataSourceProperty]
         public float RingX
@@ -75,14 +83,14 @@ namespace FeudalInternalAffairs
         public float LabelX
         {
             get { return _x; }
-            set { if (Math.Abs(_x - value) > 0.5f) { _x = value; OnPropertyChangedWithValue(value, "LabelX"); } }
+            set { if (Math.Abs(_x - value) > 0.05f) { _x = value; OnPropertyChangedWithValue(value, "LabelX"); } }
         }
 
         [DataSourceProperty]
         public float LabelY
         {
             get { return _y; }
-            set { if (Math.Abs(_y - value) > 0.5f) { _y = value; OnPropertyChangedWithValue(value, "LabelY"); } }
+            set { if (Math.Abs(_y - value) > 0.05f) { _y = value; OnPropertyChangedWithValue(value, "LabelY"); } }
         }
 
         [DataSourceProperty]
@@ -326,16 +334,19 @@ namespace FeudalInternalAffairs
                     // 环以名板为中心(名板坐标是左上角, 环 48x48)
                     float rx = pos.X - 24f;
                     float ry = pos.Y - 24f;
+                    string color = RingColorOf(np.Party);
                     if (used < SelectionRings.Count)
                     {
                         SelectionRings[used].RingX = rx;
                         SelectionRings[used].RingY = ry;
+                        SelectionRings[used].RingColor = color;
                     }
                     else
                     {
                         var item = new SelectionRingVM();
                         item.RingX = rx;
                         item.RingY = ry;
+                        item.RingColor = color;
                         SelectionRings.Add(item);
                     }
                     used++;
@@ -343,6 +354,18 @@ namespace FeudalInternalAffairs
                 while (SelectionRings.Count > used) SelectionRings.RemoveAt(SelectionRings.Count - 1);
             }
             catch { }
+        }
+
+        // 选圈配色: 国防军=绿, 本国领主私兵=蓝(其余保留白色兜底)
+        private static string RingColorOf(MobileParty p)
+        {
+            try
+            {
+                if (DefArmy.IsDefArmyParty(p)) return "#66FF66FF";
+                if (NationalWillOrders.IsOurs(p)) return "#66B2FFFF";
+            }
+            catch { }
+            return "#CCFFFFFF";
         }
     }
 }

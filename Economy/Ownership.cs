@@ -159,6 +159,7 @@ namespace FeudalInternalAffairs
                 int cost = (int)(def.Work[0] * 8f * 0.9f);
                 if (EconomyWorld.Treasury.Gold < cost) return "国库不足(需 " + cost.ToString("N0") + ")";
                 EconomyWorld.TreasurySpend(cost);
+                Fiscal.AddCourt(cost);
                 g.Owner = 0;
                 return "已赎买为王室产业(花费 " + cost.ToString("N0") + ")";
             }
@@ -174,6 +175,7 @@ namespace FeudalInternalAffairs
                 if (def == null) return "未知建筑";
                 int gain = (int)(def.Work[0] * 8f * 0.6f);
                 EconomyWorld.TreasuryAdd(gain);
+                Fiscal.AddCourt(-gain);
                 g.Owner = s != null && s.IsTown ? 1 : 1;   // 出售给领主(简化)
                 return "已出售给领主(得 " + gain.ToString("N0") + ")";
             }

@@ -60,6 +60,12 @@ namespace FeudalInternalAffairs
             return null;
         }
 
+        // v4.58: 点标题(城市名) -> 视野飞到该城
+        internal void FlyToCity()
+        {
+            try { PanelScreen.JumpToSettlement(S()); } catch { }
+        }
+
         internal void Refresh()
         {
             try
@@ -116,6 +122,7 @@ namespace FeudalInternalAffairs
                     int cost = (nextWork - curWork) * 8 * Math.Max(1, g.Count);
                     if (EconomyWorld.Treasury.Gold < cost) { _status = "国库不足(升级需 " + cost.ToString("N0") + ")"; return; }
                     EconomyWorld.TreasurySpend(cost);
+                    Fiscal.AddCourt(cost);
                     _status = "已切换生产方法(花费 " + cost.ToString("N0") + ")";
                 }
                 else _status = "已切换生产方法";

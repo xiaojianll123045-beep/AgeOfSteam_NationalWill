@@ -13,6 +13,7 @@ namespace FeudalInternalAffairs
         internal struct Snapshot
         {
             public int Tax, Tariff, Mint, Dividend, Interest, Wages, Materials, Imports, Exports, Pop;
+            public int Mil, MilLoss;   // v4.53: 国防军军费 / 军损
             public float PriceIndex;
         }
 
@@ -33,6 +34,8 @@ namespace FeudalInternalAffairs
                 s.Imports = MarketSim.LastImported;
                 s.Exports = MarketSim.LastExported;
                 s.Pop = (int)Pops.TotalPopulation();
+                s.Mil = Fiscal.Military;
+                s.MilLoss = DefArmy.TodayMilLoss;
                 s.PriceIndex = PriceIndex();
                 Ring.Add(s);
                 while (Ring.Count > Cap) Ring.RemoveAt(0);
@@ -85,7 +88,8 @@ namespace FeudalInternalAffairs
                     sb.Append(s.Tax).Append(',').Append(s.Tariff).Append(',').Append(s.Mint).Append(',')
                       .Append(s.Dividend).Append(',').Append(s.Interest).Append(',').Append(s.Wages).Append(',')
                       .Append(s.Materials).Append(',').Append(s.Imports).Append(',').Append(s.Exports).Append(',')
-                      .Append(s.Pop).Append(',').Append(s.PriceIndex.ToString("F3", CultureInfo.InvariantCulture));
+                      .Append(s.Pop).Append(',').Append(s.PriceIndex.ToString("F3", CultureInfo.InvariantCulture))
+                      .Append(',').Append(s.Mil).Append(',').Append(s.MilLoss);
                 }
                 return sb.ToString();
             }
@@ -110,6 +114,7 @@ namespace FeudalInternalAffairs
                     s.Wages = PI(f[5]); s.Materials = PI(f[6]); s.Imports = PI(f[7]); s.Exports = PI(f[8]); s.Pop = PI(f[9]);
                     float pf;
                     s.PriceIndex = float.TryParse(f[10], NumberStyles.Float, CultureInfo.InvariantCulture, out pf) ? pf : 1f;
+                    if (f.Length >= 13) { s.Mil = PI(f[11]); s.MilLoss = PI(f[12]); }
                     Ring.Add(s);
                 }
             }

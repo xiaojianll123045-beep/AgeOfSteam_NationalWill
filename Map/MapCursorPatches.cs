@@ -18,6 +18,8 @@ namespace FeudalInternalAffairs
     internal static class MapCursorPatches
     {
         // 右键按住时, 在 MapCursor.SetVisible 执行期间伪装"右键没按"
+        // v4.81: 条件从 IsActive 扩展到 ShouldControlCamera —— 选国阶段同样反制
+        //        (原先选国阶段不生效, 原版旋转模式会锁死光标位置, 导致右键平移完全无效)
         [HarmonyPatch(typeof(MapCursor), "SetVisible")]
         internal static class CursorVisibilityPatch
         {
@@ -25,7 +27,7 @@ namespace FeudalInternalAffairs
 
             private static void Prefix()
             {
-                try { Faking = NationalWillOrders.IsActive && Input.IsKeyDown(InputKey.RightMouseButton); }
+                try { Faking = NationalWillOrders.ShouldControlCamera && Input.IsKeyDown(InputKey.RightMouseButton); }
                 catch { Faking = false; }
             }
 
@@ -53,6 +55,7 @@ namespace FeudalInternalAffairs
 
         // 右键拖动期间不锁光标位置(原版左键拖动也不锁) -> 光标地面点能跟着走
         // 只在"地图右键拖动中"生效, 免得影响战场里按住右键格挡之类的情况
+        // v4.81: 条件从 IsActive 扩展到 ShouldControlCamera(选国阶段同样需要)
         [HarmonyPatch(typeof(TaleWorlds.MountAndBlade.MBWindowManager), "DontChangeCursorPos")]
         internal static class NoCursorLockPatch
         {
@@ -60,7 +63,7 @@ namespace FeudalInternalAffairs
             {
                 try
                 {
-                    if (NationalWillOrders.IsActive && MapBoxSelect.RightDown) return false;
+                    if (NationalWillOrders.ShouldControlCamera && MapBoxSelect.RightDown) return false;
                 }
                 catch { }
                 return true;

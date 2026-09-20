@@ -102,6 +102,8 @@ namespace FeudalInternalAffairs
 
                 DLog.Force("文化阶段已替换为国家列表, 共 " + list.Count + " 个国家: "
                     + string.Join(",", kingdoms.Select(k => k.StringId)));
+                // 注意(v4.75b): 自动跳过改由 StageSkipPatches.SkipCultureStage 在 manager 层做
+                // (在这里调 VM 的 OnNextStage 会在构造期间空引用, 已废弃)
             }
 
             internal static CharacterCreationContent GetContent()

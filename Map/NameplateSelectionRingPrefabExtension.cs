@@ -22,7 +22,7 @@ namespace FeudalInternalAffairs
                    "<ItemTemplate>" +
                    "<Widget WidthSizePolicy=\"Fixed\" HeightSizePolicy=\"Fixed\" SuggestedWidth=\"48\" SuggestedHeight=\"48\" " +
                    "PositionXOffset=\"@RingX\" PositionYOffset=\"@RingY\" " +
-                   "Sprite=\"SPGeneral\\Nameplates\\tracked_ring\" Color=\"#CCFFFFFF\" />" +
+                   "Sprite=\"SPGeneral\\Nameplates\\tracked_ring\" Color=\"@RingColor\" />" +
                    "</ItemTemplate>" +
                    "</Widget>";
         }

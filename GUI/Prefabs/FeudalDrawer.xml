@@ -35,14 +35,24 @@
                         HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="94"
                         Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#C8B98FFF" Text="@Subtitle" />
 
+            <!-- v4.100: 军事信息(驻守/守备营/附近我军) -->
+            <TextWidget IsVisible="@IsBuildMode" WidthSizePolicy="Fixed" SuggestedWidth="520" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="118"
+                        Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E8C33AFF" Text="@MilText" />
+
             <!-- 搜索框(态B) -->
             <Widget IsVisible="@IsBuildMode" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="486" SuggestedHeight="36"
-                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="124" Sprite="BlankWhiteSquare" Color="#00000066">
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="150" Sprite="BlankWhiteSquare" Color="#00000066">
               <Children>
                 <EditableTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="10" MarginRight="10"
                                     Text="@SearchText" Brush="MapTextBrushGal" />
               </Children>
             </Widget>
+
+            <!-- v4.100: 组建军团(联军)信息 -->
+            <TextWidget IsVisible="@IsBuildMode" WidthSizePolicy="Fixed" SuggestedWidth="520" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="192"
+                        Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#6AB0FFFF" Text="@ArmyText" />
 
             <!-- ===== 态A: 定居点树(可滚动) ===== -->
             <Widget IsVisible="@IsTreeMode" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
@@ -107,7 +117,7 @@
 
             <!-- ===== 态B: 建筑列表(可滚动) ===== -->
             <Widget IsVisible="@IsBuildMode" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                    MarginTop="174" MarginBottom="92" MarginLeft="14" MarginRight="14">
+                    MarginTop="224" MarginBottom="92" MarginLeft="14" MarginRight="14">
               <Children>
                 <ScrollablePanel Id="RowsScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                  AutoHideScrollBars="true" ClipRect="RowsClip" InnerPanel="RowsClip\RowsList" VerticalScrollbar="..\RowsBar">
@@ -181,6 +191,15 @@
                           MarginLeft="26" MarginBottom="26" Brush="ButtonBrush2" Command.Click="ExecuteBack" UpdateChildrenStates="true">
               <Children>
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="返回树" />
+              </Children>
+            </ButtonWidget>
+
+            <!-- v4.100: 一键唤出(守备营编成野战军团 / 召唤最近联军) -->
+            <ButtonWidget IsVisible="@IsBuildMode" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="150" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="160" MarginBottom="26" Brush="ButtonBrush2" UpdateChildrenStates="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#7FBF6AFF" Text="唤出军团" />
               </Children>
             </ButtonWidget>
 

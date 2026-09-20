@@ -43,7 +43,7 @@
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="320" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="30" MarginTop="168" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF" Text="@CreditText" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top"
-                        MarginRight="30" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="本月净额" />
+                        MarginRight="30" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="今日净额" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top"
                         MarginRight="30" MarginTop="126" Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="@NetColor" Text="@NetText" />
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="290" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top"
@@ -183,7 +183,7 @@
                         Text="说明: 收入=税/铸币/分红/出口 · 支出=关税/铸币销毁/利息/年金" />
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="620" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="30" MarginTop="764" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF"
-                        Text="铸币销毁按本国市场 20% 承担 · 工资/材料由建筑账目与领主承担(文档 19.9.3)" />
+                        Text="铸币销毁按本国市场 20% 承担 · 工资/材料由建筑账目与领主承担(文档 19.9.3) · 今日净额=国库实际变动(含宴会/赏赐/外交赔款等)" />
 
             <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                           SuggestedWidth="122" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"

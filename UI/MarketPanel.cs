@@ -80,7 +80,7 @@ namespace FeudalInternalAffairs
                 _acc += dt;
                 if (_acc < 3f) return;
                 _acc = 0f;
-                if (_vm != null) _vm.Refresh();
+                if (_vm != null) { _vm.Refresh(); RegisterSpots(); }
             }
             catch { }
         }
@@ -109,6 +109,28 @@ namespace FeudalInternalAffairs
                 PanelScreen.AddSpot(284f, fy, 76f, 52f, _vm.ExecuteFilter2);
                 PanelScreen.AddSpot(370f, fy, 76f, 52f, _vm.ExecuteFilter3);
                 PanelScreen.AddSpot(456f, fy, 76f, 52f, _vm.ExecuteFilter4);
+                // v4.58: 城市名点击 -> 视野飞到该城(标题=本城名; 贸易/粮食行=行首城市名)
+                PanelScreen.AddSpot(14f, 14f, 400f, 62f, _vm.FlyToTown);
+                if (_vm.IsTradeTab)
+                {
+                    for (int i = 0; i < _vm.TradeRows.Count; i++)
+                    {
+                        int idx = i;
+                        float ry = 310f + i * 48f;
+                        if (ry > sh - 160f) break;
+                        PanelScreen.AddSpot(14f, ry, 250f, 44f, delegate { _vm.FlyToTradeRow(idx); });
+                    }
+                }
+                else if (_vm.IsFoodTab)
+                {
+                    for (int i = 0; i < _vm.FoodRows.Count; i++)
+                    {
+                        int idx = i;
+                        float ry = 310f + i * 48f;
+                        if (ry > sh - 160f) break;
+                        PanelScreen.AddSpot(14f, ry, 250f, 44f, delegate { _vm.FlyToFoodRow(idx); });
+                    }
+                }
             }
             catch (Exception ex) { DLog.Force("市场面板热区失败: " + ex.Message); }
         }

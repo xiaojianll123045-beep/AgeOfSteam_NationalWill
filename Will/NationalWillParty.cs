@@ -21,9 +21,32 @@ namespace FeudalInternalAffairs
                 mp.IgnoreForHours(20000f);
                 // 地图上的部队标记看这个标志; 游戏会随时间把它改回去, 所以每帧维持
                 if (mp.IsVisible) mp.IsVisible = false;
+                HideNameplate();
                 if (force) DLog.Force("已冻结并隐藏玩家部队");
             }
             catch (Exception ex) { DLog.Force("冻结玩家部队失败: " + ex.Message); }
+        }
+
+        // v4.75d: 隐藏玩家主队的地图名牌(头像/名字/人数) —— 每帧维持(光靠 mixin 返回值会被刷回)
+        internal static void HideNameplate()
+        {
+            if (DLog.Flag("nohide")) return;
+            if (BattleCommand.InCommandBattle) return;
+            // 1) 玩家大头像名牌(PartyPlayerNameplateVM, 不在普通名牌列表里): 主动刷新 mixin 发通知
+            try { PartyPlayerNameplateVMMixin.RefreshNow(); } catch { }
+            // 2) 普通部队名牌列表里的主队(如果有)
+            try
+            {
+                var mgr = PartyNameplatesVMMixin.Instance != null ? PartyNameplatesVMMixin.Instance.Manager : null;
+                if (mgr == null || mgr.Nameplates == null) return;
+                for (int i = 0; i < mgr.Nameplates.Count; i++)
+                {
+                    var np = mgr.Nameplates[i];
+                    if (np == null || np.Party == null || !np.Party.IsMainParty) continue;
+                    if (np.IsVisibleOnMap) np.IsVisibleOnMap = false;
+                }
+            }
+            catch { }
         }
 
         // 冻结的部队也会吃粮, 定期补充避免饿死刷屏

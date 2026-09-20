@@ -137,12 +137,12 @@ namespace FeudalInternalAffairs
     // 建筑通用规则
     internal static class BuildingRules
     {
-        // 槽位上限(2.3 / 12.1)
+        // 槽位上限(2.3 / 12.1; v4.67 用户要求: 城镇/城堡 = 旧公式×2; 农村 = 每户 0.3 槽位, 仅农村; v4.68: 城镇/城堡无上限)
         internal static int SlotLimit(bool isTown, bool isCastle, int prosperity, int hearth)
         {
-            if (isTown) return Math.Min(12, 4 + prosperity / 1000);
-            if (isCastle) return Math.Min(8, 3 + prosperity / 1500);
-            return Math.Min(6, 2 + hearth / 400);
+            if (isTown) return 8 + prosperity / 500;                    // 旧公式×2, 无上限
+            if (isCastle) return 6 + prosperity / 750;                  // 旧公式×2, 无上限
+            return Math.Max(4, (int)(hearth * 0.3f));                    // 农村: 每户 0.3 个槽位
         }
 
         internal const int MaxQueuePerSettlement = 5;   // 每定居点最多 5 项在建(3.3)

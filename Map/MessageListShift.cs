@@ -20,7 +20,7 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                if (__result) return;   // 原版自己就要偏移(比如展开聊天), 尊重它
+                // v4.104: 两档避让 —— 默认(Default=70)已让开导航栏; 侧边栏打开时切 Offset(760) 让开面板
                 bool want = PanelScreen.AnyOpen && NationalWillOrders.IsActive;
                 if (want != _lastState)
                 {

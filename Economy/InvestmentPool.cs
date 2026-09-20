@@ -15,8 +15,12 @@ namespace FeudalInternalAffairs
     {
         internal static readonly Dictionary<string, float> Pools = new Dictionary<string, float>();
         internal static int MonthBuilt, TotalBuilt;   // UI: 本月/累计私人建造次数
+        internal static int DayBuilt;                 // UI: 今日私人建造次数(每日日结清零)
 
         internal static float Of(string kid) { float v; return (kid != null && Pools.TryGetValue(kid, out v)) ? v : 0f; }
+
+        // 每日日结: 今日计数清零
+        internal static void DayReset() { DayBuilt = 0; }
         internal static void Add(string kid, float v)
         {
             if (string.IsNullOrEmpty(kid) || v <= 0f) return;
@@ -185,6 +189,7 @@ namespace FeudalInternalAffairs
                     built++;
                     MonthBuilt++;
                     TotalBuilt++;
+                    DayBuilt++;
                     DLog.Info("私人建造: " + k.Name + " 在 " + bestS.Name + " 出资建 " + bestDef.Name
                         + " 花费=" + ((int)bestCost) + " 得分=" + bestScore.ToString("F0"));
                 }

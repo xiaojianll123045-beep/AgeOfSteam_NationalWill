@@ -349,9 +349,33 @@ namespace FeudalInternalAffairs
                 Notify("外交博弈开始: " + NameOf(a.StringId) + " 向 " + NameOf(b.StringId) + " 提出诉求(" + GoalName(GoalKind.Conquer) + ")"
                     + (involvesPlayer ? " — 打开左侧『博弈』页应对" : ""), involvesPlayer);
                 DLog.Force("外交博弈: " + a.StringId + " -> " + b.StringId + " 博弈#" + p.Id);
+                // v4.58: 他国对我国发起 -> 弹窗提示(用户需求); 我方自己发起的只走底部消息
+                if (involvesPlayer && !playerInitiated)
+                    ShowPlayPopup(p, pk0, a);
                 return p;
             }
             catch (Exception ex) { DLog.Force("启动博弈失败: " + ex.Message); return null; }
+        }
+
+        // v4.58: 他国对我国发起外交博弈 -> 弹窗提示(用户需求)
+        internal static void ShowPlayPopup(DiploPlay p, Kingdom pk, Kingdom initiator)
+        {
+            try
+            {
+                if (p == null || pk == null) return;
+                bool weAreTarget = p.TargetId == pk.StringId;
+                string otherName = initiator != null && initiator.Name != null ? initiator.Name.ToString() : NameOf(p.InitiatorId);
+                string title = weAreTarget ? (otherName + " 对我国发起外交博弈!") : ("外交博弈已开启: " + otherName);
+                string text = weAreTarget
+                    ? otherName + " 向我国提出「" + GoalName(GoalKind.Conquer) + "」诉求, 并开启了外交博弈。\n"
+                      + "前往外交页应对: 拉拢盟友、追加诉求或主动让步; 谈崩将会开战。"
+                    : "与 " + otherName + " 的外交博弈已开启。";
+                InformationManager.ShowInquiry(new InquiryData(
+                    title, text, true, true, "前往外交页", "稍后处理",
+                    delegate { try { DiplomacyPanel.Open(null); } catch { } }, null,
+                    "", 0f, null, null, null), true, false);
+            }
+            catch (Exception ex) { DLog.Force("博弈弹窗异常: " + ex.Message); }
         }
 
         internal static float ManeuverOf(Kingdom k)
@@ -1014,7 +1038,7 @@ namespace FeudalInternalAffairs
                 if (IsPlayerKingdom(from))
                 {
                     paid = (int)Math.Min(amount, Math.Max(0f, (float)EconomyWorld.Treasury.Gold));
-                    if (paid > 0) EconomyWorld.TreasurySpend(paid);
+                    if (paid > 0) { EconomyWorld.TreasurySpend(paid); Fiscal.AddCourt(paid); }
                 }
                 else
                 {
@@ -1022,7 +1046,7 @@ namespace FeudalInternalAffairs
                     paid = (int)Math.Min(amount, Math.Max(0f, pool));
                     if (paid > 0) InvestmentPool.Add(from.StringId, -paid);
                 }
-                if (IsPlayerKingdom(to)) EconomyWorld.TreasuryAdd(paid);
+                if (IsPlayerKingdom(to)) { EconomyWorld.TreasuryAdd(paid); if (paid > 0) Fiscal.AddCourt(-paid); }
                 else if (paid > 0) InvestmentPool.Add(to.StringId, paid);
             }
             catch { }

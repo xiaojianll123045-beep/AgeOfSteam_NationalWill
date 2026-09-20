@@ -32,11 +32,37 @@ namespace FeudalInternalAffairs
             }
         }
 
+        // v4.75k: 整条原版地图栏(底部时间/金钱/装饰底框)隐藏 —— 根 widget 的 IsVisible 绑 MapBarVM.IsEnabled
+        [HarmonyPatch(typeof(MapBarVM), "Tick")]
+        internal static class MapBarVMDressHideTick
+        {
+            private static void Postfix(MapBarVM __instance) { try { HideBar(__instance); } catch { } }
+        }
+
+        [HarmonyPatch(typeof(MapBarVM), "RefreshValues")]
+        internal static class MapBarVMDressHideRefresh
+        {
+            private static void Postfix(MapBarVM __instance) { try { HideBar(__instance); } catch { } }
+        }
+
+        private static void HideBar(MapBarVM vm)
+        {
+            if (vm == null || DLog.Flag("showall")) return;
+            var behavior = Campaign.Current != null ? Campaign.Current.GetCampaignBehavior<NationalWillBehavior>() : null;
+            bool active = behavior != null && behavior.IsNationalWill;
+            if (!active && !NationPickMode.Active) return;
+            // v4.75s: 不再整条隐藏 —— 恢复原版时间盘(左中时间/日期/暂停播放); 只隐藏金钱信息栏与召集军队
+            try { if (vm.MapInfo != null && vm.MapInfo.IsInfoBarEnabled) vm.MapInfo.IsInfoBarEnabled = false; } catch { }
+            try { if (vm.IsGatherArmyVisible) vm.IsGatherArmyVisible = false; } catch { }
+        }
+
         internal static void Enforce(MapNavigationVM vm)
         {
             if (vm == null || DLog.Flag("showall")) return;
             var behavior = Campaign.Current != null ? Campaign.Current.GetCampaignBehavior<NationalWillBehavior>() : null;
-            if (behavior == null || !behavior.IsNationalWill) return;
+            bool active = behavior != null && behavior.IsNationalWill;
+            // v4.75i: 选国阶段也先清掉这排按钮(还没接管, 家族/王国/物品等都点不开, 留着碍事)
+            if (!active && !NationPickMode.Active) return;
             var items = vm.NavigationItems;
             if (items == null || items.Count <= 1) return;
 

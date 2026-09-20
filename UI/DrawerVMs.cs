@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
@@ -323,6 +324,8 @@ namespace FeudalInternalAffairs
         private string _searchText = "";
         private string _title = "";
         private string _subtitle = "";
+        private string _milText = "";
+        private string _armyText = "";
 
         internal SettlementDrawerVM(Action onClose)
         {
@@ -379,6 +382,22 @@ namespace FeudalInternalAffairs
                 OnPropertyChangedWithValue(value, "SearchText");
                 ApplyFilter();
             }
+        }
+
+        // v4.100: 军事信息(驻守/守备营/附近部队)
+        [DataSourceProperty]
+        public string MilText
+        {
+            get { return _milText; }
+            set { if (_milText != value) { _milText = value; OnPropertyChangedWithValue(value, "MilText"); } }
+        }
+
+        // v4.100: 组建军团(联军)信息
+        [DataSourceProperty]
+        public string ArmyText
+        {
+            get { return _armyText; }
+            set { if (_armyText != value) { _armyText = value; OnPropertyChangedWithValue(value, "ArmyText"); } }
         }
 
         public void ExecuteClose()
@@ -523,6 +542,7 @@ namespace FeudalInternalAffairs
                 }
                 IsBuildMode = true;
                 ApplyFilter();
+                UpdateMilitary(s);
                 DLog.Info("抽屉: 显示 " + Title + " 的建筑 " + Rows.Count + " 项");
             }
             catch (Exception ex) { DLog.Force("抽屉建筑列表失败: " + ex.Message); }
@@ -639,10 +659,76 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                if (_buildMode) return;   // 建筑列表在打开时构建(P4 起接入实时状态)
+                if (_buildMode) { UpdateMilitary(_current); return; }   // v4.100: 建筑态也刷新军事信息
                 foreach (var n in Nodes) n.RefreshTexts();
             }
             catch { }
+        }
+
+        // v4.100: 点城市 -> 军事信息(驻军/守备营/附近我军/组建的联军)
+        private void UpdateMilitary(Settlement s)
+        {
+            try
+            {
+                if (s == null) { MilText = ""; ArmyText = ""; return; }
+                var target = s.IsVillage && s.Village != null && s.Village.Bound != null ? s.Village.Bound : s;
+                int garrison = 0;
+                try { if (target != null && target.Town != null && target.Town.GarrisonParty != null) garrison = target.Town.GarrisonParty.MemberRoster.TotalManCount; } catch { }
+                int ours = target != null ? DefArmy.GarrisonMenOf(target.StringId) : 0;
+                var k = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                var pos = target.Position.ToVec2();
+                int near = 0;
+                try
+                {
+                    foreach (var p in MobileParty.All)
+                    {
+                        if (p == null || !p.IsActive || p.IsMainParty) continue;
+                        if (p.IsGarrison || p.IsMilitia || p.IsCaravan) continue;
+                        bool mine = DefArmy.IsDefArmyParty(p) || (k != null && ReferenceEquals(p.MapFaction, k));
+                        if (!mine) continue;
+                        float dx = p.Position.X - pos.X, dy = p.Position.Y - pos.Y;
+                        if (dx * dx + dy * dy < 40f * 40f) near++;
+                    }
+                }
+                catch { }
+                MilText = "驻守: 驻军 " + garrison + " 人 · 国防军守备营 " + ours + " 人" + (near > 0 ? " · 附近我军 " + near + " 支" : "");
+
+                var best = DefArmy.NearestArmyOf(target, out float bd);
+                if (best != null)
+                {
+                    int men = 0, pc = 0;
+                    try
+                    {
+                        foreach (var mp in best.Parties) { if (mp != null && mp.IsActive) { men += DefArmy.RegularsOf(mp); pc++; } }
+                    }
+                    catch { }
+                    ArmyText = "组建军团: " + (best.Name != null ? best.Name.ToString() : "军团") + "(" + pc + " 支部队/" + men + " 人, 距离 " + (int)Math.Sqrt(bd) + ") ｜ 点[唤出]成立守备营新军团或召唤联军";
+                }
+                else
+                {
+                    ArmyText = "组建军团: 附近没有本国联军 ｜ 点[唤出]把守备营编成新军团";
+                }
+            }
+            catch (Exception ex) { DLog.Force("抽屉军事信息异常: " + ex.Message); }
+        }
+
+        // v4.100: 一键唤出(守备营够 100 就编成野战军团, 否则召唤最近联军)
+        internal void ExecuteCallOut()
+        {
+            try
+            {
+                var s = _current;
+                if (s == null) return;
+                var target = s.IsVillage && s.Village != null && s.Village.Bound != null ? s.Village.Bound : s;
+                if (target == null) return;
+                int ours = DefArmy.GarrisonMenOf(target.StringId);
+                string msg;
+                if (ours >= 100) msg = DefArmy.CreateLegion(target, ours);
+                else msg = DefArmy.CallNearestArmy(target);
+                MapSelection.Message(msg);
+                UpdateMilitary(s);
+            }
+            catch (Exception ex) { DLog.Force("一键唤出失败: " + ex.Message); }
         }
     }
 }

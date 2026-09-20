@@ -1,0 +1,14 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="BlankWhiteSquare" Color="@FadeColor" />
+        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Brush="MapTextBrushGal" Brush.FontSize="34" Brush.FontColor="#C9A227DD" Text="@Text" />
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

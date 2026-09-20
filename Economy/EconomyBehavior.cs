@@ -28,6 +28,8 @@ namespace FeudalInternalAffairs
         private string _ledger2 = "";        // v4.0: 统计快照(20.9)
         private string _politics = "";       // v4.1: 政治系统(第 21 章)
         private int _lastDay = -1;
+        private const int StarterVer = 4;   // v4.66: 起步建筑版本(1=基础, 2=+炭窑, 3=+炼铁厂/工具坊/纺织厂, 4=+武器/盔甲作坊; 老档升级自动补新项)
+        private int _starterVersion;        // 已补发到的版本(每档记录)
 
         internal EconomyBehavior()
         {
@@ -47,6 +49,7 @@ namespace FeudalInternalAffairs
             CampaignEvents.OnNewGameCreatedEvent.AddNonSerializedListener(this, OnNewGameCreated);
             CampaignEvents.OnGameLoadedEvent.AddNonSerializedListener(this, OnGameLoaded);
             CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, OnDailyTick);
+            CampaignEvents.TickEvent.AddNonSerializedListener(this, OnTick);   // v4.57: 跨日兜底(防 DailyTick 未触发导致"第二天不结算")
         }
 
         // ---------------- 存档 ----------------
@@ -73,25 +76,57 @@ namespace FeudalInternalAffairs
                     _ledger2 = Stats.Save();
                     _politics = Politics.Save();
                     DLog.Force("存档: 经济数据 -> " + EconomyWorld.Describe());
+                    DLog.Force("存档长度: bld=" + (_buildings ?? "").Length + " mkt=" + (_markets ?? "").Length
+                        + " nat=" + (_national ?? "").Length + " pops=" + (_pops ?? "").Length
+                        + " pool=" + (_pool ?? "").Length + " guild=" + (_guild ?? "").Length
+                        + " tax=" + (_tax ?? "").Length + " credit=" + (_credit ?? "").Length
+                        + " mint=" + (_mint ?? "").Length + " own=" + (_own ?? "").Length
+                        + " ledger=" + (_ledger2 ?? "").Length + " pol=" + (_politics ?? "").Length
+                        + " lords=" + (_lords ?? "").Length + " brush=" + (_brushes ?? "").Length
+                        + " autob=" + (_autoBuild ?? "").Length + " trea=" + (_treasury ?? "").Length);
                 }
-                dataStore.SyncData("FIA_Buildings", ref _buildings);
-                dataStore.SyncData("FIA_Market", ref _markets);
-                dataStore.SyncData("FIA_National", ref _national);
-                dataStore.SyncData("FIA_Treasury", ref _treasury);
-                dataStore.SyncData("FIA_Private", ref _lords);
-                dataStore.SyncData("FIA_Brush", ref _brushes);
-                dataStore.SyncData("FIA_AutoBuild", ref _autoBuild);
-                dataStore.SyncData("FIA_Pops", ref _pops);
-                dataStore.SyncData("FIA_Pool", ref _pool);
-                dataStore.SyncData("FIA_Guild", ref _guild);
-                dataStore.SyncData("FIA_Tax", ref _tax);
-                dataStore.SyncData("FIA_Credit", ref _credit);
-                dataStore.SyncData("FIA_Mint", ref _mint);
-                dataStore.SyncData("FIA_Own", ref _own);
-                dataStore.SyncData("FIA_Ledger2", ref _ledger2);
-                dataStore.SyncData("FIA_Politics", ref _politics);
+                // 统一分块存取: 单块 <=24KB, 规避原版 SaveSystem 单字符串 ~32KB 隐性上限(超限->读档"数组维度"崩溃)
+                if (dataStore.IsSaving)
+                {
+                    SyncChunks.Save(dataStore, "FIA_Buildings", _buildings);
+                    SyncChunks.Save(dataStore, "FIA_Market", _markets);
+                    SyncChunks.Save(dataStore, "FIA_National", _national);
+                    SyncChunks.Save(dataStore, "FIA_Treasury", _treasury);
+                    SyncChunks.Save(dataStore, "FIA_Private", _lords);
+                    SyncChunks.Save(dataStore, "FIA_Brush", _brushes);
+                    SyncChunks.Save(dataStore, "FIA_AutoBuild", _autoBuild);
+                    SyncChunks.Save(dataStore, "FIA_Pops", _pops);
+                    SyncChunks.Save(dataStore, "FIA_Pool", _pool);
+                    SyncChunks.Save(dataStore, "FIA_Guild", _guild);
+                    SyncChunks.Save(dataStore, "FIA_Tax", _tax);
+                    SyncChunks.Save(dataStore, "FIA_Credit", _credit);
+                    SyncChunks.Save(dataStore, "FIA_Mint", _mint);
+                    SyncChunks.Save(dataStore, "FIA_Own", _own);
+                    SyncChunks.Save(dataStore, "FIA_Ledger2", _ledger2);
+                    SyncChunks.Save(dataStore, "FIA_Politics", _politics);
+                    dataStore.SyncData("FIA_EcoDay", ref _lastDay);   // 上次结算日(读档补结算用)
+                    dataStore.SyncData("FIA_StarterVer", ref _starterVersion);   // v4.64: 起步建筑补发版本
+                }
                 if (dataStore.IsLoading)
                 {
+                    _buildings = SyncChunks.Load(dataStore, "FIA_Buildings");
+                    _markets = SyncChunks.Load(dataStore, "FIA_Market");
+                    _national = SyncChunks.Load(dataStore, "FIA_National");
+                    _treasury = SyncChunks.Load(dataStore, "FIA_Treasury");
+                    _lords = SyncChunks.Load(dataStore, "FIA_Private");
+                    _brushes = SyncChunks.Load(dataStore, "FIA_Brush");
+                    _autoBuild = SyncChunks.Load(dataStore, "FIA_AutoBuild");
+                    _pops = SyncChunks.Load(dataStore, "FIA_Pops");
+                    _pool = SyncChunks.Load(dataStore, "FIA_Pool");
+                    _guild = SyncChunks.Load(dataStore, "FIA_Guild");
+                    _tax = SyncChunks.Load(dataStore, "FIA_Tax");
+                    _credit = SyncChunks.Load(dataStore, "FIA_Credit");
+                    _mint = SyncChunks.Load(dataStore, "FIA_Mint");
+                    _own = SyncChunks.Load(dataStore, "FIA_Own");
+                    _ledger2 = SyncChunks.Load(dataStore, "FIA_Ledger2");
+                    _politics = SyncChunks.Load(dataStore, "FIA_Politics");
+                    dataStore.SyncData("FIA_EcoDay", ref _lastDay);
+                    dataStore.SyncData("FIA_StarterVer", ref _starterVersion);
                     EconomyWorld.LoadBuildings(_buildings);
                     EconomyWorld.LoadMarkets(_markets);
                     EconomyWorld.LoadNational(_national);
@@ -144,6 +179,16 @@ namespace FeudalInternalAffairs
                     DLog.Force("经济: 旧存档无数据, 已自动初始化");
                 }
                 EnsureTownBaseline();   // 旧存档补建: 没有产业的城镇补市场+产业, 保证所有国家都跑经济
+                TryStarterFill("读档");   // v4.62: 玩家国起步建筑补发(一次; 修复老档经济死锁)
+                // 读档后立即补结算一次(不管当天是否已结算过; 否则读档当天没有产出/财政变化)
+                try
+                {
+                    int today = (int)CampaignTime.Now.ToDays;
+                    _lastDay = today;
+                    TickDay(today);
+                    DLog.Force("经济: 读档补结算(第 " + today + " 天)");
+                }
+                catch (Exception ex) { DLog.Force("读档补结算异常: " + ex.Message); }
                 DLog.Force("经济: 读档完成 -> " + EconomyWorld.Describe());
             }
             catch (Exception ex) { DLog.Force("经济读档异常: " + ex.Message); }
@@ -181,6 +226,22 @@ namespace FeudalInternalAffairs
             catch (Exception ex) { DLog.Force("城镇兜底异常: " + ex.Message); }
         }
 
+        // v4.62: 玩家国起步建筑补发(按版本; pk 未就绪时跳过, 不置位)
+        private void TryStarterFill(string why)
+        {
+            try
+            {
+                if (_starterVersion >= StarterVer) return;
+                var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                if (pk == null) return;
+                int n = EconomyWorld.StarterFill(pk);
+                _starterVersion = StarterVer;
+                if (n > 0) DLog.Force("经济: 起步建筑补发(" + why + ") v" + StarterVer + " +" + n + " 个");
+                else DLog.Force("经济: 起步建筑检查(" + why + ") v" + StarterVer + " 无需补发");
+            }
+            catch (Exception ex) { DLog.Force("起步建筑补发失败: " + ex.Message); }
+        }
+
         // 国库 = 玩家(国家意志)金钱(6.1)
         private void InitTreasury()
         {
@@ -205,8 +266,9 @@ namespace FeudalInternalAffairs
                     var sb = EconomyWorld.Of(s.StringId);
                     if (s.IsVillage)
                     {
-                        string res = PresetResourceForVillage(s.Village);
+                        string res = EconomyWorld.PresetResourceForVillage(s.Village);
                         sb.GetOrCreate(res, BuildMode.Wood).Count += 1;
+                        sb.GetOrCreate("charcoal_kiln", BuildMode.Wood).Count += 1;   // v4.64: 炭窑(铁链燃料)
                         // 特产不是粮食 -> 额外预置 1 个农田, 保证温饱
                         if (res != "farm") sb.GetOrCreate("farm", BuildMode.Wood).Count += 1;
                         villages++;
@@ -232,28 +294,7 @@ namespace FeudalInternalAffairs
             catch (Exception ex) { DLog.Force("预置建筑异常: " + ex.Message); }
         }
 
-        // 村庄特产 -> 预置资源建筑(按 VillageType.StringId 判断)
-        private static string PresetResourceForVillage(Village v)
-        {
-            try
-            {
-                if (v == null || v.VillageType == null) return "farm";
-                string t = v.VillageType.StringId ?? "";
-                if (t.Contains("wheat")) return "farm";
-                if (t.Contains("lumber")) return "lumberjack";
-                if (t.Contains("iron")) return "mine_iron";
-                if (t.Contains("silver")) return "mine_silver";
-                if (t.Contains("salt") || t.Contains("clay")) return "mine_clay_salt";
-                if (t.Contains("fish")) return "fishery";
-                if (t.Contains("vineyard") || t.Contains("date") || t.Contains("olive")
-                    || t.Contains("silk") || t.Contains("flax")) return "specialty_farm";
-                // 牛 / 羊 / 猪 / 猎户 / 各种马场 -> 牧场(马不在本系统商品表内, 先按牧场处理)
-                if (t.Contains("cattle") || t.Contains("sheep") || t.Contains("swine")
-                    || t.Contains("trapper") || t.Contains("horse")) return "pasture";
-                return "farm";
-            }
-            catch { return "farm"; }
-        }
+        // 村庄特产 -> 预置资源建筑(已移至 EconomyWorld.PresetResourceForVillage 共用)
 
         // ---------------- 每日结算 ----------------
         private void OnDailyTick()
@@ -268,14 +309,31 @@ namespace FeudalInternalAffairs
             catch (Exception ex) { DLog.Force("经济日结异常: " + ex.Message); }
         }
 
+        // v4.57: 每帧检查跨日 -> 到点即结算(不依赖 DailyTickEvent 的触发时机)
+        private void OnTick(float dt)
+        {
+            try
+            {
+                int day = (int)CampaignTime.Now.ToDays;
+                if (day == _lastDay) return;
+                OnDailyTick();
+            }
+            catch { }
+        }
+
         // 每日结算时序(11.3): P1 只做数据维护与日志; P2 起接入产出/市场/建造/军需/财政
         private void TickDay(int day)
         {
             try
             {
+                TryStarterFill("日结");   // v4.62: 读档时 pk 未就绪则在首次日结补发
                 var hero = Hero.MainHero;
                 EconomyWorld.Treasury.LastGold = EconomyWorld.Treasury.Gold;
                 EconomyWorld.Treasury.Gold = hero != null ? hero.Gold : 0;
+                // 关键顺序: 先记录"日初基线"(财政页"今日值"= 当前累计 - 日初基线), 再跑当日结算
+                Fiscal.DayRoll();
+                Fiscal.EndOfDayGold(EconomyWorld.Treasury.Gold);   // 国库日初基线(今日净额=实时国库-该基线)
+                InvestmentPool.DayReset();
                 // 建筑产出 / 消耗 -> 本地市场(11.3 步骤 2~3)
                 DailySettlement.Run();
                 // v4.2: 税制四税取代旧的单一"定居点税收"(文档 20.1 的"替换"); SettlementTax 类保留未启用

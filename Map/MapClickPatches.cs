@@ -5,7 +5,9 @@ using SandBox.View.Map.Visuals;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.GameState;
 using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 
 namespace FeudalInternalAffairs
 {
@@ -23,12 +25,34 @@ namespace FeudalInternalAffairs
             {
                 try
                 {
+                    // v4.75: 新档选国模式: 点领地 -> 右侧国家栏(拦住原版点击)
+                    if (NationPickMode.Active)
+                    {
+                        if (!PanelScreen.IsMouseOnPanel()) NationPickMode.HandleMapClick();
+                        return false;
+                    }
                     if (!NationalWillOrders.IsActive) return true;
+                    DLog.Force("地面点击: 判定 旗=" + NationalPanel.IsMouseOnFlag() + " 面板=" + PanelScreen.IsMouseOnPanel()
+                        + " 框=" + MapBoxSelect.BoxVisible + " 选中=" + MapSelection.Count);
                     // 点在左上角国旗上 -> 交给国家面板处理, 别当地图点击
                     if (NationalPanel.IsMouseOnFlag()) return false;
                     // 点在打开的侧边栏面板上 -> 不算地图点击(否则点面板按钮会同时给部队下令)
                     if (PanelScreen.IsMouseOnPanel()) return false;
                     if (MapBoxSelect.BoxVisible) return false;   // 框选拖动中, 不当点击
+                    // 军务页"地图点选城市"模式: 地面点击不下部队命令, 改为命中检测(30 距离内视为点中该定居点)
+                    // (地面点击会先于定居点点击触发, 所以这里不取消待选状态; 取消=再点一次[地图点选]按钮)
+                    if (ArmyPanel.IsOpen && ArmyPanel.IsPickingSettlement)
+                    {
+                        try
+                        {
+                            var pt = MapBoxSelect.CaptureGroundPoint();
+                            var at = TerritoryData.SettlementAt(pt.x, pt.y);
+                            if (at != null && (at.Position.AsVec3() - pt).LengthSquared < 30f * 30f)
+                                ArmyPanel.PickSettlement(at);
+                        }
+                        catch { }
+                        return false;
+                    }
                     // 点在选中圈范围内 = 点在该部队上(圈比图标大)
                     var ringHit = MapBoxSelect.HitSelectedRing();
                     if (ringHit != null)
@@ -56,6 +80,8 @@ namespace FeudalInternalAffairs
             {
                 try
                 {
+                    // v4.75: 选国模式: 点部队不处理(只认领地)
+                    if (NationPickMode.Active) { __result = true; return false; }
                     if (followModifierUsed || !NationalWillOrders.IsActive) return true;
                     if (PanelScreen.IsMouseOnPanel()) { __result = true; return false; }   // 点面板不当成点部队
                     if (MapBoxSelect.BoxVisible) { __result = true; return false; }   // 框选拖动中, 不当点击
@@ -111,7 +137,9 @@ namespace FeudalInternalAffairs
             {
                 try
                 {
-                    if (!NationalWillOrders.IsActive) return;
+                    // v4.75h: 选国阶段也要鼠标机制(右键平移/中键旋转), 但不做指挥/框选/菜单
+                    bool pick = NationPickMode.Active && !NationalWillOrders.IsActive;
+                    if (!NationalWillOrders.IsActive && !pick) return;
                     var screen = MapScreen.Instance;
                     if (screen == null) return;
 
@@ -130,6 +158,9 @@ namespace FeudalInternalAffairs
 
                     var mouse = TaleWorlds.InputSystem.Input.MousePositionPixel;
 
+                    // 兜底: 不在框选中时确保相机输入为开(否则原版会吞掉左键指挥移动)
+                    if (!MapBoxSelect.IsDragging) MapBoxSelect.EnsureCameraInputOn();
+
                     bool lPressed = TaleWorlds.InputSystem.Input.IsKeyPressed(TaleWorlds.InputSystem.InputKey.LeftMouseButton);
                     bool lDown = TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton);
                     bool lReleased = TaleWorlds.InputSystem.Input.IsKeyReleased(TaleWorlds.InputSystem.InputKey.LeftMouseButton);
@@ -146,9 +177,12 @@ namespace FeudalInternalAffairs
                         DLog.Force("鼠标处理: 运行中(左=" + lPressed + " 中=" + mPressed + " 右=" + rPressed + ")");
                     }
 
-                    // 左键: 拖动=框选
+                    // 左键: 拖动判定/单击标记(两个阶段都要, 选国阶段靠它区分"点击选国"与"拖动"); 框选选中只在指挥阶段生效
                     if (lPressed || lDown || lReleased)
                         MapBoxSelect.HandleLeftButton(lPressed, lDown, lReleased, mouse);
+
+                    // 左键单击地面 = 选中部队移动(自研: 原版点击链被 NoClickCameraMove 等补丁拦截, 不再依赖它)
+                    if (!pick && lReleased) HandleLeftClickGround(screen, mouse);
 
                     // 中键: 拖动=旋转视角
                     if (mPressed || mDown || mReleased)
@@ -159,6 +193,7 @@ namespace FeudalInternalAffairs
 
                     bool wasPan = MapBoxSelect.HandleRightButton(rPressed, rDown, rReleased, mouse);
                     if (!rReleased || wasPan) return;
+                    if (pick) return;   // v4.75h: 选国阶段右键单击不做任何菜单/命令
 
                     // 建造模式: 右键单击 = 把方案排队到光标下的领地(设计 10.3)
                     if (BatchBuild.Active)
@@ -206,10 +241,16 @@ namespace FeudalInternalAffairs
                             ArmyPicker.Show(army);
                             return;
                         }
-                        // 多选状态 -> 小队菜单(建立军团)
+                        // 多选状态 -> 小队菜单(建立军团/合并/拆分)
                         if (MapSelection.Count > 1)
                         {
                             MultiSelectMenu.Show();
+                            return;
+                        }
+                        // 单选国防军 -> 国防军菜单(拆分等)
+                        if (MapSelection.Count == 1 && DefArmyMenu.CountSelectedDefLegions() > 0)
+                        {
+                            DefArmyMenu.Show();
                             return;
                         }
                         // 单选(或没选) -> 右键取消选中
@@ -230,6 +271,120 @@ namespace FeudalInternalAffairs
                 }
                 catch (Exception ex) { DLog.Force("鼠标操作异常: " + ex.Message); }
             }
+
+            // 左键单击全处理(自研; 原版点击链被 NoClickCameraMove 等补丁拦截, 不再依赖它):
+            //   点我方部队=选中 / 点敌方=攻击 / 点城市=前往围城或打开抽屉 / 点圈=取消 / 点地面=移动
+            private static void HandleLeftClickGround(MapScreen screen, Vec2 mouse)
+            {
+                try
+                {
+                    if (!NationalWillOrders.IsActive) return;
+                    if (!MapBoxSelect.LastReleaseWasClick) return;
+                    MapBoxSelect.ClearClickFlag();
+                    if (PanelScreen.IsMouseOnPanel()) return;
+                    if (NationalPanel.IsMouseOnFlag()) return;
+                    if (mouse.X < PanelScreen.PanelX) return;    // 左侧导航栏区域
+                    if (mouse.Y < 66f) return;                   // 顶部地图栏区域
+
+                    var vis = screen.CurrentVisualOfTooltip;
+
+                    // v4.98: 军务页"地图点选城市"模式: 左键点地图 = 选中光标下的聚落
+                    // (原版 ProcessTravel 点击链已被拦, 这里自研; 点图标/点附近地面都认)
+                    if (ArmyPanel.IsOpen && ArmyPanel.IsPickingSettlement)
+                    {
+                        try
+                        {
+                            var sv0 = vis as SettlementVisual;
+                            var st0 = sv0 != null && sv0.MapEntity != null ? sv0.MapEntity.Settlement : null;
+                            if (st0 != null) { ArmyPanel.PickSettlement(st0); return; }
+                            var pt0 = MapBoxSelect.CaptureGroundPoint();
+                            if (pt0.z > -5000f)
+                            {
+                                Settlement best = null;
+                                float bd = 120f;
+                                foreach (var x in Settlement.All)
+                                {
+                                    if (x == null) continue;
+                                    float dx = x.Position.X - pt0.x, dy = x.Position.Y - pt0.y;
+                                    float d = (float)Math.Sqrt(dx * dx + dy * dy);
+                                    if (d < bd) { bd = d; best = x; }
+                                }
+                                if (best != null) { ArmyPanel.PickSettlement(best); return; }
+                            }
+                            MapSelection.Message("地图点选: 未命中聚落, 请点击城市图标");
+                        }
+                        catch { }
+                        return;
+                    }
+
+                    // 1) 点部队(优先用光标距离检测, 不依赖原版悬停拾取)
+                    var party = MapBoxSelect.FindPartyAtCursor(60f);
+                    if (party == null)
+                    {
+                        var pv0 = vis as MobilePartyVisual;
+                        if (pv0 != null && pv0.MapEntity != null) party = pv0.MapEntity.MobileParty;
+                    }
+                    DLog.Force("单击: 部队=" + (party != null ? MapSelection.NameOf(party) : "无")
+                        + " 我方=" + (party != null ? NationalWillOrders.IsOurs(party).ToString() : "-")
+                        + " 选中=" + MapSelection.Count
+                        + " tooltip=" + (vis != null ? vis.GetType().Name : "null"));
+                    if (party != null)
+                    {
+                        if (party.IsMainParty) return;
+                        if (NationalWillOrders.IsOurs(party))
+                        {
+                            if (!NationalWillOrders.IsCommandable(party))
+                            {
+                                MapSelection.Message(MapSelection.NameOf(party) + " 是农民/巡逻队伍, 不能指挥");
+                                return;
+                            }
+                            MapSelection.Toggle(party);   // 左键: 单击单选/取消(军团长=整个军团)
+                            return;
+                        }
+                        var sel = MapSelection.Selected;
+                        if (sel != null && NationalWillOrders.IsOurs(sel)) NationalWillOrders.Engage(party);
+                        else MapSelection.Message("先左键选中一支我方部队, 再点击目标下达命令");
+                        return;
+                    }
+
+                    // 2) 点定居点(优先悬停视觉, 失败用地面坐标兜底 12 米内)
+                    var sv = vis as SettlementVisual;
+                    var st2 = sv != null && sv.MapEntity != null ? sv.MapEntity.Settlement : null;
+                    if (st2 == null)
+                    {
+                        var pt2 = MapBoxSelect.CaptureGroundPoint();
+                        if (pt2.z > -5000f)
+                        {
+                            float bd = 12f * 12f;
+                            foreach (var x in Settlement.All)
+                            {
+                                if (x == null) continue;
+                                float dx = x.Position.X - pt2.x, dy = x.Position.Y - pt2.y;
+                                float d = dx * dx + dy * dy;
+                                if (d < bd) { bd = d; st2 = x; }
+                            }
+                        }
+                    }
+                    if (st2 != null)
+                    {
+                        var sel2 = MapSelection.Selected;
+                        if (sel2 != null && NationalWillOrders.IsOurs(sel2)) NationalWillOrders.GoToSettlement(st2);
+                        else GarrisonPanel.Open(st2);   // v4.101: 弹驻军列表
+                        return;
+                    }
+
+                    // 3) 点在选中圈上 = 取消该部队
+                    var ringHit = MapBoxSelect.HitSelectedRing();
+                    if (ringHit != null) { MapSelection.Toggle(ringHit); return; }
+
+                    // 4) 地面 -> 移动选中部队
+                    if (MapSelection.Count == 0) return;
+                    var pt = MapBoxSelect.CaptureGroundPoint();
+                    if (pt.z < -5000f) return;                   // 无效地面点
+                    NationalWillOrders.MoveToPoint(new CampaignVec2(new Vec2(pt.x, pt.y), true));
+                }
+                catch (Exception ex) { DLog.Force("左键点击处理异常: " + ex.Message); }
+            }
         }
 
         // 多选状态下右键部队的小队菜单(目前只有"建立军团")
@@ -243,6 +398,10 @@ namespace FeudalInternalAffairs
                     {
                         new InquiryElement("form_army", "建立军团", null, true, "从选中的部队里挑一位领主建立军团")
                     };
+                    if (DefArmyMenu.CountSelectedDefLegions() >= 2)
+                        options.Add(new InquiryElement("merge_def", "合并国防军", null, true, "把选中的国防军军团合并为一支(多余将军卸任转为 1 名小兵, 免费)"));
+                    if (DefArmyMenu.CountSelectedDefLegions() >= 1)
+                        options.Add(new InquiryElement("split_def", "拆分国防军", null, true, "把兵力最多的一支一分为二(1 名小兵升任将军, 花费 500)"));
                     MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
                         "部队指挥", "已选中 " + MapSelection.Count + " 支部队",
                         options, true, 1, 1, "确定", "取消",
@@ -256,7 +415,10 @@ namespace FeudalInternalAffairs
                 try
                 {
                     if (selected == null || selected.Count == 0) return;
-                    if ((selected[0].Identifier as string) != "form_army") return;
+                    string id = selected[0].Identifier as string;
+                    if (id == "merge_def") { DefArmyMenu.DoMerge(); return; }
+                    if (id == "split_def") { DefArmyMenu.DoSplit(); return; }
+                    if (id != "form_army") return;
                     ShowLeaderPicker();
                 }
                 catch (Exception ex) { DLog.Force("小队菜单选择异常: " + ex.Message); }
@@ -424,6 +586,17 @@ namespace FeudalInternalAffairs
             }
         }
 
+        // v4.79g: 选国阶段右键城市名牌不再打开百科(名牌按钮走 Gauntlet 命令 AlternateClick, 地图点击拦截盖不到)
+        [HarmonyPatch(typeof(SandBox.ViewModelCollection.Nameplate.SettlementNameplateVM), "ExecuteOpenEncyclopedia")]
+        internal static class NoEncyclopediaDuringPick
+        {
+            private static bool Prefix()
+            {
+                try { return !(NationPickMode.Active && !NationalWillOrders.IsActive); }
+                catch { return true; }
+            }
+        }
+
         [HarmonyPatch(typeof(SettlementVisual), "OnMapClick")]
         internal static class SettlementClick
         {
@@ -431,11 +604,25 @@ namespace FeudalInternalAffairs
             {
                 try
                 {
+                    // v4.75: 选国模式: 点定居点 = 点该国领地 -> 右侧国家栏
+                    if (NationPickMode.Active)
+                    {
+                        if (!PanelScreen.IsMouseOnPanel()) NationPickMode.HandleMapClick();
+                        __result = true;
+                        return false;
+                    }
                     if (followModifierUsed || !NationalWillOrders.IsActive) return true;
                     if (MapBoxSelect.BoxVisible) { __result = true; return false; }   // 框选拖动中, 不当点击
                     var settlement = __instance != null && __instance.MapEntity != null ? __instance.MapEntity.Settlement : null;
                     if (settlement == null) return true;
                     __result = true;
+
+                    // 军务页"地图点选城市"待选状态: 点定居点 = 选中该聚落
+                    if (ArmyPanel.IsOpen && ArmyPanel.IsPickingSettlement)
+                    {
+                        ArmyPanel.PickSettlement(settlement);
+                        return false;
+                    }
 
                     // 市场面板处于"本城"待选状态: 点城市 = 选中该城市场(不打开定居点抽屉)
                     if (MarketPanel.IsPickingCity && settlement.IsTown)
@@ -451,8 +638,8 @@ namespace FeudalInternalAffairs
                     }
                     else
                     {
-                        // 没选中部队 -> 打开定居点抽屉(设计 10.1)
-                        SettlementDrawer.Open(settlement);
+                        // 没选中部队 -> 弹驻军列表(v4.101; 里面可点[查看建筑]打开原抽屉)
+                        GarrisonPanel.Open(settlement);
                     }
                     return false;
                 }

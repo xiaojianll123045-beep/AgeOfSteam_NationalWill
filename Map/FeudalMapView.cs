@@ -37,9 +37,20 @@ namespace FeudalInternalAffairs
             {
                 Current = this;
                 DiagFrameTime(dt);   // 帧耗时诊断(定位卡顿)
+                // v4.75j: 每帧推进国家意志初始化(不依赖 CampaignEvents.TickEvent, 它暂停/锁时间时可能不触发)
+                try
+                {
+                    var b = NationalWillOrders.Behavior;
+                    if (b != null) b.DriveSetup();
+                }
+                catch { }
                 MapClickPatches.ArmyRightClickMenu.Tick();
                 MapVisionPatches.TickVisibility(dt);
-                TerritoryColorMode.Tick(dt);
+                NationPickMode.Tick(dt);      // v4.75: 新档选国模式(锁最高视角/锁时间)
+                NationPickPanel.Tick(dt);     // v4.75: 右侧选国侧栏动画
+                StartGameFade.Tick(dt);       // v4.75b: 开始游戏黑屏过渡
+                TerritoryColorMode.Tick(dt);  // 先生成标签数据(用当前相机)
+                FeudalMapLabels.Tick(dt);     // 再同步到标签层(同帧, 消除一帧滞后导致的移动抖动)
                 SettlementDrawer.Tick(dt);
                 BuildPanel.Tick();
                 NationalPanel.Tick(dt);

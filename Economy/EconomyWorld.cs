@@ -133,6 +133,140 @@ namespace FeudalInternalAffairs
             return Buildings.TryGetValue(settlementId, out b) ? b : null;
         }
 
+        // v4.62: 前期起步建筑(用户需求) —— 玩家国家关键建筑缺失时补齐(由 behavior 的 FIA_StarterDone 保证只补一次)
+        // 修复老档升级后"村庄无农田/城镇无建造部门 -> 产出归零 + 无法自建"的经济死锁
+        // v4.63: 增加经济建筑(用户: 多少给点, 别让玩家赤字太狠): 村庄特产资源 + 城镇产业/税务局
+        internal static int StarterFill(TaleWorlds.CampaignSystem.Kingdom pk)
+        {
+            int added = 0;
+            try
+            {
+                if (pk == null) return 0;
+                string[] inds = { "weavery", "brewery", "tannery", "toolshop" };
+                foreach (var s in pk.Settlements)
+                {
+                    if (s == null || string.IsNullOrEmpty(s.StringId)) continue;
+                    var sb = Of(s.StringId);
+                    if (sb == null) continue;
+                    if (s.IsVillage)
+                    {
+                        if (!HasFoodBuilding(sb) && FillOne(sb, s, "farm")) added++;
+                        if (FillOne(sb, s, "lumberjack")) added++;
+                        if (FillOne(sb, s, "charcoal_kiln")) added++;   // v4.64: 炭窑(铁链燃料)
+                        try
+                        {
+                            string res = PresetResourceForVillage(s.Village);
+                            if (res != "farm" && FillOne(sb, s, res)) added++;
+                        }
+                        catch { }
+                    }
+                    else if (s.IsTown)
+                    {
+                        if (FillOne(sb, s, "builder")) added++;
+                        if (FillOne(sb, s, "market")) added++;
+                        if (FillOne(sb, s, "tax_office")) added++;
+                        if (!HasIndustryBuilding(sb))
+                        {
+                            int h = (s.StringId.GetHashCode() & 0x7fffffff);
+                            if (FillOne(sb, s, inds[h % inds.Length])) added++;
+                        }
+                        // v4.65: 补铁链与布链的加工环节(用户: 工具/武器/布 还是 0 产出 -> 缺炼铁厂/工具坊/纺织厂)
+                        if (FillOne(sb, s, "ironworks")) added++;
+                        if (FillOne(sb, s, "toolshop")) added++;
+                        if (FillOne(sb, s, "weavery")) added++;
+                        // v4.66: 武器/盔甲作坊(用户: 武器还没有产出)
+                        if (FillOne(sb, s, "weaponsmith")) added++;
+                        if (FillOne(sb, s, "armorsmith")) added++;
+                    }
+                    else if (s.IsCastle)
+                    {
+                        if (FillOne(sb, s, "builder")) added++;
+                        if (FillOne(sb, s, "tax_office")) added++;
+                    }
+                }
+            }
+            catch (Exception ex) { DLog.Force("起步建筑补发异常: " + ex.Message); }
+            return added;
+        }
+
+        private static bool HasIndustryBuilding(SettlementBuildings sb)
+        {
+            try
+            {
+                for (int i = 0; i < sb.Groups.Count; i++)
+                {
+                    var g = sb.Groups[i];
+                    if (g == null || g.Count <= 0) continue;
+                    var def = BuildDefs.Get(g.DefId);
+                    if (def != null && def.Cat == BuildCat.Industry) return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        // 村庄特产 -> 预置资源建筑(按 VillageType.StringId 判断; v4.63 从 EconomyBehavior 移来共用)
+        internal static string PresetResourceForVillage(TaleWorlds.CampaignSystem.Settlements.Village v)
+        {
+            try
+            {
+                if (v == null || v.VillageType == null) return "farm";
+                string t = v.VillageType.StringId ?? "";
+                if (t.Contains("wheat")) return "farm";
+                if (t.Contains("lumber")) return "lumberjack";
+                if (t.Contains("iron")) return "mine_iron";
+                if (t.Contains("silver")) return "mine_silver";
+                if (t.Contains("salt") || t.Contains("clay")) return "mine_clay_salt";
+                if (t.Contains("fish")) return "fishery";
+                if (t.Contains("vineyard") || t.Contains("date") || t.Contains("olive")
+                    || t.Contains("silk") || t.Contains("flax")) return "specialty_farm";
+                if (t.Contains("cattle") || t.Contains("sheep") || t.Contains("swine")
+                    || t.Contains("trapper") || t.Contains("horse")) return "pasture";
+                return "farm";
+            }
+            catch { return "farm"; }
+        }
+
+        private static bool HasFoodBuilding(SettlementBuildings sb)
+        {
+            try
+            {
+                for (int i = 0; i < sb.Groups.Count; i++)
+                {
+                    var g = sb.Groups[i];
+                    if (g == null || g.Count <= 0) continue;
+                    var def = BuildDefs.Get(g.DefId);
+                    if (def == null) continue;
+                    for (int j = 0; j < def.Outputs.Count; j++)
+                    {
+                        var o = def.Outputs[j];
+                        if (o != null && o.Good != null
+                            && (o.Good == FeudalGoods.Grain || o.Good == FeudalGoods.Fish || o.Good == FeudalGoods.Meat)) return true;
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static bool FillOne(SettlementBuildings sb, TaleWorlds.CampaignSystem.Settlements.Settlement s, string defId)
+        {
+            try
+            {
+                var def = BuildDefs.Get(defId);
+                if (def == null || def.IsEffect) return false;
+                if (!BuildDefs.AllowedAt(def, s.IsVillage, s.IsCastle, s.IsTown)) return false;
+                if (sb.Find(defId) != null) return false;   // 已有 -> 不动
+                int limit = BuildingRules.SlotLimit(s.IsTown, s.IsCastle,
+                    s.Town != null ? (int)s.Town.Prosperity : 0,
+                    s.Village != null ? (int)s.Village.Hearth : 0);
+                if (sb.BuiltCount + sb.Queue.Count >= limit) return false;
+                sb.Groups.Add(new BuildingGroup(defId, 1, BuildMode.Wood));
+                return true;
+            }
+            catch { return false; }
+        }
+
         internal static TownMarket MarketOf(string townId)
         {
             if (string.IsNullOrEmpty(townId)) return null;

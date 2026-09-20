@@ -54,6 +54,7 @@ namespace FeudalInternalAffairs
             try
             {
                 if (vm == null || !NationalWillOrders.ShouldControlCamera) return;
+                if (NationPickMode.Active) return;   // v4.75e: 选国阶段不加国策按钮
                 var items = vm.NavigationItems;
                 if (items == null) return;
 

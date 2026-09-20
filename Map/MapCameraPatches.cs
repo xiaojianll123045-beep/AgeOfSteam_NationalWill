@@ -26,6 +26,12 @@ namespace FeudalInternalAffairs
                 {
                     var behavior = NationalWillOrders.Behavior;
                     if (behavior == null || !NationalWillOrders.ShouldControlCamera) return;
+                    // v4.75f: 选国阶段 -> 居中地图中心(只做一次); 已接管 -> 居中版图中心(只做一次)
+                    if (NationPickMode.Active)
+                    {
+                        NationPickMode.CenterOnMapCenterOnce();
+                        return;
+                    }
                     NationalWillCamera.CenterOnKingdomOnce(behavior.NationKingdom);
                 }
                 catch { }
@@ -65,6 +71,7 @@ namespace FeudalInternalAffairs
 
         // 原版右键拖动=旋转地图, 我们改成平移地图(由 MapBoxSelect 自己实现) -> 关掉原版旋转
         // 注意: 右键不再旋转, 旋转改由中键接管(中键按住时才允许原版旋转)
+        // v4.75h: 门控统一为 ShouldControlCamera(选国阶段也用同一套鼠标机制)
         [HarmonyPatch(typeof(MapCameraView), "HandleMouse")]
         internal static class NoManualRotation
         {
@@ -72,7 +79,7 @@ namespace FeudalInternalAffairs
             {
                 try
                 {
-                    if (!NationalWillOrders.IsActive) return;
+                    if (!NationalWillOrders.ShouldControlCamera) return;
                     rightMouseButtonPressed = TaleWorlds.InputSystem.Input.IsKeyDown(
                         TaleWorlds.InputSystem.InputKey.MiddleMouseButton);
                 }
@@ -90,7 +97,7 @@ namespace FeudalInternalAffairs
             {
                 try
                 {
-                    if (!NationalWillOrders.IsActive) return;
+                    if (!NationalWillOrders.ShouldControlCamera) return;   // v4.75h: 选国阶段同用
                     if (!_leftButtonDraggingMode) return;
                     _leftButtonDraggingMode = false;
                     if (!_logged)
@@ -119,7 +126,7 @@ namespace FeudalInternalAffairs
             {
                 try
                 {
-                    if (!NationalWillOrders.IsActive) return;
+                    if (!NationalWillOrders.ShouldControlCamera) return;   // v4.75h: 选国阶段同用
 
                     // 中键: 一律禁掉原版中键行为(缩放); 拖动时重定向成原版右键(旋转)
                     if (inputInformation.MiddleMouseButtonDown)

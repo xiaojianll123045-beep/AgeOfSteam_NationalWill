@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.SaveSystem;
@@ -13,6 +14,7 @@ namespace FeudalInternalAffairs
         private string _warDairy = "";   // AI 外交: 战争开始日/停战日(第 21 章后的外交补全)
         private string _diploPlay = "";  // 第 22 章: 外交博弈存档
         private bool _empireAllianceDone;
+        private int _lastDay = -9999;   // 上次日结日(读档补结算 + 同日去重)
         private static bool _joiningWar;
 
         // 同盟参战/同步宣战时置 true(绕过"NoAiControlPatches 禁止 AI 宣战"的拦截)
@@ -20,6 +22,11 @@ namespace FeudalInternalAffairs
 
         // 双方表决通过后执行停战时置 true(绕过"NoAiControlPatches 禁止 AI 和谈"的拦截)
         internal static bool ForcingPeace;
+
+        // 延迟执行队列: 在事件回调里直接做事会形成嵌套事件(原版会原生崩溃),
+        // 统一排队到每帧 Tick 里在事件之外执行
+        private static readonly List<Kingdom[]> _pendingAllyWar = new List<Kingdom[]>();
+        private static readonly List<Kingdom[]> _pendingPeaceSettle = new List<Kingdom[]>();
 
         internal DiplomacyBehavior() { Current = this; }
 
@@ -31,6 +38,7 @@ namespace FeudalInternalAffairs
             CampaignEvents.OnAllianceStartedEvent.AddNonSerializedListener(this, OnAllianceStarted);
             CampaignEvents.OnAllianceEndedEvent.AddNonSerializedListener(this, OnAllianceEnded);
             CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, OnDailyTick);
+            CampaignEvents.TickEvent.AddNonSerializedListener(this, OnTick);
             CampaignEvents.OnNewGameCreatedEvent.AddNonSerializedListener(this, OnNewGameCreated);
             CampaignEvents.OnGameLoadedEvent.AddNonSerializedListener(this, OnGameLoaded);
         }
@@ -44,13 +52,17 @@ namespace FeudalInternalAffairs
                     _relations = Diplomacy.Save();
                     _warDairy = AiDiplomacy.Save();
                     _diploPlay = DiploPlays.Save();
+                    SyncChunks.Save(dataStore, "FIA_Diplomacy", _relations);
+                    SyncChunks.Save(dataStore, "FIA_WarDairy", _warDairy);
+                    SyncChunks.Save(dataStore, "FIA_DiploPlay", _diploPlay);
                 }
-                dataStore.SyncData("FIA_Diplomacy", ref _relations);
-                dataStore.SyncData("FIA_WarDairy", ref _warDairy);
-                dataStore.SyncData("FIA_DiploPlay", ref _diploPlay);
                 dataStore.SyncData("FIA_EmpireAlliance", ref _empireAllianceDone);
+                dataStore.SyncData("FIA_DipDay", ref _lastDay);
                 if (dataStore.IsLoading)
                 {
+                    _relations = SyncChunks.Load(dataStore, "FIA_Diplomacy");
+                    _warDairy = SyncChunks.Load(dataStore, "FIA_WarDairy");
+                    _diploPlay = SyncChunks.Load(dataStore, "FIA_DiploPlay");
                     Diplomacy.Load(_relations);
                     AiDiplomacy.Load(_warDairy);
                     DiploPlays.Load(_diploPlay);
@@ -70,7 +82,9 @@ namespace FeudalInternalAffairs
             try
             {
                 EnsureEmpireAlliance();
-                AiDiplomacy.CleanNativeWarPeaceDecisions();   // 清掉旧存档里的原版战争/和平决议
+                AiDiplomacy.CleanNativeWarPeaceDecisions();   // (已停用, 保留调用)
+                // 读档后立即补结算一次(外交漂移/同盟同步/博弈推进)
+                try { _lastDay = -9999; OnDailyTick(); } catch { }
             }
             catch { }
         }
@@ -137,35 +151,67 @@ namespace FeudalInternalAffairs
             catch (Exception ex) { DLog.Force("宣战处理异常: " + ex.Message); }
         }
 
-        // 同盟参战: 被宣战方的盟友一起对宣战方宣战(设计需求)
+        // 同盟参战: 被宣战方的盟友一起对宣战方宣战(设计需求) —— 只入队, 在 Tick 里延迟执行(防嵌套事件崩溃)
         private void CallAlliesToWar(Kingdom attacker, Kingdom defender)
         {
-            if (_joiningWar) return;
             try
             {
-                _joiningWar = true;
-                var playerKingdom = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                int queued = 0;
                 foreach (var ally in Kingdom.All)
                 {
                     if (ally == null || ally == attacker || ally == defender) continue;
                     if (!Diplomacy.IsAlly(ally, defender)) continue;
                     if (ally.IsAtWarWith(attacker)) continue;
+                    _pendingAllyWar.Add(new[] { ally, attacker, defender });
+                    queued++;
+                }
+                if (queued > 0) DLog.Force("同盟参战: 已排队 " + queued + " 个盟友(下一帧执行)");
+            }
+            catch { }
+        }
+
+        // 每帧: 处理延迟队列(同盟参战 / 和平诉求兑现) —— 必须在事件回调之外执行
+        private void OnTick(float dt)
+        {
+            try
+            {
+                // 同盟参战: 每次最多 2 条, 避免单帧连锁过猛
+                for (int n = 0; n < 2 && _pendingAllyWar.Count > 0; n++)
+                {
+                    var item = _pendingAllyWar[0];
+                    _pendingAllyWar.RemoveAt(0);
+                    var ally = item[0]; var attacker = item[1]; var defender = item[2];
+                    if (ally == null || attacker == null || ally.IsEliminated) continue;
+                    bool atWar = false;
+                    try { atWar = ally.IsAtWarWith(attacker); } catch { }
+                    if (atWar) continue;
+                    if (!Diplomacy.IsAlly(ally, defender)) continue;
                     try
                     {
                         AllyForcingWar = true;
                         try { DeclareWarAction.ApplyByDefault(ally, attacker); }
                         finally { AllyForcingWar = false; }
-                        DLog.Force("同盟参战: " + ally.Name + " 因同盟 " + defender.Name + " 被入侵, 对 " + attacker.Name + " 宣战");
-                        if (ally == playerKingdom || defender == playerKingdom)
-                        {
+                        DLog.Force("同盟参战: " + ally.Name + " 因同盟 " + (defender.Name != null ? defender.Name.ToString() : "?")
+                            + " 被入侵, 对 " + attacker.Name + " 宣战");
+                        var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                        if (ally == pk || defender == pk)
                             MapSelection.Message("同盟参战: " + ally.Name + " 加入了对 " + attacker.Name + " 的战争");
-                        }
                     }
                     catch (Exception ex) { DLog.Info("盟友参战失败 " + ally.Name + ": " + ex.Message); }
                 }
+                // 和平诉求兑现(割地/赔款/附庸等): 延后到事件之外执行
+                if (_pendingPeaceSettle.Count > 0)
+                {
+                    var item = _pendingPeaceSettle[0];
+                    _pendingPeaceSettle.RemoveAt(0);
+                    try { DiploPlays.OnPeace(item[0], item[1]); }
+                    catch (Exception ex) { DLog.Force("和平诉求兑现失败: " + ex.Message); }
+                }
+                // v4.57: 跨日兜底 -> 即使 DailyTickEvent 未触发也能结算(内部有 _lastDay 去重)
+                int dayNow = (int)CampaignTime.Now.ToDays;
+                if (dayNow != _lastDay) OnDailyTick();
             }
             catch { }
-            finally { _joiningWar = false; }
         }
 
         // ---- 和谈: 关系 +25 ----
@@ -179,7 +225,7 @@ namespace FeudalInternalAffairs
                 int before = Diplomacy.Get(a, b);
                 Diplomacy.Change(a, b, Diplomacy.PeaceBonus);
                 AiDiplomacy.NotePeace(a, b);
-                DiploPlays.OnPeace(a, b);   // 第 22 章: 按战争表现执行诉求
+                _pendingPeaceSettle.Add(new[] { a, b });   // 诉求兑现延后到事件之外(防嵌套事件崩溃)
                 DLog.Force("外交: " + a.Name + " 与 " + b.Name + " 停战, 关系 " + before + " -> " + Diplomacy.Get(a, b));
             }
             catch (Exception ex) { DLog.Force("和谈处理异常: " + ex.Message); }
@@ -214,6 +260,9 @@ namespace FeudalInternalAffairs
         {
             try
             {
+                int dayNow = (int)TaleWorlds.CampaignSystem.CampaignTime.Now.ToDays;
+                if (dayNow == _lastDay) return;
+                _lastDay = dayNow;
                 Diplomacy.DailyDrift();
                 SyncAllyWars();
                 AiDiplomacy.CleanNativeWarPeaceDecisions();   // 兜底: 拦住的原版决议若还挂在队列里, 每天清一次
@@ -302,6 +351,7 @@ namespace FeudalInternalAffairs
 
                 var ourSide = Diplomacy.SideOf(pk);
                 var enemySide = Diplomacy.SideOf(target);
+                WarWeariness.NotePlayerTriedPeace(target);   // v4.73: 玩家主动推动和谈(持续忽略判定用)
 
                 // 第一关: 我方联盟(本国+盟国)领主表决, 严格多数 > 50%
                 int y1, t1, d1;
@@ -320,7 +370,9 @@ namespace FeudalInternalAffairs
                 if (!ok2)
                 {
                     Diplomacy.SetPeaceCooldown(target.StringId, 7);
-                    MapSelection.Message("和谈被对方联盟否决(我方 " + y1 + "/" + t1 + " 通过, 对方 " + y2 + "/" + t2 + "), 7 天内不能再次发起");
+                    WarWeariness.NotePlayerPeaceRefused(target);   // v4.73: 我方减免(努力过了), 拒绝方惩罚
+                    MapSelection.Message("和谈被对方联盟否决(我方 " + y1 + "/" + t1 + " 通过, 对方 " + y2 + "/" + t2
+                        + ") — 你方厌战得到缓解, 对方厌战上升(对方厌战 " + (int)WarWeariness.WearOf(target, pk) + ")");
                     DLog.Force("和谈否决(对方): " + y2 + "/" + t2);
                     return false;
                 }
@@ -343,6 +395,7 @@ namespace FeudalInternalAffairs
                 finally { ForcingPeace = false; }
 
                 MapSelection.Message("和谈成功: 我方 " + y1 + "/" + t1 + " · 对方 " + y2 + "/" + t2 + " 赞成");
+                WarWeariness.OnPeace(pk, target);   // v4.73: 停战 -> 双方厌战大降
                 DLog.Force("和谈成功: 我方 " + y1 + "/" + t1 + " 对方 " + y2 + "/" + t2);
                 return true;
             }

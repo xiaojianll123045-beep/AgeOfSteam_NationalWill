@@ -47,12 +47,19 @@ namespace FeudalInternalAffairs
                     if (_flagLayer != null) CloseFlagLayer();
                     return;
                 }
-                if (_flagLayer != null) return;
+                if (_flagLayer != null)
+                {
+                    if (ReferenceEquals(_map, map)) return;   // 同一个地图屏, 层有效
+                    // 地图屏被重建(游戏内读档等) -> 旧层随旧屏失效, 重建
+                    DLog.Force("国家面板: 地图屏已重建, 重新挂国旗");
+                    CloseFlagLayer();
+                }
                 if (!NationalWillOrders.ShouldControlCamera) return;
+                if (NationPickMode.Active) return;   // v4.75e: 选国阶段不显示国旗
 
                 _flagVm = new NationalPanelVM();
                 _flagVm.OnOpenRequested = OpenSidebar;   // 国旗层不自己开面板, 一律走屏幕
-                _flagLayer = new GauntletLayer("FeudalNationalFlag", 305, false);
+                _flagLayer = new GauntletLayer("FeudalNationalFlag", 344, false);   // v4.75o: 高于国名标签(335)
                 _flagLayer.LoadMovie("FeudalNational", _flagVm);
                 map.AddLayer(_flagLayer);
                 _map = map;

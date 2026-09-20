@@ -19,6 +19,7 @@ namespace FeudalInternalAffairs
         internal static float BoxHeight;
 
         private static bool _dragging;
+        private static bool _leftDown;          // v4.75l: 左键按住中(按下即关相机输入, 根除框选起手漏帧)
         private static Vec2 _startPixel;
         private static Vec2 _lastPanPixel;
         private static bool _panning;
@@ -28,6 +29,59 @@ namespace FeudalInternalAffairs
         private static bool _relLogged;
         private static float _panAccum;
         private static bool _viewNullLogged;
+        private static bool _camInputOn = true;
+
+        // 上一次左键释放是否为"单击"(非框选拖动) —— 供自研的"点击地面=部队移动"使用
+        internal static bool LastReleaseWasClick;
+        internal static void ClearClickFlag() { LastReleaseWasClick = false; }
+
+        // 鼠标光标附近找一支部队(不依赖原版悬停拾取; 遍历部队名板位置)
+        internal static MobileParty FindPartyAtCursor(float maxPx)
+        {
+            try
+            {
+                var mixin = PartyNameplatesVMMixin.Instance;
+                var mgr = mixin != null ? mixin.Manager : null;
+                if (mgr == null || mgr.Nameplates == null) return null;
+                var m = TaleWorlds.InputSystem.Input.MousePositionPixel;
+                MobileParty best = null;
+                float bestD = maxPx * maxPx;
+                foreach (var np in mgr.Nameplates)
+                {
+                    if (np == null || np.Party == null) continue;
+                    var pos = np.Position;   // 名板左上角
+                    float cx = pos.X + 60f, cy = pos.Y + 20f;
+                    float d1 = (pos.X - m.X) * (pos.X - m.X) + (pos.Y - m.Y) * (pos.Y - m.Y);
+                    float d2 = (cx - m.X) * (cx - m.X) + (cy - m.Y) * (cy - m.Y);
+                    float d = Math.Min(d1, d2);
+                    if (d < bestD) { bestD = d; best = np.Party; }
+                }
+                return best;
+            }
+            catch { return null; }
+        }
+
+        internal static bool IsDragging { get { return _dragging; } }
+
+        // 每帧兜底: 若不在框选拖动中而相机输入被关过, 立刻恢复
+        // (原版 "ProcessCameraInput==false 会跳过 ProcessTravel" -> 会吞掉左键指挥移动)
+        internal static void EnsureCameraInputOn()
+        {
+            if (_camInputOn) return;
+            if (_leftDown)
+            {
+                // v4.80: 自愈 —— 左键按下标记残留(释放帧丢失, 如角色创建切地图的一帧)会导致
+                //       相机输入永久关闭(WASD 失灵), 直到下一次完整点击才恢复。
+                //       这里用物理键状态校正: 键已松开就复位标记并恢复输入。
+                bool physicallyDown = false;
+                try { physicallyDown = TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton); } catch { }
+                if (physicallyDown) return;
+                _leftDown = false;
+                DLog.Force("框选: 检测到左键释放帧丢失, 自动复位(相机输入恢复)");
+            }
+            SetCameraInput(true);
+            DLog.Force("框选: 相机输入已自动恢复(防吞左键指挥)");
+        }
 
         // 返回 true = 这次左键算"拖框"(不要当点击处理)
         internal static bool HandleLeftButton(bool pressed, bool down, bool released, Vec2 mouse)
@@ -38,9 +92,12 @@ namespace FeudalInternalAffairs
                 {
                     _startPixel = mouse;
                     _dragging = false;
-                    // 注意: 不能在这里关相机输入! 原版 HandleLeftMouseButtonClick 里
-                    // "ProcessCameraInput == false -> 跳过 ProcessTravel", 会把左键指挥移动一起吞掉。
-                    // 只在真正进入框选拖动时才关。
+                    _leftDown = true;
+                    // v4.75l: 按下瞬间就关掉原版相机输入 -> 根除"框选起手一瞬间移动屏幕"老 bug
+                    // (原版判定"左键拖动平移"比我们的 20px 框选阈值更早, 关晚了会漏 1-2 帧真实位移;
+                    //  点击链已全部由自研逻辑兜底: 选国 HandlePickClick / 接管后 HandleLeftClickGround,
+                    //  不再依赖原版 ProcessTravel 的点击移动)
+                    SetCameraInput(false);
                     return false;
                 }
 
@@ -53,7 +110,6 @@ namespace FeudalInternalAffairs
                         if (dx * dx + dy * dy > 400f)   // 20 像素以上算拖动
                         {
                             _dragging = true;
-                            SetCameraInput(false);   // 开始框选 -> 关掉相机输入(防原版拖动平移泄漏)
                         }
                     }
                     if (_dragging)
@@ -71,12 +127,14 @@ namespace FeudalInternalAffairs
                 if (released)
                 {
                     bool wasDragging = _dragging;
+                    LastReleaseWasClick = !wasDragging;
                     if (wasDragging)
                     {
                         SelectInBox();
                         BoxVisible = false;
                         _dragging = false;
                     }
+                    _leftDown = false;
                     SetCameraInput(true);   // 松开恢复相机输入
                     return wasDragging;
                 }
@@ -89,8 +147,10 @@ namespace FeudalInternalAffairs
         {
             try
             {
+                _camInputOn = enabled;
                 var view = NationalWillCamera.View;
                 if (view != null) NationalWillCamera.SetProcessCameraInput(view, enabled);
+                else DLog.Force("框选: 设置相机输入(" + enabled + ") 失败: 视图为空");
             }
             catch { }
         }
@@ -110,6 +170,7 @@ namespace FeudalInternalAffairs
         // 右键按下瞬间取得的地面点(原版左键拖动的对准点, 拖动期间固定不变)
         internal static Vec3 PressGround;
         private static bool _havePrev;
+        private static int _moveLog;
 
         // 右键拖动 = 平移地图: 让"按下时抓住的地面点"一直跟在光标下(1:1 跟手, 与原版左键拖动一致)
         // 原理: 目标点 T 修正 -(G - W), G=当前光标地面点, W=按下时抓住的点;
@@ -121,7 +182,22 @@ namespace FeudalInternalAffairs
                 var view = NationalWillCamera.View;
                 if (view == null) return;
                 var cur = CaptureGroundPoint();
-                if (cur.Length < 0.001f) return;
+                // v4.79j: 场景未就绪(射线取不到地面点)时回退为"鼠标位移平移" -> 开局即可拖动地图
+                if (cur.Length < 0.001f || PressGround.Length < 0.001f)
+                {
+                    float mx = TaleWorlds.InputSystem.Input.MouseMoveX;
+                    float my = TaleWorlds.InputSystem.Input.MouseMoveY;
+                    if (Math.Abs(mx) > 0.01f || Math.Abs(my) > 0.01f)
+                    {
+                        PanBy(-mx, -my);   // 方向与"抓取跟手"一致(拖右 -> 目标左移)
+                        if (!_panLogged)
+                        {
+                            _panLogged = true;
+                            DLog.Force("右键平移: 射线未就绪, 回退位移平移(开局可用)");
+                        }
+                    }
+                    return;
+                }
                 if (!_havePrev)
                 {
                     _havePrev = true;
@@ -132,12 +208,28 @@ namespace FeudalInternalAffairs
                     }
                     return;
                 }
-                if (PressGround.Length < 0.001f) return;
                 var target = NationalWillCamera.GetIdealTarget(view);
-                target.x -= (cur.x - PressGround.x);
-                target.y -= (cur.y - PressGround.y);
+                float dx = cur.x - PressGround.x;
+                float dy = cur.y - PressGround.y;
+                target.x -= dx;
+                target.y -= dy;
                 NationalWillCamera.SetIdealTarget(view, target);
                 NationalWillCamera.SetCameraTarget(view, target);   // 立即跟手
+                // v4.80: 限频日志 + 读回校验(诊断"设置了目标但画面不动")
+                _moveLog++;
+                if (_moveLog % 30 == 0)
+                {
+                    var back = NationalWillCamera.GetIdealTarget(view);
+                    var cam = NationalWillCamera.GetCameraTargetValue(view);
+                    var mp = TaleWorlds.InputSystem.Input.MousePositionPixel;
+                    DLog.Force("右键平移: 修正=(" + dx.ToString("F1") + "," + dy.ToString("F1") + ") 写入=("
+                        + target.x.ToString("F0") + "," + target.y.ToString("F0") + ") 读回=("
+                        + back.x.ToString("F0") + "," + back.y.ToString("F0") + ") 相机=("
+                        + cam.x.ToString("F0") + "," + cam.y.ToString("F0") + ") 鼠标=("
+                        + mp.X.ToString("F0") + "," + mp.Y.ToString("F0") + ") 抓取点=("
+                        + PressGround.x.ToString("F0") + "," + PressGround.y.ToString("F0") + ") 当前点=("
+                        + cur.x.ToString("F0") + "," + cur.y.ToString("F0") + ")");
+                }
             }
             catch { }
         }

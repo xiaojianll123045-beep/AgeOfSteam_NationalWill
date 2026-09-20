@@ -1,0 +1,62 @@
+﻿<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+      <Children>
+        <TextWidget DataSource="{L0}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" DoNotAcceptEvents="true"
+                    PositionXOffset="@LabelX" PositionYOffset="@LabelY"
+                    Brush="MapTextBrushGal" Brush.FontSize="@LabelFontSize" Brush.FontColor="@LabelColor" Text="@LabelText" />
+        <TextWidget DataSource="{L1}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" DoNotAcceptEvents="true"
+                    PositionXOffset="@LabelX" PositionYOffset="@LabelY"
+                    Brush="MapTextBrushGal" Brush.FontSize="@LabelFontSize" Brush.FontColor="@LabelColor" Text="@LabelText" />
+        <TextWidget DataSource="{L2}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" DoNotAcceptEvents="true"
+                    PositionXOffset="@LabelX" PositionYOffset="@LabelY"
+                    Brush="MapTextBrushGal" Brush.FontSize="@LabelFontSize" Brush.FontColor="@LabelColor" Text="@LabelText" />
+        <TextWidget DataSource="{L3}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" DoNotAcceptEvents="true"
+                    PositionXOffset="@LabelX" PositionYOffset="@LabelY"
+                    Brush="MapTextBrushGal" Brush.FontSize="@LabelFontSize" Brush.FontColor="@LabelColor" Text="@LabelText" />
+        <TextWidget DataSource="{L4}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" DoNotAcceptEvents="true"
+                    PositionXOffset="@LabelX" PositionYOffset="@LabelY"
+                    Brush="MapTextBrushGal" Brush.FontSize="@LabelFontSize" Brush.FontColor="@LabelColor" Text="@LabelText" />
+        <TextWidget DataSource="{L5}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" DoNotAcceptEvents="true"
+                    PositionXOffset="@LabelX" PositionYOffset="@LabelY"
+                    Brush="MapTextBrushGal" Brush.FontSize="@LabelFontSize" Brush.FontColor="@LabelColor" Text="@LabelText" />
+        <TextWidget DataSource="{L6}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" DoNotAcceptEvents="true"
+                    PositionXOffset="@LabelX" PositionYOffset="@LabelY"
+                    Brush="MapTextBrushGal" Brush.FontSize="@LabelFontSize" Brush.FontColor="@LabelColor" Text="@LabelText" />
+        <TextWidget DataSource="{L7}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" DoNotAcceptEvents="true"
+                    PositionXOffset="@LabelX" PositionYOffset="@LabelY"
+                    Brush="MapTextBrushGal" Brush.FontSize="@LabelFontSize" Brush.FontColor="@LabelColor" Text="@LabelText" />
+        <TextWidget DataSource="{L8}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" DoNotAcceptEvents="true"
+                    PositionXOffset="@LabelX" PositionYOffset="@LabelY"
+                    Brush="MapTextBrushGal" Brush.FontSize="@LabelFontSize" Brush.FontColor="@LabelColor" Text="@LabelText" />
+
+        <!-- v4.79c: 选国阶段遮挡原版时间盘 —— 风格化提示横幅(宽度按文字动态计算), 接管后自动隐藏 -->
+        <!-- v4.82: 背景为普通 Widget + CanAcceptEvents="true" 参与命中测试(拦住时间盘悬停);
+                  不用 ButtonWidget(会套默认按钮笔刷外观, 深色背景被盖成米色) -->
+        <Widget IsVisible="@HideTimePanel" WidthSizePolicy="Fixed" SuggestedWidth="@PanelWidth" HeightSizePolicy="Fixed" SuggestedHeight="108"
+                HorizontalAlignment="Center" VerticalAlignment="Bottom">
+          <Children>
+            <Widget CanAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    Sprite="BlankWhiteSquare" Color="#100C08FF" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="7" MarginRight="7" MarginTop="7" MarginBottom="7" Sprite="BlankWhiteSquare" Color="#C9A22738" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#E8D9B5FF"
+                        Text="点击地图上的领地查看国家 · 选好后点下方按钮正式开始" />
+          </Children>
+        </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

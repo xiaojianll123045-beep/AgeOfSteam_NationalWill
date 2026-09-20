@@ -23,10 +23,15 @@ namespace FeudalInternalAffairs
                 var patches = new List<Type>
                 {
                     typeof(StageSkipPatches.StageSkip),
+                    typeof(StageSkipPatches.SkipCultureStage.NextStagePatch),
+                    typeof(IntroSkipPatches.SkipStartupVideo),
+                    typeof(IntroSkipPatches.SkipCampaignIntro),
                     typeof(NationSelectionPatches.NationList),
                     typeof(NationSelectionPatches.NationSelect),
                     typeof(MapBarPatches.MapBarHidePatch),
                     typeof(MapBarPatches.MapBarHideTickPatch),
+                    typeof(MapBarPatches.MapBarVMDressHideTick),
+                    typeof(MapBarPatches.MapBarVMDressHideRefresh),
                     typeof(FocusTreeMapGuardPatch.SkipMapVisualTick),
                     typeof(FeudalMapViewPatch),
                     typeof(FocusTreeMapGuardPatch.BlockMapNavigationInput),
@@ -51,6 +56,7 @@ namespace FeudalInternalAffairs
                     typeof(MapClickPatches.GroundClick),
                     typeof(MapClickPatches.PartyClick),
                     typeof(MapClickPatches.SettlementClick),
+                    typeof(MapClickPatches.NoEncyclopediaDuringPick),
                     typeof(MapClickPatches.NoClickTimeChange),
                     typeof(MapVisionPatches.NationalWillVision),
                     typeof(SettlementNameplateRelationPatch.SyncOnRefreshValues),
@@ -78,8 +84,13 @@ namespace FeudalInternalAffairs
                     typeof(HidePlayerPartyRow.RemovePlayerPartyRow),
                     typeof(NationalWillClan.ZombieClanKingdomPatch),
                     typeof(NoAiControlPatches.BlockAiArmy),
+                    // 注意: BlockWarPeaceDecision(拦截 Kingdom.AddDecision) 会破坏原版决策系统(投票后崩溃), 已停用;
+                    //       战争/和平仍在动作层拦截(BlockDeclareWar / BlockMakePeace), 效果相同且安全
+                    //typeof(NoAiControlPatches.BlockWarPeaceDecision),
                     typeof(NoAiControlPatches.BlockDeclareWar),
                     typeof(NoAiControlPatches.BlockMakePeace),
+                    typeof(DefArmyPatches.PartySizeLimitPatch),
+                    typeof(DefArmyPatches.SpeedLockPatch),
                     typeof(DiplomacyPatches.AlwaysCanDeclareWar),
                     typeof(DiplomacyPatches.DeclareWarDirectly),
                     typeof(DiplomacyPatches.PeaceByEnemyVote),
@@ -106,7 +117,13 @@ namespace FeudalInternalAffairs
                     typeof(ProductionTakeover.SkipVillageFood),
                     typeof(ProductionTakeover.FoodRatio),
                     typeof(ProductionTakeover.TownFoodSource),
-                    typeof(MessageListShift)
+                    typeof(MessageListShift),
+                    typeof(PanelInputGuard.ChatLogHandleInputPatch),
+                    typeof(PanelInputGuard.InputEnterPressedPatch),
+                    typeof(PanelInputGuard.InputEnterReleasedPatch),
+                    typeof(NotificationFilter.DisplayMessageFilter),
+                    typeof(DefArmyAi.AiGuard),
+                    typeof(DefArmyAi.NoAutoRecruit)
                 };
                 int ok = 0;
                 foreach (var t in patches)
@@ -165,7 +182,8 @@ namespace FeudalInternalAffairs
                     starter.AddBehavior(new NationalWillBehavior());
                     starter.AddBehavior(new EconomyBehavior());
                     starter.AddBehavior(new DiplomacyBehavior());
-                    DLog.Info("已注册 NationalWillBehavior / EconomyBehavior / DiplomacyBehavior");
+                    starter.AddBehavior(new DefArmyBehavior());
+                    DLog.Info("已注册 NationalWillBehavior / EconomyBehavior / DiplomacyBehavior / DefArmyBehavior");
                 }
             }
             catch (Exception ex) { DLog.Force("OnGameStart 异常: " + ex.Message); }

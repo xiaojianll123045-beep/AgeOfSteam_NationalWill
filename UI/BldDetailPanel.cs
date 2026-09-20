@@ -57,6 +57,8 @@ namespace FeudalInternalAffairs
                 float sh = PanelScreen.ScreenHeight();
                 PanelScreen.AddSpot(Width - 60f, 20f, 60f, 58f, _vm.ExecuteClose);          // X
                 PanelScreen.AddSpot(26f, sh - 26f - 42f, 122f, 42f, _vm.ExecuteClose);     // 关闭
+                // v4.58: 点标题栏(城市名) -> 视野飞到该城
+                PanelScreen.AddSpot(14f, 14f, 500f, 62f, _vm.FlyToCity);
                 // 按钮行(与 FeudalBldDetail.xml 的 MarginTop=430 对应)
                 float y = 430f;
                 PanelScreen.AddSpot(26f, y, 150f, 44f, _vm.CycleMode);      // 切换生产方法

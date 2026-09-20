@@ -1,0 +1,80 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+
+        <!-- ===== 右侧选国侧滑栏(滑入/滑出; 原版雕花边框) ===== -->
+        <!-- v4.79g: 根加 DoNotAcceptEvents —— 鼠标事件(含右键拖动)穿透到地图(交互全走热区轮询/自轮询滚轮) -->
+        <BrushWidget IsVisible="@IsPanelVisible" WidthSizePolicy="Fixed" SuggestedWidth="500" HeightSizePolicy="StretchToParent"
+                HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="@PanelOffset"
+                Brush="ArmyManagement.Panel.Left" DoNotAcceptEvents="true">
+          <Children>
+
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6" Sprite="BlankWhiteSquare" Color="#100C08EE" />
+
+            <!-- 头部: 国旗 + 国名 + 君主 + 文化 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="132" VerticalAlignment="Top"
+                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000055">
+              <Children>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="96"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="16" MarginTop="12" Sprite="BlankWhiteSquare" Color="@ColorBar" />
+                <ImageIdentifierWidget DataSource="{Flag}" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                       SuggestedWidth="96" SuggestedHeight="96"
+                                       ImageId="@Id" AdditionalArgs="@AdditionalArgs" TextureProviderName="@TextureProviderName"
+                                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="16" MarginTop="12" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="128" MarginTop="10"
+                            Brush="MapTextBrushGal" Brush.FontSize="29" Brush.FontColor="#C9A227FF" Text="@KingdomName" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="128" MarginTop="52"
+                            Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#F0E4C8FF" Text="@RulerName" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="128" MarginTop="82"
+                            Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#C8B98FFF" Text="@CultureText" />
+              </Children>
+            </Widget>
+
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
+                    MarginTop="152" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF59" />
+
+            <!-- 信息列表(全部信息, 16 行窗口, 滚轮上下滚动) -->
+            <ListPanel DataSource="{VisibleLines}" WidthSizePolicy="Fixed" SuggestedWidth="472" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="14" MarginTop="160"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" SuggestedWidth="472" HeightSizePolicy="Fixed" SuggestedHeight="30">
+                  <Children>
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="10"
+                                Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="@LabelColor" Text="@Label" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="10"
+                                Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="@ValueColor" Text="@Value" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- 底部提示 + 开始游戏 -->
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="96"
+                        Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#C8B98FFF"
+                        Text="滚轮上下滚动查看全部 · 点击其他领地可切换 · 选定后点下方按钮" />
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed"
+                          SuggestedHeight="58" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="24" MarginRight="24" MarginBottom="24" Brush="ButtonBrush2" UpdateChildrenStates="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="26" Brush.FontColor="#C9A227FF" Text="开始游戏" />
+              </Children>
+            </ButtonWidget>
+
+          </Children>
+        </BrushWidget>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

@@ -117,7 +117,7 @@ namespace FeudalInternalAffairs
         internal static string RateText()
         {
             return "今日 +" + DailyIncome.ToString("N0")
-                + " · 物价 +" + (DailyInflation * 30f * 100f).ToString("F1") + "%/月";
+                + " · 物价 +" + (DailyInflation * 100f).ToString("F2") + "%/日";
         }
 
         // ---- 存档 FIA_Mint ----

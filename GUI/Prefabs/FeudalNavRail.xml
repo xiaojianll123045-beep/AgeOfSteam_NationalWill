@@ -6,7 +6,7 @@
       <Children>
 
         <!-- 左侧导航栏(参照维多利亚3左侧图标栏); 点击由 NavRail.cs 轮询处理, 这里只管画 -->
-        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="56" SuggestedHeight="644"
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="56" SuggestedHeight="760"
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="4" MarginTop="146"
                 Sprite="BlankWhiteSquare" Color="#00000044" />
 
@@ -34,6 +34,26 @@
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="690" Sprite="fia_cat_admin" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="744" Sprite="fia_cat_military" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="798" Sprite="fia_bld_barracks" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="852" Sprite="fia_cat_military" />
+
+        <!-- v4.60: 常驻名称(小字半透明白 + 黑描边; 行高 54 与图标对齐, 悬停大提示框保留) -->
+        <ListPanel DataSource="{Labels}" WidthSizePolicy="Fixed" SuggestedWidth="120" HeightSizePolicy="CoverChildren"
+                   HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="50" MarginTop="145"
+                   StackLayout.LayoutMethod="VerticalTopToBottom">
+          <ItemTemplate>
+            <Widget WidthSizePolicy="Fixed" SuggestedWidth="120" HeightSizePolicy="Fixed" SuggestedHeight="54">
+              <Children>
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            MarginLeft="3" MarginTop="1" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#000000A8" Text="@Text" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
+                            MarginLeft="2" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#FFFFFFB8" Text="@Text" />
+              </Children>
+            </Widget>
+          </ItemTemplate>
+        </ListPanel>
 
         <!-- 悬停名称(NavRail.cs 每帧轮询鼠标 -> 槽位; 与本文件图标 y=150+54*i 对应) -->
         <Widget IsVisible="@TipVisible" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="40"

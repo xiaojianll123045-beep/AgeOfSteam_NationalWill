@@ -19,7 +19,7 @@ namespace FeudalInternalAffairs
             }
         }
 
-        // 相机补丁的开关: 只要玩家已经选好国家就生效。
+        // 相机补丁的开关: 玩家已经选好国家(或正在地图选国)就生效。
         internal static bool ShouldControlCamera
         {
             get
@@ -27,6 +27,7 @@ namespace FeudalInternalAffairs
                 try
                 {
                     if (IsActive) return true;
+                    if (NationPickMode.Active) return true;   // v4.75e: 选国阶段也要禁"镜头回主角"等原版行为
                     return !string.IsNullOrEmpty(NationChoice.ChosenKingdomId);
                 }
                 catch { return false; }
@@ -79,11 +80,30 @@ namespace FeudalInternalAffairs
         {
             var list = MapSelection.SelectedList;
             int n = 0;
+            var pt = point.ToVec2();
             foreach (var p in list)
             {
                 if (p == null) continue;
                 TakeOver(p);
-                try { p.SetMoveGoToPoint(point, MobileParty.NavigationType.Default); n++; }
+                try
+                {
+                    p.SetMoveGoToPoint(point, MobileParty.NavigationType.Default);
+                    CommandTimeout.Touch(p, point);   // v4.88: 保存目标点, 超时前每秒重发(防原地不动)
+                    n++;
+                    DLog.Force("移动命令: " + MapSelection.NameOf(p) + " 位置(" + (int)p.Position.X + "," + (int)p.Position.Y
+                        + ") 目标(" + (int)pt.X + "," + (int)pt.Y + ")");
+                    try
+                    {
+                        DLog.Force("移动状态: " + MapSelection.NameOf(p) + " 模式=" + p.PartyMoveMode
+                            + " 行为=" + p.DefaultBehavior + "/" + p.ShortTermBehavior
+                            + " 交互=" + p.Ai.AiBehaviorInteractable
+                            + " 定居=" + (p.CurrentSettlement != null ? "是" : "否")
+                            + " 地航=" + p.HasLandNavigationCapability
+                            + " 海=" + p.IsCurrentlyAtSea
+                            + " 距离=" + (int)p.Position.ToVec2().Distance(pt));
+                    }
+                    catch { }
+                }
                 catch (Exception ex) { DLog.Force("移动命令失败: " + ex.Message); }
             }
             if (n > 0) { MapSelection.Message("已命令 " + n + " 支部队前往指定位置"); DLog.Force("命令 " + n + " 支部队移动"); }
@@ -101,8 +121,9 @@ namespace FeudalInternalAffairs
                 TakeOver(p);
                 try
                 {
+                    // v4.100: 恢复原行为(允许进城); 敌国仍直接围城
                     if (hostile)
-                        p.SetMoveBesiegeSettlement(settlement, MobileParty.NavigationType.Default);   // 敌国定居点: 直接围城
+                        p.SetMoveBesiegeSettlement(settlement, MobileParty.NavigationType.Default);
                     else
                         p.SetMoveGoToSettlement(settlement, MobileParty.NavigationType.Default, false);
                     n++;
@@ -151,8 +172,10 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                p.Ai.SetDoNotMakeNewDecisions(true);
-                p.SetMoveModeHold();
+                // v4.90: 不再设 SetDoNotMakeNewDecisions(true)/SetMoveModeHold()
+                // (1.4.8 实测该标志疑似让 native 侧冻结部队移动, 是"指挥不动"的根因)
+                p.Ai.SetDoNotMakeNewDecisions(false);
+                DefArmy.EnsureNavigation(p);   // v4.91: 确保 native 陆地导航可用
                 CommandTimeout.Touch(p);   // 10 秒内没新命令就放它自由
             }
             catch (Exception ex) { DLog.Force("接管部队失败: " + ex.Message); }

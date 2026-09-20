@@ -100,7 +100,7 @@ namespace FeudalInternalAffairs
             {
                 MouseVisible = true;
                 _vm = new FocusTreeVM();
-                _layer = new GauntletLayer("FeudalFocusTree", 200, false);
+                _layer = new GauntletLayer("FeudalFocusTree", 345, false);   // v4.75o: 高于国名标签(335)
                 _layer.LoadMovie("FeudalFocusTree", _vm);
                 try { _layer.InputRestrictions.SetInputRestrictions(); } catch { }
                 AddLayer(_layer);

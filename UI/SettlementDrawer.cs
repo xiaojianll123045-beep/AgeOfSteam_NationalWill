@@ -68,6 +68,7 @@ namespace FeudalInternalAffairs
                 if (_vm.IsBuildMode)
                 {
                     PanelScreen.AddSpot(26f, sh - 26f - 42f, 124f, 42f, _vm.ExecuteBack);      // 返回树
+                    PanelScreen.AddSpot(160f, sh - 26f - 42f, 150f, 42f, _vm.ExecuteCallOut);  // v4.100: 唤出军团
                     int i = 0;
                     foreach (var row in _vm.Rows)
                     {

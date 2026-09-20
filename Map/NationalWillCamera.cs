@@ -27,6 +27,12 @@ namespace FeudalInternalAffairs
             if (CenterOnKingdom(kingdom)) _done = true;
         }
 
+        // v4.65: 新战役重置(修复"开新档视角没到国家中间": _done 是静态字段, 上个战役置位后新档不再居中)
+        internal static void ResetForNewCampaign() { _done = false; }
+
+        // 读档有存档视角时禁止居中(避免覆盖已经恢复的视角)
+        internal static void MarkDone() { _done = true; }
+
         // 返回 true 表示处理完成(或无需处理), false 表示还没准备好(国家未解析/地图未就绪), 下次再试
         internal static bool CenterOnKingdom(Kingdom kingdom)
         {
@@ -96,6 +102,26 @@ namespace FeudalInternalAffairs
             }
         }
 
+        // v4.100: 相机飘向任意坐标(军队总览"定位")
+        internal static bool FlyTo(CampaignVec2 pos)
+        {
+            try
+            {
+                var view = GetCameraView();
+                if (view == null) return false;
+                var target = pos.AsVec3() + Vec3.Up;
+                SetIdealTarget(view, target);
+                try { if (_targetDistanceProp == null) _targetDistanceProp = AccessTools.Property(typeof(MapCameraView), "TargetCameraDistance"); } catch { }
+                if (_targetDistanceProp != null) SetDistance(view, _targetDistanceProp, 60f);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DLog.Force("相机飘移失败: " + ex.Message);
+                return false;
+            }
+        }
+
         internal static bool TryGetIdealTarget(MapCameraView view, out Vec3 target)        {
             target = Vec3.Zero;
             try
@@ -150,6 +176,22 @@ namespace FeudalInternalAffairs
                 if (_cameraTargetField != null) _cameraTargetField.SetValue(view, target);
             }
             catch { }
+        }
+
+        // v4.80: 读回 _cameraTarget, 用于诊断"设置了目标但画面不动"
+        internal static Vec3 GetCameraTargetValue(MapCameraView view)
+        {
+            try
+            {
+                if (_cameraTargetField == null) _cameraTargetField = AccessTools.Field(typeof(MapCameraView), "_cameraTarget");
+                if (_cameraTargetField != null)
+                {
+                    var v = _cameraTargetField.GetValue(view);
+                    if (v is Vec3 t) return t;
+                }
+            }
+            catch { }
+            return Vec3.Zero;
         }
 
         // ProcessCameraInput 的 setter 不可访问, 走反射(拖框选时临时关掉相机输入)

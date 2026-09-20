@@ -72,7 +72,13 @@ namespace FeudalInternalAffairs
                     var pk = PlayerKingdom();
                     if (pk == null || K == null) return "";
                     if (Diplomacy.IsAlly(pk, K)) return "同盟";
-                    if (pk.IsAtWarWith(K)) return "战争中";
+                    if (pk.IsAtWarWith(K))
+                    {
+                        // v4.74: 战争行显示双方厌战度
+                        int ours = (int)WarWeariness.WearOf(pk, K);
+                        int theirs = (int)WarWeariness.WearOf(K, pk);
+                        return "战争中 · 厌战 我方 " + ours + " / 对方 " + theirs;
+                    }
                     return "和平";
                 }
                 catch { return ""; }

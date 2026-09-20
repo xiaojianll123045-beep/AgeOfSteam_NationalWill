@@ -36,6 +36,8 @@ namespace FeudalInternalAffairs
         private static int _builtRows;
         private static bool _built;
         private static int _bucket = -1;
+        private static int _dataVer = int.MinValue;   // v4.70: 数据模式的贴图版本(切换/刷新时重建)
+        private static bool _dataColors;              // 当前贴图是否为数据色
         private static bool _visible;
         private static bool _snowSaved;
         private static Texture _savedSnow;
@@ -120,11 +122,26 @@ namespace FeudalInternalAffairs
                 EnsureObjects(scene);
                 if (_entity == null) return;
 
-                int bucket = Math.Min(AlphaSteps - 1, (int)(alpha * AlphaSteps));
-                if (bucket != _bucket)
+                // v4.70: 数据模式(繁荣/驻军/...)= 同源覆盖层, 颜色按数据; 政治模式按缩放档位
+                bool dataMode = !MapDataMode.IsPolitical;
+                if (dataMode)
                 {
-                    _bucket = bucket;
-                    BuildTexture(bucket);
+                    if (_dataVer != MapDataMode.Version)
+                    {
+                        _dataVer = MapDataMode.Version;
+                        _dataColors = true;
+                        BuildTexture(0, true);
+                    }
+                }
+                else
+                {
+                    int bucket = Math.Min(AlphaSteps - 1, (int)(alpha * AlphaSteps));
+                    if (bucket != _bucket || _dataColors)
+                    {
+                        _bucket = bucket;
+                        _dataColors = false;
+                        BuildTexture(bucket, false);
+                    }
                 }
                 SetVisible(true);
             }
@@ -365,20 +382,58 @@ namespace FeudalInternalAffairs
             DLog.Force("政治地图: 覆盖层网格已创建(贴图 " + _w + "x" + _h + ")");
         }
 
-        private static void BuildTexture(int bucket)
+        private static void BuildTexture(int bucket, bool dataMode)
         {
             if (_owner == null || _material == null) return;
-            float a = (bucket + 1) / (float)AlphaSteps;
-            int alphaByte = Math.Max(1, Math.Min(255, (int)Math.Round(a * 255f)));
+            int alphaByte;
+            if (dataMode) alphaByte = 200;
+            else
+            {
+                float a = (bucket + 1) / (float)AlphaSteps;
+                alphaByte = Math.Max(1, Math.Min(255, (int)Math.Round(a * 255f)));
+            }
+
+            // 数据模式: 预计算每个定居点的"白->深绿"颜色(按全局最大值归一化; 激进模式取反)
+            byte[] pRgb = null;
+            if (dataMode)
+            {
+                int n = TerritoryData.PointCount;
+                pRgb = new byte[n * 3];
+                float max = Math.Max(1f, MapDataMode.MaxValue());
+                for (int pi = 0; pi < n; pi++)
+                {
+                    var st = TerritoryData.PointSettlement(pi);
+                    string dummy;
+                    int v = MapDataMode.ValueOf(st, out dummy);
+                    float t = v >= 0 ? v / max : 0f;
+                    if (MapDataMode.Current == MapData.Radicals) t = 1f - t;
+                    byte r, g, b;
+                    MapDataMode.GradientRgb(t, out r, out g, out b);
+                    pRgb[pi * 3] = r;
+                    pRgb[pi * 3 + 1] = g;
+                    pRgb[pi * 3 + 2] = b;
+                }
+            }
+
             var bytes = new byte[_w * _h * 4];
             for (int i = 0; i < _owner.Length; i++)
             {
                 int pi = _owner[i];
                 if (pi < 0) continue;
                 if (!LandAt(i % _w, i / _w)) continue;   // 透明(无主/水面)
-                // 预转换好的 RGB(每个定居点只转一次, 这里不再做字符串转换)
                 byte r, g, b;
-                if (!TerritoryData.PointRgb(pi, out r, out g, out b)) continue;
+                if (dataMode)
+                {
+                    if (pRgb == null || pi * 3 + 2 >= pRgb.Length) continue;
+                    r = pRgb[pi * 3];
+                    g = pRgb[pi * 3 + 1];
+                    b = pRgb[pi * 3 + 2];
+                }
+                else
+                {
+                    // 预转换好的 RGB(每个定居点只转一次, 这里不再做字符串转换)
+                    if (!TerritoryData.PointRgb(pi, out r, out g, out b)) continue;
+                }
                 int o = i * 4;
                 bytes[o] = r;
                 bytes[o + 1] = g;

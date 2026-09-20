@@ -43,6 +43,7 @@ namespace FeudalInternalAffairs
                 case "stats": return 680f;
                 case "pol": return 680f;
                 case "play": return 680f;
+                case "army": return 680f;
                 case "bld": return 680f;
                 case "drawer": return 560f;
                 case "diplomacy": return 540f;
@@ -57,8 +58,10 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                if (Open.Count == 0) return false;
                 var m = TaleWorlds.InputSystem.Input.MousePositionPixel;
+                // v4.75: 右侧选国侧栏也算"在面板上"
+                if (NationPickPanel.IsOpen && m.X >= ScreenWidth() - NationPickPanel.Width) return true;
+                if (Open.Count == 0) return false;
                 float w = CurrentPanelWidth();
                 return m.X >= PanelX - 6f && m.X <= PanelX + w;
             }
@@ -135,8 +138,8 @@ namespace FeudalInternalAffairs
         {
             Open.Remove(key);
             // 注意: 只有"全部关完"才清热区。否则互斥时旧面板的延迟关闭会清掉新面板刚注册的热区
-            // (就是这个 bug 导致"批量建造面板点不动")
-            if (Open.Count == 0) ClearSpots();
+            // (就是这个 bug 导致"批量建造面板点不动"); v4.75: 右侧选国侧栏开着时也不能清
+            if (Open.Count == 0 && !NationPickPanel.IsOpen) ClearSpots();
             try { if (e.Layer != null && e.Map != null) e.Map.RemoveLayer(e.Layer); } catch { }
             if (e.UseCodeAnim) PanelAnim.Unbind(key);
             try { if (e.OnClosed != null) e.OnClosed(); } catch { }
@@ -162,6 +165,7 @@ namespace FeudalInternalAffairs
             if (Open.ContainsKey("stats")) return 680f;
             if (Open.ContainsKey("pol")) return 680f;
             if (Open.ContainsKey("play")) return 680f;
+            if (Open.ContainsKey("army")) return 680f;
             if (Open.ContainsKey("bld")) return 680f;
                 if (Open.ContainsKey("drawer")) return 560f;
                 if (Open.ContainsKey("diplomacy")) return 540f;
@@ -192,7 +196,7 @@ namespace FeudalInternalAffairs
                 var map = MapScreen.Instance;
                 if (map == null) { DLog.Force("打开面板失败(" + key + "): MapScreen 为空"); return; }
 
-                var layer = new GauntletLayer(movie, 320, false);
+                var layer = new GauntletLayer(movie, 345, false);   // v4.75o: 高于国名标签(335)
                 layer.LoadMovie(movie, vm);
                 // 点击已改由热区轮询接管(见 PollSpots), 这里不再设置 IsFocusLayer/光标/输入类型
                 // —— 那些"焦点层"配置会干扰地图本身的输入与帧率(实测更卡)
@@ -274,12 +278,21 @@ namespace FeudalInternalAffairs
             catch { }
         }
 
+        // v4.75: 右侧面板用(坐标已是屏幕坐标, 不加左侧停靠偏移)
+        internal static void AddSpotRaw(float x, float y, float w, float h, Action act)
+        {
+            try { Spots.Add(new Spot { X = x, Y = y, W = w, H = h, Act = act }); }
+            catch { }
+        }
+
         // 每帧检测(不受刷新节流影响): 只登记待执行动作, 不在这里执行
         internal static void PollSpots()
         {
             try
             {
-                if (Open.Count == 0 || Spots.Count == 0) { _leftWasDown = false; return; }
+                if (Spots.Count == 0) { _leftWasDown = false; return; }
+                // v4.85: 弹窗(Inquiry)打开时热区不响应, 避免点击弹窗按钮被面板热区重复吃掉
+                if (InformationManager.IsAnyInquiryActive()) { _leftWasDown = true; return; }
                 bool down = TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton);
                 if (!down) { _leftWasDown = false; return; }
                 if (_leftWasDown) return;   // 只在按下那一瞬触发一次
@@ -309,11 +322,30 @@ namespace FeudalInternalAffairs
             catch (Exception ex) { DLog.Force("热区动作异常: " + ex.Message); }
         }
 
+        // v4.58: 城市名点击 -> 相机平滑飞到该定居点(用户需求: 所有城市名可点)
+        internal static void JumpToSettlement(TaleWorlds.CampaignSystem.Settlements.Settlement s)
+        {
+            try
+            {
+                if (s == null) return;
+                NationalWillCamera.FlyTo(s);
+                DLog.Force("视角跳转: " + (s.Name != null ? s.Name.ToString() : s.StringId));
+            }
+            catch (Exception ex) { DLog.Force("视角跳转失败: " + ex.Message); }
+        }
+
         // 屏幕高度(像素, 用于底部锚定的按钮)
         internal static float ScreenHeight()
         {
             try { return TaleWorlds.Engine.Screen.RealScreenResolution.Y; }
             catch { return 1080f; }
+        }
+
+        // 屏幕宽度(像素)
+        internal static float ScreenWidth()
+        {
+            try { return TaleWorlds.Engine.Screen.RealScreenResolution.X; }
+            catch { return 1920f; }
         }
 
         // 每帧由 FeudalMapView 调用
