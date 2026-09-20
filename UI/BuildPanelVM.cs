@@ -88,7 +88,7 @@ namespace FeudalInternalAffairs
                     if (def == null) continue;
                     options.Add(new InquiryElement(def.Id, BuildDefs.CategoryName(def.Cat) + " · " + def.Name, null, true, null));
                 }
-                MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
+                PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
                     "添加建筑到方案",
                     "可一次选多个(方案里的建筑会在右键领地时尽量排队; 地点不符的会自动跳过)",
                     options, true, 0, options.Count, "加入方案", "取消",

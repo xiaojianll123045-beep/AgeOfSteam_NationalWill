@@ -36,6 +36,9 @@ namespace FeudalInternalAffairs
         private string _title = "驻军";
         private string _milText = "";
         private string _armyText = "";
+        private string _garrisonText = "0";
+        private string _oursText = "0";
+        private string _partiesText = "0";
         private int _partyRows;
 
         internal GarrisonPanelVM(Action onClose)
@@ -49,6 +52,9 @@ namespace FeudalInternalAffairs
         [DataSourceProperty] public string Title { get { return _title; } }
         [DataSourceProperty] public string MilText { get { return _milText; } }
         [DataSourceProperty] public string ArmyText { get { return _armyText; } }
+        [DataSourceProperty] public string GarrisonText { get { return _garrisonText; } }
+        [DataSourceProperty] public string OursText { get { return _oursText; } }
+        [DataSourceProperty] public string PartiesText { get { return _partiesText; } }
         [DataSourceProperty] public bool HasParties { get { return _partyRows > 0; } }
 
         public void ExecuteClose() { if (_onClose != null) _onClose(); }
@@ -110,8 +116,7 @@ namespace FeudalInternalAffairs
                         if (def) { tag = "国防军"; color = "#7FBF6AFF"; }
                         else { tag = "领主军"; color = "#E8C33AFF"; }
                         try { if (p.Army != null) { tag = "联军:" + (p.Army.Name != null ? p.Army.Name.ToString() : "军团"); color = "#6AB0FFFF"; } } catch { }
-                        int men = 0;
-                        try { men = p.MemberRoster.TotalManCount; } catch { }
+                        int men = DefArmy.RegularsOf(p);   // v4.123: 士兵数(不含将军)
                         Rows.Add(new GarrisonListRowVM(MapSelection.NameOf(p), men.ToString("N0") + " 人", tag, color, p, "出城"));
                         _partyRows++;
                     }
@@ -120,13 +125,16 @@ namespace FeudalInternalAffairs
 
                 _milText = "原版驻军 " + garrisonMen.ToString("N0") + " 人 · 国防军守备营 " + oursMen.ToString("N0") + " 人"
                     + (_partyRows > 0 ? " · 城内我军 " + _partyRows + " 支(可命令出城)" : " · 城内没有我方部队");
+                _garrisonText = garrisonMen.ToString("N0");
+                _oursText = oursMen.ToString("N0");
+                _partiesText = _partyRows.ToString("N0");
 
                 float bd;
                 var army = DefArmy.NearestArmyOf(target, out bd);
                 if (army != null)
                 {
                     int men = 0, pc = 0;
-                    try { foreach (var mp in army.Parties) { if (mp != null && mp.IsActive) { men += mp.MemberRoster.TotalManCount; pc++; } } } catch { }
+                    try { foreach (var mp in army.Parties) { if (mp != null && mp.IsActive) { men += DefArmy.RegularsOf(mp); pc++; } } } catch { }
                     _armyText = "组建军团: " + (army.Name != null ? army.Name.ToString() : "军团") + "(" + pc + " 支部队/" + men + " 人, 距离 " + (int)Math.Sqrt(bd) + ")";
                 }
                 else _armyText = "组建军团: 附近没有本国联军";
@@ -134,6 +142,9 @@ namespace FeudalInternalAffairs
                 OnPropertyChangedWithValue(_title, "Title");
                 OnPropertyChangedWithValue(_milText, "MilText");
                 OnPropertyChangedWithValue(_armyText, "ArmyText");
+                OnPropertyChangedWithValue(_garrisonText, "GarrisonText");
+                OnPropertyChangedWithValue(_oursText, "OursText");
+                OnPropertyChangedWithValue(_partiesText, "PartiesText");
                 OnPropertyChangedWithValue(_partyRows > 0, "HasParties");
             }
             catch (Exception ex) { DLog.Force("驻军列表刷新异常: " + ex.Message); }

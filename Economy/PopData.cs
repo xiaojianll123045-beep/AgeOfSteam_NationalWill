@@ -69,6 +69,29 @@ namespace FeudalInternalAffairs
         internal static readonly Dictionary<string, PopRecord> Index = new Dictionary<string, PopRecord>();
         internal static bool Inited;
 
+        // v4.133: 识字率月度增长(教育制度/平民权利/言论自由/科举 -> LawSystem.LiteracyMonthly)
+        internal static void ShiftLiteracy(float delta)
+        {
+            try
+            {
+                if (delta == 0f) return;
+                foreach (var kv in BySettlement)
+                {
+                    var l = kv.Value;
+                    if (l == null) continue;
+                    for (int i = 0; i < l.Count; i++)
+                    {
+                        var p = l[i];
+                        if (p == null) continue;
+                        p.Literacy += delta;
+                        if (p.Literacy < 0f) p.Literacy = 0f;
+                        if (p.Literacy > 1f) p.Literacy = 1f;
+                    }
+                }
+            }
+            catch { }
+        }
+
         // ---- 查询 ----
         internal static List<PopRecord> Of(string settlementId)
         {

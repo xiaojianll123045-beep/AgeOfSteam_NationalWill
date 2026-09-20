@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using TaleWorlds.CampaignSystem.Settlements;
 
 namespace FeudalInternalAffairs
@@ -16,6 +16,7 @@ namespace FeudalInternalAffairs
 
         internal static void Open(Settlement s)
         {
+            Tutorials.Page("page_drawer");
             try
             {
                 if (IsOpen)

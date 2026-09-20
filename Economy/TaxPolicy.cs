@@ -35,8 +35,11 @@ namespace FeudalInternalAffairs
                 RadicalPressure = over * 0.004f;                 // 苛征全开(8.0) -> 0.016/日
                 IndustryMult = 1f - over * 0.05f;                // 苛征全开 -> -20%
                 AttractMult = 1f - over * 0.06f;                 // 苛征全开 -> -24%
+                AttractMult *= LawSystem.AttractMult();          // v5.0-P22: 平民权利(法律体系)
+                AttractMult *= Institutions.AttractMult();       // v5.0-P26: 文化接纳政策
                 if (IndustryMult < 0.6f) IndustryMult = 0.6f;
-                if (AttractMult < 0.5f) AttractMult = 0.5f;
+                if (AttractMult < 0.4f) AttractMult = 0.4f;
+                if (AttractMult > 1.5f) AttractMult = 1.5f;
             }
             catch { }
         }
@@ -143,13 +146,14 @@ namespace FeudalInternalAffairs
                         marketBase += e.DailyConsumption * n.PriceOf(g.Id) * 0.05f * Politics.SettlementTaxFactor(st);
                     }
                 }
+                marketBase *= LawSystem.MarketTaxMult();   // v5.0-P22: 关税政策(贸易法)
                 float titheBase = (landBase + pollBase) * 0.4f;
                 float[] bases = { landBase, pollBase, titheBase, marketBase };
                 float pMult = Politics.TaxIncomeMult();   // 第 21 章: 王权/权威合法性影响实收
                 int titheGot = 0;
                 for (int i = 0; i < 4; i++)
                 {
-                    int v = (int)Math.Round(bases[i] * Mult[Level[i]] * pMult);
+                    int v = (int)Math.Round(bases[i] * Mult[Level[i]] * pMult * FeudalContracts.AvgTaxMult());   // v4.126: 封建契约税档
                     if (v <= 0) continue;
                     MonthIncome[i] += v;
                     total += v;

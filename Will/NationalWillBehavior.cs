@@ -192,6 +192,7 @@ namespace FeudalInternalAffairs
             {
                 NationChoice.ChosenKingdomId = null;   // v4.75: 同进程残留的旧选择必须清掉(新档重新选)
                 NationalWillCamera.ResetForNewCampaign();   // v4.65: 新战役允许再居中一次
+                Tutorials.ResetForNewCampaign();   // v4.124: 重置分步教程状态
                 if (!string.IsNullOrEmpty(NationChoice.ChosenKingdomId))
                 {
                     _nationKingdomId = NationChoice.ChosenKingdomId;
@@ -237,6 +238,7 @@ namespace FeudalInternalAffairs
 
         private void OnTick(float dt)
         {
+            try { Tutorials.Tick(dt); } catch { }   // v4.124: 分步教程计时
             try { CommandTimeout.Tick(dt); } catch (Exception ex) { DLog.Force("指挥超时 tick 异常: " + ex.Message); }
             try { BattleCommand.TickPostBattleLeave(dt); } catch { }   // 战后自动离开结算菜单
             // v4.75j: 心跳诊断(每 3 秒): 排查"接管不推进"类问题
@@ -411,6 +413,7 @@ namespace FeudalInternalAffairs
             EnsureRulerName();
 
             _setupDone = true;
+            Tutorials.StartIntro();   // v4.124: 接管完成 -> 3 秒后弹开局分步教程
             NationPickMode.Stop();   // v4.75: 接管完成 -> 退出选国模式(相机解锁)
             // 国家一确定就立即把视角瞬移到版图中心(地图已就绪时一次成功)
             NationalWillCamera.CenterOnKingdomOnce(kingdom);

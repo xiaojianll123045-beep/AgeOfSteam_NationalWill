@@ -5,7 +5,7 @@
     <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
       <Children>
 
-        <!-- ===== 军队总览(v4.100; 导航栏第 14 格) ===== -->
+        <!-- ===== 军队总览(v4.100; v4.120 UI 优化: 概览三列卡 + 空状态) ===== -->
         <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="680" HeightSizePolicy="StretchToParent"
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
           <Children>
@@ -23,7 +23,7 @@
                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
                             MarginLeft="64" Brush="MapTextBrushGal" Brush.FontSize="31" Brush.FontColor="#C9A227FF" Text="军队" />
                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Center"
-                            MarginRight="74" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="全国武装力量总览" />
+                            MarginRight="74" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="@Summary" />
                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="40"
                               HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="ButtonBrush1"
                               Command.Click="ExecuteClose" UpdateChildrenStates="true">
@@ -36,38 +36,57 @@
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
                     MarginTop="82" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF59" />
 
-            <!-- 汇总 -->
+            <!-- 概览卡(三列) -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="628" SuggestedHeight="72"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="94" Sprite="BlankWhiteSquare" Color="#FFFFFF10" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="72"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="94" Sprite="BlankWhiteSquare" Color="#C9A22780" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="180" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="44" MarginTop="104" Brush="MapTextBrushGal" Brush.FontSize="26" Brush.FontColor="#E8C33AFF" Text="@MenText" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="44" MarginTop="135" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8A8070FF" Text="现役总兵力(人)" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="200" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="260" MarginTop="104" Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#7FBF6AFF" Text="@LegionText" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="260" MarginTop="135" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8A8070FF" Text="国防军(支·人)" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="180" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="470" MarginTop="104" Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#6AB0FFFF" Text="@ComposedText" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="470" MarginTop="135" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8A8070FF" Text="组建军团(联军)" />
+
+            <!-- 联军明细 -->
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="26" MarginTop="98" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8C33AFF" Text="@Summary" />
+                        MarginLeft="26" MarginTop="176" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#6AB0FFFF" Text="@ArmySummary" />
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="26" MarginTop="132" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#6AB0FFFF" Text="@ArmySummary" />
-            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="26" MarginTop="186" Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#7A7060FF"
-                        Text="列表: 绿色=国防军(可完全指挥); 蓝色=已加入组建军团的部队; 点[定位]跳转并选中, 随后左键点地图即可指挥。" />
-            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="26" MarginTop="214" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF"
-                        Text="滚动滚轮翻页 ｜ 共 12 行/页" />
+                        MarginLeft="26" MarginTop="200" Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#7A7060FF"
+                        Text="绿色=国防军(可完全指挥) · 蓝色=已加入联军 · [定位]跳转并选中 · [操纵]管理联军 · 滚轮翻页" />
 
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
-                    MarginTop="248" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF40" />
+                    MarginTop="228" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF40" />
 
             <!-- 表头 -->
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="30" MarginTop="272" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="部队" />
+                        MarginLeft="30" MarginTop="250" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="部队" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="170" MarginTop="272" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="兵力" />
+                        MarginLeft="170" MarginTop="250" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="兵力" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="246" MarginTop="272" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="类型" />
+                        MarginLeft="246" MarginTop="250" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="类型" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="318" MarginTop="272" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="军团" />
+                        MarginLeft="318" MarginTop="250" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="军团" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="430" MarginTop="272" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="位置(最近城市)" />
+                        MarginLeft="430" MarginTop="250" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="位置(最近城市)" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="560" MarginTop="272" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="操作" />
+                        MarginLeft="560" MarginTop="250" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="操作" />
+
+            <!-- 空状态 -->
+            <TextWidget IsVisible="@EmptyVisible" WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="30" MarginTop="292"
+                        Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#8A8070FF"
+                        Text="暂无我方部队(先去军务页募兵/建军, 或等到有本国领主部队)" />
 
             <!-- 部队列表 -->
             <ListPanel DataSource="{Rows}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="300" MarginLeft="14" MarginRight="14"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="278" MarginLeft="14" MarginRight="14"
                        StackLayout.LayoutMethod="VerticalTopToBottom">
               <ItemTemplate>
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="46"

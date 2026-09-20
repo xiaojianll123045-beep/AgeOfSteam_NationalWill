@@ -105,6 +105,7 @@ namespace FeudalInternalAffairs
                 if (_vm != null) _vm.SetTip(hover);
                 if (hover < 0) return;
                 if (!TaleWorlds.InputSystem.Input.IsKeyPressed(TaleWorlds.InputSystem.InputKey.LeftMouseButton)) return;
+                if (PanelInputGuard.SuppressAfterInquiry(TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton))) return;   // v4.143: 弹窗/未松手抑制
                 Open(hover);
             }
             catch { }

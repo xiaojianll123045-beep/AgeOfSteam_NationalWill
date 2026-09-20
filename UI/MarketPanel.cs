@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using TaleWorlds.CampaignSystem.Settlements;
+using TaleWorlds.Library;
 
 namespace FeudalInternalAffairs
 {
@@ -28,6 +29,7 @@ namespace FeudalInternalAffairs
 
         internal static void Open(string townId)
         {
+            Tutorials.Page("page_market");
             try
             {
                 if (!IsOpen)
@@ -57,7 +59,7 @@ namespace FeudalInternalAffairs
             try
             {
                 // "本城"待选: 自己轮询左键(原版 SettlementVisual.OnMapClick 会被面板层吃掉)
-                if (_vm != null && _vm.IsPickingCity && !PanelScreen.IsMouseOnPanel()
+                if (_vm != null && _vm.IsPickingCity && !PanelScreen.IsMouseOnPanel() && !PanelInputGuard.SuppressAfterInquiry(TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton))   // v4.143: 弹窗时不选城
                     && TaleWorlds.InputSystem.Input.IsKeyPressed(TaleWorlds.InputSystem.InputKey.LeftMouseButton))
                 {
                     try

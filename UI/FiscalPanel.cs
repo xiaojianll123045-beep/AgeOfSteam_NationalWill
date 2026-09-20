@@ -15,6 +15,7 @@ namespace FeudalInternalAffairs
 
         internal static void Open()
         {
+            Tutorials.Page("page_fiscal");
             try
             {
                 if (!IsOpen)
@@ -60,6 +61,8 @@ namespace FeudalInternalAffairs
                 float sh = PanelScreen.ScreenHeight();
                 PanelScreen.AddSpot(Width - 60f, 20f, 60f, 58f, _vm.ExecuteClose);       // X
                 PanelScreen.AddSpot(30f, sh - 26f - 42f, 122f, 42f, _vm.ExecuteClose); // 关闭
+                PanelScreen.AddSpot(160f, sh - 26f - 42f, 150f, 42f, _vm.ExecuteReserve); // v4.114: 战略储备
+                PanelScreen.AddSpot(320f, sh - 26f - 42f, 150f, 42f, TradeUi.Show);      // v5.0-P24: 贸易路线
                 // 重构版: 税制四行(点格选档 / 整行循环) 右栏 x=360 起; 行位 250 + i*34
                 for (int i = 0; i < 4; i++)
                 {

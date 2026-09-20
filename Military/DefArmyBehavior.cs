@@ -38,6 +38,8 @@ namespace FeudalInternalAffairs
                     SyncChunks.Save(dataStore, "FIA_DefArmy", _data);
                     SyncChunks.Save(dataStore, "FIA_WarEco", WarEconomy.Save());      // v4.72: 战争经济
                     SyncChunks.Save(dataStore, "FIA_WarWear", WarWeariness.Save());   // v4.73: 厌战度
+                    SyncChunks.Save(dataStore, "FIA_AiPersona", AiPersonality.Save());   // v4.106: 国家性格
+                    SyncChunks.Save(dataStore, "FIA_Contract", FeudalContracts.Save());   // v4.126: 封建契约
                     dataStore.SyncData("FIA_DefDay", ref _lastDay);   // 上次结算日(读档补结算用)
                 }
                 if (dataStore.IsLoading)
@@ -45,6 +47,8 @@ namespace FeudalInternalAffairs
                     _data = SyncChunks.Load(dataStore, "FIA_DefArmy");
                     WarEconomy.Load(SyncChunks.Load(dataStore, "FIA_WarEco"));
                     WarWeariness.Load(SyncChunks.Load(dataStore, "FIA_WarWear"));
+                    AiPersonality.Load(SyncChunks.Load(dataStore, "FIA_AiPersona"));
+                    FeudalContracts.Load(SyncChunks.Load(dataStore, "FIA_Contract"));   // v4.126
                     dataStore.SyncData("FIA_DefDay", ref _lastDay);
                     DefArmy.Load(_data);
                 }
@@ -54,7 +58,7 @@ namespace FeudalInternalAffairs
 
         private void OnNewGameCreated(CampaignGameStarter starter)
         {
-            try { DefArmy.Reset(); WarEconomy.Reset(); WarWeariness.Reset(); }
+            try { DefArmy.Reset(); WarEconomy.Reset(); WarWeariness.Reset(); AiPersonality.ResetNewCampaign(); FeudalContracts.Reset(); }
             catch (Exception ex) { DLog.Force("国防军初始化异常: " + ex.Message); }
         }
 

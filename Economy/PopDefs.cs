@@ -41,7 +41,16 @@ namespace FeudalInternalAffairs
 
         // 常量(文档 19.15)
         internal const float BaseWage = 4.0f;        // 基准工资 第纳尔/日/人
-        internal const float WorkforceRatio = 0.25f; // 工作比例
+        internal const float BaseWorkforceRatio = 0.25f; // 工作比例基准
+        // v4.133: 妇女权利法律提升劳动力比例(抄 V3 Rights of Women: +5%/+10%)
+        internal static float WorkforceRatio
+        {
+            get
+            {
+                try { return BaseWorkforceRatio + LawSystem.WorkforceBonus(); }
+                catch { return BaseWorkforceRatio; }
+            }
+        }
         internal const float DependentRatio = 0.50f; // 依赖人口消费比
         internal const float WealthGainRate = 0.20f; // 财富增长速率(周)
         internal const float WealthGate = 1.02f;     // 财富门槛系数

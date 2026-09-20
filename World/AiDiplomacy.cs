@@ -229,14 +229,24 @@ namespace FeudalInternalAffairs
                         if (PeaceAge(a, b) < 56) continue;            // 停战不足 56 天
                         if (!Borders(a, b)) continue;                 // 用户要求: 不接壤不宣战
                         int rel = Diplomacy.Get(a, b);
-                        if (rel > 0) continue;                        // 只打关系 <=0 的
+                        // v4.111: 军力碾压(≥2倍)+高鹰派(≥75) -> 允许对关系>0的弱邻"背刺"
+                        bool crush = AiPersonality.AggressionOf(a) >= 75 && StrengthOf(a) >= StrengthOf(b) * 2f;
+                        if (rel > 0 && !crush) continue;              // 默认只打关系 <=0 的
 
                         // 宣战欲望: 优势型/均势型/劣势型 + 领袖野心 + 关系恶化
                         float sa = StrengthOf(a), sb = StrengthOf(b);
                         float ratio = sa / Math.Max(1f, sb);
                         float chance = ratio >= 1.25f ? 0.50f : (ratio >= 0.75f ? 0.28f : 0.08f);
                         chance *= Aggression(a);
+                        // v4.106/4.107: 国家性格 —— 双方鹰派越高越易开战, 重商国家更不愿开战
+                        int agA = AiPersonality.AggressionOf(a), agB = AiPersonality.AggressionOf(b);
+                        chance *= (0.5f + (agA + agB) / 200f);
+                        chance *= (1.1f - AiPersonality.CommerceOf(a) / 250f);
                         if (rel <= -40) chance *= 1.3f;
+                        if (rel > 0) chance *= 0.55f;   // v4.111: 背刺概率低
+                        // v4.117: 若目标是玩家且玩家明显更强, AI 敌意更高
+                        if (pk != null && ReferenceEquals(b, pk) && StrengthOf(b) > StrengthOf(a) * 1.3f)
+                            chance *= 1.25f;
                         if (chance > bestChance || (Math.Abs(chance - bestChance) < 0.001f && rel < bestRel))
                         {
                             bestChance = chance; bestRel = rel; bestA = a; bestB = b;
@@ -329,7 +339,22 @@ namespace FeudalInternalAffairs
                 if (warDays >= 84) conds++;
                 if (AnyCrisis(sideA) || AnyCrisis(sideB)) conds++;   // v4.72: 经济崩了就想谈
                 if (MaxWearSide(sideA) >= 60f || MaxWearSide(sideB) >= 60f) conds++;   // v4.73: 厌战了就想谈
-                return conds >= 2;
+                // v4.108: 性格影响和谈门槛 —— 鹰派阵营更顽固(需 3 条), 重商阵营更务实(1 条即谈)
+                int need = 2;
+                try
+                {
+                    int aggSum = 0, comSum = 0, cnt = 0;
+                    for (int i = 0; i < sideA.Count; i++) { if (sideA[i] == null) continue; aggSum += AiPersonality.AggressionOf(sideA[i]); comSum += AiPersonality.CommerceOf(sideA[i]); cnt++; }
+                    for (int i = 0; i < sideB.Count; i++) { if (sideB[i] == null) continue; aggSum += AiPersonality.AggressionOf(sideB[i]); comSum += AiPersonality.CommerceOf(sideB[i]); cnt++; }
+                    if (cnt > 0)
+                    {
+                        int avgAgg = aggSum / cnt, avgCom = comSum / cnt;
+                        if (avgAgg >= 70) need = 3;
+                        else if (avgCom >= 70) need = 1;
+                    }
+                }
+                catch { }
+                return conds >= need;
             }
             catch { return false; }
         }

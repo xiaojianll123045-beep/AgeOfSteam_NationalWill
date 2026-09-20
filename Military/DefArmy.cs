@@ -120,7 +120,7 @@ namespace FeudalInternalAffairs
                 for (int i = 0; i < Legions.Count; i++)
                 {
                     var p = FindParty(Legions[i].PartyId);
-                    if (p != null && p.IsActive) n += p.MemberRoster.TotalManCount;   // v4.104: 含将军
+                    if (p != null && p.IsActive) n += RegularsOf(p);   // v4.123: 士兵数(不含将军)
                     else n += Legions[i].Expected;
                 }
                 for (int i = 0; i < Garrisons.Count; i++) n += Garrisons[i].Placed;
@@ -236,6 +236,112 @@ namespace FeudalInternalAffairs
                 if (t[k] == null || want[k] <= 0) continue;
                 roster.AddToCounts(t[k], want[k], false, 0, 0, true, -1);
             }
+        }
+
+        // v4.106: AI 扩军用(按文化补兵)
+        internal static void AddCompositionPublic(TroopRoster roster, CultureObject culture, int n)
+        {
+            AddComposition(roster, culture, n);
+        }
+
+        // v4.118: 沿升级链找 ≥wantTier 的同文化兵(供募兵/整编共用)
+        internal static CharacterObject FindEliteTroop(CultureObject culture, int wantTier)
+        {
+            try
+            {
+                if (culture == null) return null;
+                var t2 = TroopsOf(culture);
+                for (int i = 0; i < 3; i++)
+                {
+                    var b = t2[i];
+                    if (b == null || b.UpgradeTargets == null) continue;
+                    foreach (var up in b.UpgradeTargets)
+                    {
+                        if (up == null || up.IsHero) continue;
+                        if (up.Culture != null && up.Culture.StringId != culture.StringId) continue;
+                        if (up.Tier >= wantTier) return up;
+                        if (up.UpgradeTargets != null)
+                        {
+                            foreach (var up2 in up.UpgradeTargets)
+                            {
+                                if (up2 == null || up2.IsHero) continue;
+                                if (up2.Culture != null && up2.Culture.StringId != culture.StringId) continue;
+                                if (up2.Tier >= wantTier) return up2;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        // v4.116/4.117: AI 精锐补兵(沿升级链找 ≥wantTier 的兵; 找不到退回普通 T2)
+        internal static void AddEliteCompositionPublic(TroopRoster roster, CultureObject culture, int n, int wantTier)
+        {
+            try
+            {
+                if (roster == null || culture == null || n <= 0) return;
+                var pick = FindEliteTroop(culture, wantTier);
+                if (pick == null) { AddComposition(roster, culture, n); return; }
+                roster.AddToCounts(pick, n, false, 0, 0, true, -1);
+            }
+            catch { AddComposition(roster, culture, n); }
+        }
+
+        // v4.118: 精锐整编(把全部军团的 T2 兵升级为 T3/T4, 按国库能力; 玩家与 AI 对等)
+        internal static string UpgradeLegionsToElite()
+        {
+            try
+            {
+                int tier = EconomyWorld.Treasury.Gold > 12000 ? 4 : (EconomyWorld.Treasury.Gold > 5000 ? 3 : 0);
+                if (tier == 0) return "国库不足(需 >5,000 第纳尔才能整编精锐)";
+                int unitCost = tier >= 4 ? 50 : 30;
+                int total = 0, spent = 0;
+                for (int i = 0; i < Legions.Count; i++)
+                {
+                    var lg = Legions[i];
+                    var p = LegionParty(lg);
+                    if (p == null || !p.IsActive) continue;
+                    var culture = CultureOfLegion(lg);
+                    if (culture == null) continue;
+                    var elite = FindEliteTroop(culture, tier);
+                    if (elite == null) continue;
+                    var t2 = TroopsOf(culture);
+                    int count = 0;
+                    for (int b = 0; b < 3; b++)
+                    {
+                        if (t2[b] == null) continue;
+                        try { count += p.MemberRoster.GetTroopCount(t2[b]); } catch { }
+                    }
+                    if (count <= 0) continue;
+                    int can = (int)Math.Min(count, (EconomyWorld.Treasury.Gold - 500) / Math.Max(1, unitCost));
+                    if (can <= 0) break;
+                    int left = can;
+                    for (int b = 0; b < 3 && left > 0; b++)
+                    {
+                        if (t2[b] == null) continue;
+                        int have = 0;
+                        try { have = p.MemberRoster.GetTroopCount(t2[b]); } catch { }
+                        int take = Math.Min(have, left);
+                        if (take <= 0) continue;
+                        p.MemberRoster.AddToCounts(t2[b], -take, false, 0, 0, true, -1);
+                        left -= take;
+                    }
+                    int moved = can - left;
+                    if (moved <= 0) continue;
+                    p.MemberRoster.AddToCounts(elite, moved, false, 0, 0, true, -1);
+                    int cost = moved * unitCost;
+                    EconomyWorld.TreasurySpend(cost);
+                    Fiscal.AddMilitary(cost);
+                    total += moved; spent += cost;
+                    DLog.Force("国防军: 精锐整编 " + MapSelection.NameOf(p) + " " + moved + " 兵 → "
+                        + (elite.Name != null ? elite.Name.ToString() : "?") + "(费 " + cost + ")");
+                }
+                if (total <= 0) return "没有可整编的部队(或国库不足)";
+                return "精锐整编: " + total + " 兵升级为 " + (tier >= 4 ? "顶级精锐" : "精锐") + ", 花费 " + spent.ToString("N0") + " 第纳尔";
+            }
+            catch (Exception ex) { DLog.Force("精锐整编失败: " + ex); return "精锐整编失败, 见日志"; }
         }
 
         internal static int CountDefTroops(TroopRoster roster, CultureObject culture)
@@ -375,6 +481,39 @@ namespace FeudalInternalAffairs
             var sold = PopOf(soldHost, PopDefs.Soldiers);
             if (sold != null) sold.Size += taken;
             return taken;
+        }
+
+        // v4.122: 实际可征平民合计(与 TakeCommoners 的候选口径一致)
+        internal static int RealCommonersOf(Settlement s)
+        {
+            try
+            {
+                if (s == null) return 0;
+                int n = 0;
+                if (s.IsVillage)
+                {
+                    n += SizeOf(s, PopDefs.Peasants);
+                    n += SizeOf(s, PopDefs.Laborers);
+                }
+                else
+                {
+                    n += SizeOf(s, PopDefs.Laborers);
+                    n += SizeOf(s, PopDefs.Peasants);
+                    foreach (var v in Settlement.All)
+                    {
+                        if (v == null || !v.IsVillage || v.Village == null) continue;
+                        if (!ReferenceEquals(v.Village.Bound, s)) continue;
+                        n += SizeOf(v, PopDefs.Peasants);
+                    }
+                }
+                return n;
+            }
+            catch { return 0; }
+        }
+
+        private static int SizeOf(Settlement s, string prof)
+        {
+            try { var r = PopOf(s, prof); return r != null ? (int)r.Size : 0; } catch { return 0; }
         }
 
         private static int TakeFrom(Settlement s, string prof, int want)
@@ -558,14 +697,17 @@ namespace FeudalInternalAffairs
 
         // ==================== 募兵 ====================
         // 三要素: 人(1:1) / 钱(20/兵) / 装备(武器1 甲0.5 皮0.5 per 100)
-        internal static string Recruit(Settlement s, int n)
+        internal static string Recruit(Settlement s, int n, int tier)
         {
             try
             {
                 if (OurKingdom == null) return Fail("尚未建立国家意志");
                 if (s == null || n <= 0) return Fail("请先选择募兵地");
                 int townHallDiscount = Politics.SeatHeld(3) ? 1 : 0;   // 军务大臣: 募兵费 -10%
-                int cost = (int)Math.Round(n * RecruitCost * (townHallDiscount == 1 ? 0.9f : 1f));
+                // v4.119: 档位由玩家在募兵时选择(0=普通, 3=精锐, 4=顶级)
+                if (tier != 3 && tier != 4) tier = 0;
+                int unitPrice = RecruitCost * (tier >= 4 ? 3 : (tier == 3 ? 2 : 1));
+                int cost = (int)Math.Round(n * unitPrice * (townHallDiscount == 1 ? 0.9f : 1f));
                 if (EconomyWorld.Treasury.Gold < cost) return Fail("国库不足: 需要 " + cost.ToString("N0") + " 第纳尔(现有 " + EconomyWorld.Treasury.Gold.ToString("N0") + ")");
 
                 int avail = CommonersOf(s);
@@ -586,13 +728,15 @@ namespace FeudalInternalAffairs
                 bool okL = TakeItem(s, FeudalGoods.Leather, needL);
                 bool lowEquip = !(okW && okA && okL);
 
-                AddComposition(garrison.MemberRoster, s.Culture, n);
+                if (tier > 0) AddEliteCompositionPublic(garrison.MemberRoster, s.Culture, n, tier);
+                else AddComposition(garrison.MemberRoster, s.Culture, n);
                 var rec = GetGarrisonRec(target.StringId, true);
                 if (rec != null) { rec.Placed += n; rec.LowEquip |= lowEquip; }
 
                 Spend(cost);
                 Fiscal.AddMilitary(cost);
-                string msg = "募兵 " + n + " 人 → " + target.Name + "守备营 · 花费 " + cost.ToString("N0") + " 第纳尔"
+                string tierName = tier >= 4 ? "顶级精锐" : (tier == 3 ? "精锐" : "");
+                string msg = "募兵 " + n + " 人" + (tierName.Length > 0 ? "(" + tierName + ")" : "") + " → " + target.Name + "守备营 · 花费 " + cost.ToString("N0") + " 第纳尔"
                     + (lowEquip ? " · 装备不足, 低配入列(士气-10%)" : " · 装备齐整");
                 DLog.Force("国防军: " + msg);
                 return msg;
@@ -804,8 +948,8 @@ namespace FeudalInternalAffairs
             try
             {
                 var p = LegionParty(lg);
-                // v4.104: 显示含将军的总人数(用户: 国防军 100 人应含将军)
-                if (p != null && p.IsActive) return p.MemberRoster.TotalManCount;
+                // v4.123: 显示"士兵数"(不含将军), 与守备营抽调数一致(100 抽 100 显示 100)
+                if (p != null && p.IsActive) return RegularsOf(p);
             }
             catch { }
             return lg != null ? lg.Expected : 0;
@@ -835,11 +979,11 @@ namespace FeudalInternalAffairs
                 if (EconomyWorld.Treasury.Gold < cost) return Fail("国库不足: 建军需要 " + cost.ToString("N0") + " 第纳尔(现有 " + EconomyWorld.Treasury.Gold.ToString("N0") + ")");
                 var garrison = GarrisonPartyOf(home);
                 if (garrison == null || home.Culture == null) return Fail("该地没有驻军");
-                // v4.97: 编制含将军 -> 只抽调 n-1 名士兵, 军团总人数正好 n (用户: 成立200应为199兵+1将军)
-                int need = n > 1 ? n - 1 : 1;
+                // v4.123: 成立 N 人 = 从守备营抽 N 兵(将军免费附送, 不从守备营出)
+                int need = n > 0 ? n : 1;
                 int actual = GarrisonMenOf(home.StringId);   // v4.90: 按我们的账面口径
                 int recWant = need;
-                if (actual < recWant) return Fail("守备营兵力不足: 只有 " + actual + " 兵(计划 " + n + " 需 " + need + " 兵)");
+                if (actual < recWant) return Fail("守备营兵力不足: 只有 " + actual + " 兵(计划 " + n + ")");
 
                 int number = NextNumber();
                 var general = MakeGeneral(home, number);
@@ -853,7 +997,7 @@ namespace FeudalInternalAffairs
                 try { party.ActualClan = Clan.PlayerClan; } catch { }
 
                 var mr = new TroopRoster(party.Party);
-                int moved = MoveDefTroops(garrison.MemberRoster, mr, home.Culture, need);   // v4.97: 只移 n-1 兵(将军占 1 名额)
+                int moved = MoveDefTroops(garrison.MemberRoster, mr, home.Culture, need);   // v4.123: 抽 n 兵(将军附送)
                 // v4.95: 生成在城门外空地(城中心可能不在导航网格上, 部队会卡住不动)
                 CampaignVec2 spawn = home.Position;
                 try { spawn = home.GatePosition; } catch { }
@@ -1108,8 +1252,8 @@ namespace FeudalInternalAffairs
                 int lv = Politics.LawLevel(2);
                 if (s == null || lv <= 0) return 0;
                 float mult = 0.10f * (1f + lv * 0.05f);
-                var r = PopOf(s, s.IsVillage ? PopDefs.Peasants : PopDefs.Laborers);
-                return r != null ? (int)(r.Size * mult) : 0;
+                // v4.122: 与"实际可征人口"同口径(原来只算单一阶层, 会与实际抽取对不上)
+                return (int)(RealCommonersOf(s) * mult);
             }
             catch { return 0; }
         }
@@ -1120,7 +1264,7 @@ namespace FeudalInternalAffairs
             {
                 int lv = Politics.LawLevel(2);
                 if (lv <= 0) return 0;
-                return (int)(Pops.TotalPopulation() * (0.02f * lv));
+                return (int)(Pops.TotalPopulation() * (0.02f * lv) * FeudalContracts.AvgLevyMult() * LawSystem.ConscriptMult() * WarMobilization.ConscriptMult());   // v4.126: 兵役契约; v5.0-P22: 兵役制度; v5.0-P25: 动员 ×1.5
             }
             catch { return 0; }
         }
@@ -1144,14 +1288,15 @@ namespace FeudalInternalAffairs
                 var garrison = GarrisonPartyOf(target);
                 if (garrison == null) return "驻军不存在: " + target.Name;
 
-                int pool = ConscriptPool(s);
-                if (pool < n) return "征召池不足: " + s.Name + " 只有 " + pool + " 人可征";
+                // v4.122: 用"实际可征人口"校验(与抽取口径一致), 不足则拒绝(不做部分征召)
+                int avail = RealCommonersOf(s);
+                if (avail < n) return Fail("可征人口不足: " + s.Name + " 只有 " + avail + " 人可征(计划 " + n + ")");
                 int cost = n * ConscriptCost;
                 if (EconomyWorld.Treasury.Gold < cost) return "国库不足: 征召需要 " + cost.ToString("N0") + " 第纳尔";
 
                 int moved = TakeCommoners(s, n);
-                if (moved <= 0) return "征召池不足";
-                n = moved;
+                if (moved <= 0) return Fail("可征人口不足");
+                if (moved < n) { DLog.Force("征兵: 实际只征到 " + moved + "/" + n + " 人(人口池截断)"); n = moved; }
 
                 int needW, needA, needL;
                 EquipmentNeed(n, out needW, out needA, out needL);

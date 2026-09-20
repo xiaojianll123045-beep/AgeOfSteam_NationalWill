@@ -32,6 +32,7 @@ namespace FeudalInternalAffairs
 
         internal static void Open()
         {
+            Tutorials.Page("page_army");
             try
             {
                 if (!IsOpen)
@@ -104,6 +105,10 @@ namespace FeudalInternalAffairs
                     PanelScreen.AddSpot(336f, 428f, 58f, 36f, delegate { _vm.PlanStep(100); });
                     PanelScreen.AddSpot(398f, 428f, 58f, 36f, _vm.TogglePlanEdit);
                     PanelScreen.AddSpot(460f, 428f, 48f, 36f, _vm.PlanMax);
+                    // v4.121: 兵种档位
+                    PanelScreen.AddSpot(146f, 470f, 96f, 30f, delegate { _vm.SetRecruitTier(0); });
+                    PanelScreen.AddSpot(252f, 470f, 96f, 30f, delegate { _vm.SetRecruitTier(3); });
+                    PanelScreen.AddSpot(358f, 470f, 106f, 30f, delegate { _vm.SetRecruitTier(4); });
                     // 执行: 募兵 / 征兵
                     PanelScreen.AddSpot(26f, 676f, 304f, 48f, _vm.RecruitPlan);
                     PanelScreen.AddSpot(342f, 676f, 312f, 48f, _vm.ConscriptPlan);
@@ -126,6 +131,7 @@ namespace FeudalInternalAffairs
                         PanelScreen.AddSpot(590f, y, 40f, 32f, delegate { _vm.LegionAction(idx, 4); });   // 解散
                     }
                     PanelScreen.AddSpot(26f, 580f, 150f, 40f, _vm.AllToHome);   // 全军回防
+                    PanelScreen.AddSpot(190f, 580f, 150f, 40f, _vm.UpgradeElite);   // v4.118: 精锐整编
                 }
                 else
                 {

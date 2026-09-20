@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using TaleWorlds.CampaignSystem;
 
 namespace FeudalInternalAffairs
@@ -15,6 +15,7 @@ namespace FeudalInternalAffairs
 
         internal static void Open(Kingdom select)
         {
+            Tutorials.Page("page_diplo");
             try
             {
                 if (!IsOpen)
@@ -67,7 +68,9 @@ namespace FeudalInternalAffairs
                 PanelScreen.AddSpot(24f, 116f, 150f, 40f, _vm.ExecuteTabWars);      // 页签: 战争
                 PanelScreen.AddSpot(180f, 116f, 150f, 40f, _vm.ExecuteTabAllies);   // 页签: 同盟
                 PanelScreen.AddSpot(336f, 116f, 150f, 40f, _vm.ExecuteTabRelations);// 页签: 关系
+                PanelScreen.AddSpot(420f, 238f, 104f, 32f, _vm.ExecuteSanction);    // v4.114: 经济制裁
                 PanelScreen.AddSpot(26f, sh - 24f - 42f, 122f, 42f, _vm.ExecuteClose); // 关闭
+                PanelScreen.AddSpot(160f, sh - 24f - 42f, 150f, 42f, PowerBlocUi.Show); // v5.0-P27: 权力集团
                 // 国家行(动态): 左段=选中看详情, 右侧单一行动按钮(按状态自动: 求和/解除/缔结/宣战)
                 int i = 0;
                 foreach (var row in _vm.Rows)

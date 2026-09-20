@@ -15,6 +15,7 @@ namespace FeudalInternalAffairs
 
         internal static void Open()
         {
+            Tutorials.Page("page_society");
             try
             {
                 if (!IsOpen)
@@ -60,6 +61,7 @@ namespace FeudalInternalAffairs
                 float sh = PanelScreen.ScreenHeight();
                 PanelScreen.AddSpot(Width - 60f, 20f, 60f, 58f, _vm.ExecuteClose);       // X
                 PanelScreen.AddSpot(26f, sh - 26f - 42f, 122f, 42f, _vm.ExecuteClose);  // 关闭
+                PanelScreen.AddSpot(160f, sh - 26f - 42f, 160f, 42f, InstitutionsUi.Show); // v5.0-P26: 国家机构/研究/文化
             }
             catch (Exception ex) { DLog.Force("社会页热区失败: " + ex.Message); }
         }

@@ -91,6 +91,8 @@ namespace FeudalInternalAffairs
         private int _scroll;
         private int _plan = 100;
         private bool _planEdit;
+        private int _recruitTier;   // v4.121: 募兵档位(0=普通, 3=精锐, 4=顶级)
+        private string _tier0Color = "#E8C33AFF", _tier3Color = "#8A8070FF", _tier4Color = "#8A8070FF";
         private bool _enterWasDown;   // v4.86: 回车确认的边沿检测
         private int _tab;   // 0 募兵/征兵 1 军团 2 守备营
         private bool _pickingSettle;
@@ -124,6 +126,9 @@ namespace FeudalInternalAffairs
         [DataSourceProperty] public string SrcName { get { return _srcName; } }
         [DataSourceProperty] public string SettleInfo { get { return _settleInfo; } }
         [DataSourceProperty] public string PlanText { get { return _planText; } }
+        [DataSourceProperty] public string Tier0Color { get { return _tier0Color; } }
+        [DataSourceProperty] public string Tier3Color { get { return _tier3Color; } }
+        [DataSourceProperty] public string Tier4Color { get { return _tier4Color; } }
         [DataSourceProperty] public string NeedRecruitText { get { return _needRecruitText; } }
         [DataSourceProperty] public string NeedConscriptText { get { return _needConscriptText; } }
         [DataSourceProperty] public string HaveGoldPop { get { return _haveGoldPop; } }
@@ -208,6 +213,27 @@ namespace FeudalInternalAffairs
                 _planEdit = false;
                 int pop = DefArmy.CommonersOf(Source);
                 _plan = Math.Min(PlanMaxLim, Math.Max(PlanMin, pop));
+                Refresh();
+            }
+            catch { }
+        }
+
+        // v4.121: 募兵档位选择(0=普通, 3=T3精锐, 4=T4顶级)
+        internal void SetRecruitTier(int t)
+        {
+            try
+            {
+                if (t != 3 && t != 4) t = 0;
+                if (t > 0)
+                {
+                    var s = Source;
+                    if (s == null || s.Culture == null || DefArmy.FindEliteTroop(s.Culture, t) == null)
+                    {
+                        MapSelection.Message(t >= 4 ? "该文化没有可用的 T4 顶级兵种" : "该文化没有可用的 T3 精锐兵种");
+                        return;
+                    }
+                }
+                _recruitTier = t;
                 Refresh();
             }
             catch { }
@@ -347,7 +373,7 @@ namespace FeudalInternalAffairs
                         + "（" + kind + "）· 可征人口 " + pop + " · 守备营 " + g + " 兵";
                     options.Add(new InquiryElement(s.StringId, txt, null, true, null));
                 }
-                MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
+                PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
                     "选择征兵地点", "本国共有 " + options.Count + " 处城镇/城堡",
                     options, true, 1, 1, "确定", "取消",
                     OnSettlementPicked, null, null, false));
@@ -444,8 +470,8 @@ namespace FeudalInternalAffairs
             try
             {
                 _planEdit = false;
-                string msg = DefArmy.Recruit(Source, _plan);
-                // v4.85: 募兵成功首次弹"讲解"(守备营/成立军团流程), 带"不再提示"与"关闭"按钮
+                string msg = DefArmy.Recruit(Source, _plan, _recruitTier);   // v4.121: 用页面所选档位
+                // v4.85: 募兵成功首次弹"讲解"
                 if (msg != null && msg.StartsWith("募兵") && !TipState.Disabled("recruit"))
                 {
                     _status = msg;
@@ -481,7 +507,7 @@ namespace FeudalInternalAffairs
             try
             {
                 if (string.IsNullOrEmpty(body)) return;
-                if (InformationManager.IsAnyInquiryActive()) return;   // 已有弹窗时不叠加
+                if (PanelInputGuard.AnyPopupActive()) return;   // 已有弹窗时不叠加
                 InformationManager.ShowInquiry(new InquiryData(title, body, true, false,
                     "关闭", null, null, null, "", 0f, null, null, null), true, false);
             }
@@ -492,7 +518,7 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                if (InformationManager.IsAnyInquiryActive()) { _status = result; return; }
+                if (PanelInputGuard.AnyPopupActive()) { _status = result; return; }
                 string body = result + "\n\n所募兵员编入该地守备营(城镇/城堡驻军), 不会直接出现在世界地图上。\n"
                     + "让部队上地图: 军务页 → [守备营]页 → 点该行[成立军团], 会弹出数量输入框(键入数字, 至少 100 兵), "
                     + "费用: 建军 2,000 + 置装 500 = 2,500 第纳尔。\n"
@@ -524,7 +550,7 @@ namespace FeudalInternalAffairs
                 int avail = GarrisonAvailable(s);
                 int max = avail;   // v4.89: 取消单军上限(能多大多大)
                 if (max < 100) { Notify("守备营兵力不足(现有 " + avail + ", 至少 100)"); return; }
-                if (InformationManager.IsAnyInquiryActive()) return;
+                if (PanelInputGuard.AnyPopupActive()) return;
                 int def = _plan < 100 ? 100 : (_plan > max ? max : _plan);
                 string name = s.Name != null ? s.Name.ToString() : s.StringId;
                 string body = name + " 守备营现有 " + avail.ToString("N0") + " 兵。\n"
@@ -598,6 +624,13 @@ namespace FeudalInternalAffairs
         {
             try { Notify(DefArmy.AllToHome()); }
             catch { }
+        }
+
+        // v4.118: 精锐整编(把军团 T2 兵升级为 T3/T4, 与 AI 对等)
+        internal void UpgradeElite()
+        {
+            try { Notify(DefArmy.UpgradeLegionsToElite()); }
+            catch (Exception ex) { DLog.Force("精锐整编异常: " + ex.Message); }
         }
 
         internal void RenewConscripts()
@@ -677,14 +710,19 @@ namespace FeudalInternalAffairs
                     _settleInfo = "本国暂无城镇/城堡";
                 }
 
-                // 计划数量 + 实时"需要 / 拥有"
+                // 计划数量 + 实时"需要 / 拥有"(v4.121: 募兵价格按所选档位)
                 int n2 = _plan;
                 NeedEquip(n2, out int needW, out int needA, out int needL);
-                int needGold = NeedGoldFor(n2);
+                int tierMult = _recruitTier >= 4 ? 3 : (_recruitTier == 3 ? 2 : 1);
+                int needGold = NeedGoldFor(n2) * tierMult;
                 int needGoldConscript = n2 * 5;
                 _planText = _planEdit ? (_plan + "_") : _plan.ToString("N0");
-                _needRecruitText = "国库 " + needGold.ToString("N0") + " · 人口 " + n2.ToString("N0")
+                string tierName = _recruitTier >= 4 ? "T4顶级" : (_recruitTier == 3 ? "T3精锐" : "普通");
+                _needRecruitText = "[" + tierName + "] 国库 " + needGold.ToString("N0") + " · 人口 " + n2.ToString("N0")
                     + " · 武器 " + needW + " · 盔甲 " + needA + " · 皮革 " + needL;
+                _tier0Color = _recruitTier == 0 ? "#E8C33AFF" : "#8A8070FF";
+                _tier3Color = _recruitTier == 3 ? "#E8C33AFF" : "#8A8070FF";
+                _tier4Color = _recruitTier == 4 ? "#E8C33AFF" : "#8A8070FF";
                 _needConscriptText = "国库 " + needGoldConscript.ToString("N0") + " · 人口 " + n2.ToString("N0");
                 int haveGold = 0;
                 try { haveGold = EconomyWorld.Treasury.Gold; } catch { }
@@ -696,13 +734,13 @@ namespace FeudalInternalAffairs
                 else if (haveW < needW || haveA < needA || haveL < needL) { _planVerdict = "装备不足 → 低配入列(士气-10%)"; _planVerdictColor = "#E8C33AFF"; _planVerdictBg = "#E8C33A26"; }
                 else { _planVerdict = "✓ 资源充足, 可执行"; _planVerdictColor = "#7FBF6AFF"; _planVerdictBg = "#7FBF6A26"; }
 
-                _recruitBtn = "募兵 " + n2.ToString("N0") + " · " + needGold.ToString("N0") + "金";
+                _recruitBtn = "募兵 " + n2.ToString("N0") + "(" + tierName + ") · " + needGold.ToString("N0") + "金";
                 _conscriptBtn = "征兵 " + n2.ToString("N0") + " · " + needGoldConscript.ToString("N0") + "金";
 
                 int lv = Politics.LawLevel(2);
                 int pool = DefArmy.ConscriptPool(src);
                 int left = DefArmy.NearestConscriptExpiry();
-                _conscriptText = "征兵法令: " + (lv > 0 ? Politics.LawLevels[lv] : "未立(需立法)")
+                _conscriptText = "征兵法令: " + (lv > 0 ? LawSystem.TierName(LawSystem.LLevy, lv) : "未立(需立法)")
                     + " · 征召池 " + pool.ToString("N0") + " 人 · 已征 " + DefArmy.ConscriptedMen().ToString("N0")
                     + " / 上限 " + DefArmy.ConscriptCap().ToString("N0")
                     + (left >= 0 ? " · 最近到期 " + left + " 天" : "");
@@ -740,6 +778,9 @@ namespace FeudalInternalAffairs
                 OnPropertyChangedWithValue(_srcName, "SrcName");
                 OnPropertyChangedWithValue(_settleInfo, "SettleInfo");
                 OnPropertyChangedWithValue(_planText, "PlanText");
+                OnPropertyChangedWithValue(_tier0Color, "Tier0Color");
+                OnPropertyChangedWithValue(_tier3Color, "Tier3Color");
+                OnPropertyChangedWithValue(_tier4Color, "Tier4Color");
                 OnPropertyChangedWithValue(_needRecruitText, "NeedRecruitText");
                 OnPropertyChangedWithValue(_needConscriptText, "NeedConscriptText");
                 OnPropertyChangedWithValue(_haveGoldPop, "HaveGoldPop");

@@ -132,6 +132,13 @@ namespace FeudalInternalAffairs
 
         public void ExecuteClose() { if (_onClose != null) _onClose(); }
 
+        // v4.114: 国家战略储备(用国库从市面买粮到 30 天)
+        public void ExecuteReserve()
+        {
+            try { MapSelection.Message(EconomyOps.StrategicReserve(30f, 500)); Refresh(); }
+            catch (Exception ex) { DLog.Force("战略储备异常: " + ex.Message); }
+        }
+
         // v4.0: 点击税种切档 / 切铸币成色
         internal void TaxClick(int kind)
         {

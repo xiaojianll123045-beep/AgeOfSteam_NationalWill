@@ -15,6 +15,7 @@ namespace FeudalInternalAffairs
 
         internal static void Open()
         {
+            Tutorials.Page("page_build");
             try
             {
                 if (!IsOpen)

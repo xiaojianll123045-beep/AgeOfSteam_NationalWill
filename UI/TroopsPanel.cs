@@ -15,6 +15,7 @@ namespace FeudalInternalAffairs
 
         internal static void Open()
         {
+            Tutorials.Page("page_troops");
             try
             {
                 if (!IsOpen)
@@ -68,7 +69,7 @@ namespace FeudalInternalAffairs
                 for (int i = 0; i < _vm.ShownCount; i++)
                 {
                     int idx = i;
-                    float y = 306f + i * 46f;
+                    float y = 284f + i * 46f;
                     PanelScreen.AddSpot(560f, y, 90f, 34f, delegate { _vm.ExecuteRowAction(idx); });   // 定位/操纵
                 }
             }

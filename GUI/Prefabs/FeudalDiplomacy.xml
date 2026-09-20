@@ -77,6 +77,14 @@
             <TextWidget IsVisible="@HasSelection" WidthSizePolicy="Fixed" SuggestedWidth="470" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="30" MarginTop="288" Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#7A7060FF" Text="@SelDetail" />
 
+            <!-- v4.114: 经济制裁按钮(详情区右侧) -->
+            <Widget IsVisible="@SanctionVisible" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="104" SuggestedHeight="32"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="420" MarginTop="238" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#C96A5AFF" Text="@SanctionText" />
+              </Children>
+            </Widget>
+
             <!-- 提示 -->
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="500" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="24" MarginTop="306" Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#7A7060FF" Text="@Hint" />
@@ -140,6 +148,15 @@
                           MarginLeft="26" MarginBottom="24" Brush="ButtonBrush2" Command.Click="ExecuteClose" UpdateChildrenStates="true">
               <Children>
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Text="关闭" />
+              </Children>
+            </ButtonWidget>
+
+            <!-- v5.0-P27: 权力集团 -->
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="150" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="160" MarginBottom="24" Brush="ButtonBrush2" UpdateChildrenStates="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8C33AFF" Text="权力集团" />
               </Children>
             </ButtonWidget>
 

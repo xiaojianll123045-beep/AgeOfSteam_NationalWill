@@ -100,6 +100,16 @@ namespace FeudalInternalAffairs
                 Petitions.Clear();
                 _dividendAccum = 0;
                 _lastMonthDay = -1;
+                LawSystem.Reset();            // v5.0-P22: 法律体系(文档 24.3)
+                InterestGroups.Reset();       // v5.0-P22: 利益集团(文档 24.2)
+                Revolution.Reset();           // v5.0-P23: 革命(文档 24.5)
+                TradeRoutes.Reset();          // v5.0-P24: 贸易路线(文档 24.7)
+                WarMobilization.Reset();      // v5.0-P25: 动员
+                Elections.Reset();            // v5.0-P25: 选举
+                Research.Reset();             // v5.0-P26: 研究
+                Institutions.Reset();         // v5.0-P26: 机构/文化
+                PowerBlocs.Reset();           // v5.0-P27: 权力集团
+                Interests.Reset();            // v5.0-P27: 利益宣示
                 RefreshLords();
                 Aggregate();
                 DLog.Force("政治: 初始化 领主=" + Lords.Count + " 权威=" + (int)Authority + " 合法性=" + (int)Legitimacy);
@@ -225,13 +235,20 @@ namespace FeudalInternalAffairs
                 if (CivilWar)
                 {
                     Authority = Math.Max(0f, Authority - 0.5f);
-                    if (day - CivilWarDay > 84)   // 拖满一年: 合法性重创后自动平息
+                    if (day - CivilWarDay > 84)   // 拖满一年: 结算(V4.134: 革命阵营 -> 革命胜利; 否则疲惫停战)
                     {
-                        CivilWar = false;
-                        Legitimacy = Math.Max(5f, Legitimacy - 10f);
-                        for (int i = 0; i < 3; i++) Pops.ShiftRadicals(0.01f);
-                        Notify("内战拖满一年: 双方疲惫停战(合法性重创)", false);
-                        DLog.Force("政治: 内战拖满一年, 停战");
+                        if (Revolution.Current != null && Revolution.Current.Active)
+                        {
+                            Revolution.OnCivilWarTimeout(day);
+                        }
+                        else
+                        {
+                            CivilWar = false;
+                            Legitimacy = Math.Max(5f, Legitimacy - 10f);
+                            for (int i = 0; i < 3; i++) Pops.ShiftRadicals(0.01f);
+                            Notify("内战拖满一年: 双方疲惫停战(合法性重创)", false);
+                            DLog.Force("政治: 内战拖满一年, 停战");
+                        }
                     }
                 }
             }
@@ -261,6 +278,7 @@ namespace FeudalInternalAffairs
                     var lp = kv.Value;
                     lp.Anger += (int)Math.Round(taxOver * 2f);
                     lp.Anger += Laws[2] * 2;                 // 军务征召
+                    lp.Anger += FeudalContracts.MonthlyAngerOf(kv.Key);   // v4.126: 封建契约(税档/兵役档)每月影响
                     lp.Attitude += Laws[1] * 5;              // 税赋特权
                     lp.Attitude -= Laws[5] * 4;              // 王室司法
                     if (lordDividend) { lp.Attitude += 1; lp.Anger -= 2; }
@@ -277,14 +295,8 @@ namespace FeudalInternalAffairs
                 if (BurgerAngerOffset > 0) BurgerAngerOffset = Math.Max(0, BurgerAngerOffset - 2);
                 Aggregate();
 
-                // 4) 合法性重算
-                float taxOverAll = Math.Max(0f, TaxPolicy.Level[0] + TaxPolicy.Level[1] + TaxPolicy.Level[2] + TaxPolicy.Level[3] - 8f);
-                float legit = 50f + Laws[0] * 2.5f + ChurchAttitude / 5f - Tyranny - taxOverAll * 2f;
-                if (CivilWar) legit -= 10f;
-                if (Treasury() > 10000) legit += 3f;
-                if (Treasury() < 0) legit -= 5f;
-                if (SeatHeld(1)) legit += 2f;   // 掌玺大臣(文档 21.3)
-                Legitimacy = ClampF(legit, 0f, 100f);
+                // 4) 合法性重算(v5.0-P22: 主干 = 执政集团(组阁)影响力, 文档 24.2; v4.140: 抽出为公共方法即时刷新)
+                RecomputeLegitimacy();
 
                 // 5) 请愿: 过期处理 + 生成
                 for (int i = Petitions.Count - 1; i >= 0; i--)
@@ -567,6 +579,9 @@ namespace FeudalInternalAffairs
             try
             {
                 float m = 1f - 0.06f * Laws[1] - 0.03f * Laws[3] + (SeatHeld(2) ? 0.03f : 0f);
+                m *= LawSystem.ExtraTaxMult();   // v5.0-P22: 权力结构(集权)提升税收效率
+                m *= WarMobilization.TaxMult();  // v5.0-P25: 动员期间税收 -10%
+                m *= Research.TaxMult() * Institutions.TaxMult();   // v5.0-P26: 研究/官僚机构
                 if (CivilWar) m *= 0.6f;
                 return ClampF(m, 0.3f, 1.3f);
             }
@@ -578,6 +593,8 @@ namespace FeudalInternalAffairs
             try
             {
                 float d = -0.001f * Laws[1] - 0.001f * Laws[5] - (SeatHeld(4) ? 0.0005f : 0f);
+                d += LawSystem.CivilRadicalDaily();   // v5.0-P22: 平民权利压制激进
+                d += Research.RadicalDelta();         // v5.0-P26: 学识研究
                 if (CivilWar) d += 0.004f;
                 if (UltimatumActive) d += 0.001f;
                 return d;
@@ -589,11 +606,32 @@ namespace FeudalInternalAffairs
         {
             try
             {
+                float m;
                 if (categoryName == "军事")
-                    return 1f + 0.04f * Laws[2] + (SeatHeld(3) ? 0.04f : 0f);
-                return CivilWar ? 0.85f : 1f;   // 内战: 全境产出受损
+                    m = (LawSystem.MilitaryMult() + (SeatHeld(3) ? 0.04f : 0f)) * WarMobilization.MilitaryMult() * PowerBlocs.MilitaryMult();   // v4.133/v5.0-P25/P27
+                else if (categoryName == "资源")
+                    m = (CivilWar ? 0.85f : 1f) * LawSystem.AgriOutputMult();    // v4.133: 土地制度
+                else
+                    m = CivilWar ? 0.85f : 1f;
+                return m * Research.OutputMult();   // v5.0-P26: 工程研究
             }
             catch { return 1f; }
+        }
+
+        // v4.140: 合法性重算(月度结算 + 组阁/选举变更时即时调用; 用户反馈: 出阁后合法性要立即变化)
+        internal static void RecomputeLegitimacy()
+        {
+            try
+            {
+                float taxOverAll = Math.Max(0f, TaxPolicy.Level[0] + TaxPolicy.Level[1] + TaxPolicy.Level[2] + TaxPolicy.Level[3] - 8f);
+                float legit = InterestGroups.LegitimacyTerms() + Laws[0] * 2.5f + ChurchAttitude / 5f - Tyranny - taxOverAll * 2f;
+                if (CivilWar) legit -= 10f;
+                if (Treasury() > 10000) legit += 3f;
+                if (Treasury() < 0) legit -= 5f;
+                if (SeatHeld(1)) legit += 2f;   // 掌玺大臣(文档 21.3)
+                Legitimacy = ClampF(legit, 0f, 100f);
+            }
+            catch { }
         }
 
         internal static float MonthRegen()
@@ -604,6 +642,8 @@ namespace FeudalInternalAffairs
                 if (Legitimacy < 30f) r *= 0.5f;
                 if (SeatHeld(0)) r += 2f;
                 r += Laws[5];
+                r += LawSystem.ExtraMonthRegen();   // v5.0-P22: 权力结构(集权)权威恢复
+                r += Research.RegenBonus();         // v5.0-P26: 行政研究
                 return r;
             }
             catch { return 10f; }
@@ -754,6 +794,8 @@ namespace FeudalInternalAffairs
                 foreach (var kv in Lords) kv.Value.Fear = Clamp(kv.Value.Fear + 15, 0, 100);
                 Tyranny += 8f;
                 Legitimacy = ClampF(Legitimacy - 5f, 0f, 100f);
+                InterestGroups.AddEventMod(1, -18);   // v5.0-P22: 大贵族震怒
+                InterestGroups.AddEventMod(7, 6);     // 军官团叫好
                 Notify("已处决 " + name + "(暴政 +8, 全体领主恐惧 +15)", true);
                 DLog.Force("政治: 处决 " + name);
                 return "已处决 " + name + ": 暴政 +8, 恐惧 +15, 合法性 -5";
@@ -936,32 +978,15 @@ namespace FeudalInternalAffairs
             return score >= 10;
         }
 
+        // v5.0-P22: 旧 6 法令表决 -> 新法律体系立案(文档 24.3); cat 为旧索引(0..5)
         internal static string ProposeLaw(int cat, bool force, int day)
         {
             try
             {
                 if (cat < 0 || cat > 5) return "";
-                if (Laws[cat] >= 3) return LawNames[cat] + " 已至钦定, 无需再议";
-                int cost = LawCost(cat);
-                if (force) cost *= 2;
-                if (Authority < cost) return "权威不足(需 " + cost + ")";
-                bool pass = force;
-                if (!pass)
-                {
-                    int pct = SupportPct(cat);
-                    if (pct < 50) { Authority = Math.Max(0f, Authority - 20f); return "表决未过(赞成 " + pct + "%, 权威 -20) 【" + VoteSummary(cat) + "】"; }
-                    pass = true;
-                }
-                Authority -= cost;
-                Laws[cat]++;
-                if (force)
-                {
-                    foreach (var kv in Lords) kv.Value.Anger = Clamp(kv.Value.Anger + 8, 0, 100);
-                    Legitimacy = ClampF(Legitimacy - 3f, 0f, 100f);
-                }
-                Aggregate();
-                DLog.Force("政治: 颁布法令 -> " + LawNames[cat] + " " + LawLevels[Laws[cat]] + (force ? "(强推)" : "(表决通过)"));
-                return "已颁布: " + LawNames[cat] + " " + LawLevels[Laws[cat]] + (force ? "(强推, 领主愤怒 +8)" : "");
+                int law = LawSystem.LegacyToLaw(cat);
+                if (law < 0) return LawNames[cat] + " 无法案通道";
+                return LawSystem.StartBill(law, force);
             }
             catch { return "立法失败"; }
         }
@@ -981,6 +1006,8 @@ namespace FeudalInternalAffairs
                 foreach (var kv in Lords) { kv.Value.Anger = Clamp(kv.Value.Anger + 10, 0, 100); kv.Value.Fear = Clamp(kv.Value.Fear + 20, 0, 100); }
                 Pops.ShiftRadicals(-0.05f);
                 Legitimacy = ClampF(Legitimacy + 2f, 0f, 100f);
+                for (int g = 0; g < 8; g++) InterestGroups.AddEventMod(g, -6);   // v5.0-P22: 血腥镇压
+                InterestGroups.AddEventMod(7, 8);
                 Aggregate();
                 Notify("已镇压内战: 领主恐惧 +20", true);
                 DLog.Force("政治: 镇压内战(5000 第纳尔 + 100 权威)");
@@ -1001,6 +1028,8 @@ namespace FeudalInternalAffairs
                 foreach (var kv in Lords) { kv.Value.Anger = Clamp(kv.Value.Anger - 30, 0, 100); kv.Value.Attitude = Clamp(kv.Value.Attitude + 8, -100, 100); }
                 Authority = Math.Max(0f, Authority - 40f);
                 Legitimacy = ClampF(Legitimacy + 5f, 0f, 100f);
+                for (int g = 0; g < 8; g++) InterestGroups.AddEventMod(g, 4);   // v5.0-P22: 王室让步
+                InterestGroups.AddEventMod(1, 8);
                 Aggregate();
                 Notify("已妥协: 内战结束", false);
                 DLog.Force("政治: 妥协结束内战(3000 第纳尔, 领主愤怒 -30)");
@@ -1022,6 +1051,7 @@ namespace FeudalInternalAffairs
                 }
                 Tyranny += 3f;
                 foreach (var kv in Lords) kv.Value.Fear = Clamp(kv.Value.Fear + 5, 0, 100);
+                InterestGroups.AddEventMod(1, -10);   // v5.0-P22: 没收触动大贵族
                 DLog.Force("政治: 没收引发领主愤怒(暴政 +3)");
             }
             catch { }
@@ -1165,6 +1195,9 @@ namespace FeudalInternalAffairs
                 }
                 // 补请愿文本(存档只存 kind)
                 for (int i = 0; i < Petitions.Count; i++) Petitions[i].Text = PetitionText(Petitions[i]);
+                // v5.0-P22: 旧 6 法令并入法律体系(FIA_Laws 未读档时迁移, 之后同步回 Laws[])
+                LawSystem.MigrateLegacy(Laws);
+                LawSystem.SyncLegacy();
                 DLog.Force("政治: 读档 权威=" + (int)Authority + " 合法性=" + (int)Legitimacy + " 领主=" + Lords.Count + " 请愿=" + Petitions.Count);
             }
             catch { }

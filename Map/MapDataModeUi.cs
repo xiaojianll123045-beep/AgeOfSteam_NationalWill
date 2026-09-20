@@ -27,7 +27,7 @@ namespace FeudalInternalAffairs
                         extra = "（已选: " + FeudalGoods.NameOf(MapDataMode.PickItemId) + "）";
                     opts.Add(new InquiryElement(m, mark + MapDataMode.NameOf(m) + extra, null, true, MapDataMode.DescOf(m)));
                 }
-                MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
+                PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
                     "地图模式",
                     "选择地图着色方式; 数据模式为「白色→深绿」渐变(越高越绿), 定居点名板上方显示数值",
                     opts, true, 1, 1, "应用", "取消", OnPicked, null, null, false));
@@ -62,7 +62,7 @@ namespace FeudalInternalAffairs
                     opts.Add(new InquiryElement(d.Id, mark + d.Name, null, true,
                         BuildDefs.CategoryName(d.Cat) + " · " + (d.Loc == BuildLoc.Village ? "村庄" : (d.Loc == BuildLoc.Town ? "城镇" : "多地点"))));
                 }
-                MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
+                PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
                     "自选建筑地图",
                     "选择要显示的建筑(地图越绿=该建筑越多, 名牌显示数量)",
                     opts, true, 1, 1, "应用", "取消", OnBuildingPicked, null, null, false));
@@ -95,7 +95,7 @@ namespace FeudalInternalAffairs
                     string mark = g.Id == MapDataMode.PickItemId ? "● " : "○ ";
                     opts.Add(new InquiryElement(g.Id, mark + g.Name, null, true, "基础价 " + g.BasePrice));
                 }
-                MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
+                PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
                     "自选物品地图",
                     "选择要显示的物品(地图越绿=该物品库存越多, 名牌显示数量)",
                     opts, true, 1, 1, "应用", "取消", OnItemPicked, null, null, false));

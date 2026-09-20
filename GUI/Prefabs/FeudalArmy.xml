@@ -166,6 +166,28 @@
                   </Children>
                 </Widget>
 
+                <!-- v4.121: 兵种档位选择(普通/T3精锐/T4顶级) -->
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                            MarginLeft="44" MarginTop="474" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="兵种档位" />
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="30"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="146" MarginTop="470" Sprite="ButtonBrush2">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="@Tier0Color" Text="普通兵" />
+                  </Children>
+                </Widget>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="30"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="252" MarginTop="470" Sprite="ButtonBrush2">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="@Tier3Color" Text="T3 精锐" />
+                  </Children>
+                </Widget>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="106" SuggestedHeight="30"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="358" MarginTop="470" Sprite="ButtonBrush2">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="@Tier4Color" Text="T4 顶级" />
+                  </Children>
+                </Widget>
+
                 <!-- 卡片C: 资源对账 -->
                 <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="628" SuggestedHeight="158"
                         HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="504" Sprite="BlankWhiteSquare" Color="#FFFFFF10" />
@@ -309,6 +331,14 @@
                         HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="580" Sprite="ButtonBrush2">
                   <Children>
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#E8C33AFF" Text="全军回防" />
+                  </Children>
+                </Widget>
+
+                <!-- v4.118: 精锐整编 -->
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="40"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="190" MarginTop="580" Sprite="ButtonBrush2">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#7FBF6AFF" Text="精锐整编" />
                   </Children>
                 </Widget>
                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"

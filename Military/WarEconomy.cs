@@ -26,6 +26,8 @@ namespace FeudalInternalAffairs
         internal static readonly Dictionary<string, float> Gold = new Dictionary<string, float>();
         internal static readonly Dictionary<string, int> DeficitDays = new Dictionary<string, int>();
         internal static readonly Dictionary<string, int> Scorched = new Dictionary<string, int>();
+        internal static readonly HashSet<string> Sanctioned = new HashSet<string>();   // v4.114: 被制裁国(任一发起者)
+        private static readonly Dictionary<string, HashSet<string>> SanctionBy = new Dictionary<string, HashSet<string>>();   // v4.115: 谁制裁了谁
 
         // 当日缓存(不存档)
         private static readonly Dictionary<string, bool> _crisis = new Dictionary<string, bool>();
@@ -94,7 +96,27 @@ namespace FeudalInternalAffairs
                     int deficit = isPlayer ? Math.Max(0, EconomyWorld.Treasury.NegativeDays) : DeficitsOf(k);
                     if (isPlayer)
                     {
-                        // 玩家: 破产用现有国库负增长计数
+                        // v4.115: 被制裁 -> 贸易受损(按 AI 口径折算 25% 国库损失)
+                        try
+                        {
+                            if (IsSanctioned(k))
+                            {
+                                float baseInc = 0f;
+                                foreach (var s in k.Settlements)
+                                {
+                                    if (s == null) continue;
+                                    if (s.Town != null) baseInc += s.Town.Prosperity * 0.05f;
+                                    if (s.Village != null) baseInc += s.Village.Hearth * 0.02f;
+                                }
+                                int loss = (int)(baseInc * 0.7f * 0.25f);
+                                if (loss > 0)
+                                {
+                                    EconomyWorld.TreasurySpend(loss);
+                                    DLog.Force("经济制裁: 本国被制裁, 今日损失 " + loss + " 第纳尔");
+                                }
+                            }
+                        }
+                        catch { }
                     }
                     else
                     {
@@ -165,7 +187,66 @@ namespace FeudalInternalAffairs
                 }
             }
             catch { }
-            return inc * 0.7f;
+            float total = inc * 0.7f;
+            try { if (IsSanctioned(k)) total *= 0.75f; } catch { }   // v4.114: 经济制裁 -> 收入 -25%
+            return total;
+        }
+
+        // v4.114/4.115: 经济制裁(玩家与 AI 通用)
+        internal static bool IsSanctioned(Kingdom k)
+        {
+            try { return k != null && Sanctioned.Contains(k.StringId); }
+            catch { return false; }
+        }
+
+        internal static bool SanctionedBy(Kingdom target, Kingdom by)
+        {
+            try
+            {
+                if (target == null || by == null) return false;
+                HashSet<string> set;
+                return SanctionBy.TryGetValue(target.StringId, out set) && set.Contains(by.StringId);
+            }
+            catch { return false; }
+        }
+
+        internal static void SetSanction(Kingdom target, Kingdom by, bool on)
+        {
+            try
+            {
+                if (target == null || by == null) return;
+                HashSet<string> set;
+                if (!SanctionBy.TryGetValue(target.StringId, out set))
+                {
+                    set = new HashSet<string>();
+                    SanctionBy[target.StringId] = set;
+                }
+                if (on) set.Add(by.StringId);
+                else set.Remove(by.StringId);
+                if (set.Count == 0) Sanctioned.Remove(target.StringId);
+                else Sanctioned.Add(target.StringId);
+                DLog.Force("制裁: " + (by.Name != null ? by.Name.ToString() : by.StringId)
+                    + (on ? " -> " : " 解除 -> ") + (target.Name != null ? target.Name.ToString() : target.StringId));
+            }
+            catch { }
+        }
+
+        // v4.115: 清除某国发起的全部制裁(AI 每月重建名单用)
+        internal static void ClearSanctionsBy(Kingdom by)
+        {
+            try
+            {
+                if (by == null) return;
+                var targets = new List<string>(SanctionBy.Keys);
+                for (int i = 0; i < targets.Count; i++)
+                {
+                    HashSet<string> set;
+                    if (!SanctionBy.TryGetValue(targets[i], out set)) continue;
+                    set.Remove(by.StringId);
+                    if (set.Count == 0) Sanctioned.Remove(targets[i]);
+                }
+            }
+            catch { }
         }
 
         // 军事支出: 每兵 0.5/日; 境外 ×1.5; 围城 ×2
@@ -373,6 +454,20 @@ namespace FeudalInternalAffairs
         }
 
         // ================= 查询/通知 =================
+        // v4.106: AI 建设/扩军用的公开金库访问
+        internal static float GoldOfPublic(Kingdom k) { return k != null ? GoldOf(k) : 0f; }
+
+        internal static void SpendPublic(Kingdom k, float v)
+        {
+            try
+            {
+                if (k == null || v <= 0f) return;
+                float g = GoldOf(k) - v;
+                Gold[k.StringId] = g < 0f ? 0f : g;
+            }
+            catch { }
+        }
+
         private static float GoldOf(Kingdom k)
         {
             try
@@ -442,9 +537,15 @@ namespace FeudalInternalAffairs
                     sb.Append('|').Append('G').Append(':').Append(kv.Key).Append(':').Append(kv.Value.ToString("F0", CultureInfo.InvariantCulture));
                 foreach (var kv in DeficitDays)
                     sb.Append('|').Append('D').Append(':').Append(kv.Key).Append(':').Append(kv.Value);
-                foreach (var kv in Scorched)
-                    sb.Append('|').Append('S').Append(':').Append(kv.Key).Append(':').Append(kv.Value);
-                return sb.ToString();
+            foreach (var kv in Scorched)
+                sb.Append('|').Append('S').Append(':').Append(kv.Key).Append(':').Append(kv.Value);
+            foreach (var kv in SanctionBy)
+            {
+                if (kv.Value == null) continue;
+                foreach (var by in kv.Value)
+                    sb.Append('|').Append('N').Append(':').Append(kv.Key).Append(':').Append(by);   // v4.115: N:target:by
+            }
+            return sb.ToString();
             }
             catch { return "1"; }
         }
@@ -456,6 +557,8 @@ namespace FeudalInternalAffairs
                 Gold.Clear();
                 DeficitDays.Clear();
                 Scorched.Clear();
+                Sanctioned.Clear();   // v4.114
+                SanctionBy.Clear();   // v4.115
                 if (string.IsNullOrEmpty(data)) return;
                 var parts = data.Split('|');
                 for (int i = 1; i < parts.Length; i++)
@@ -481,6 +584,16 @@ namespace FeudalInternalAffairs
                         int s;
                         if (int.TryParse(f[2], out s)) Scorched[id] = s;
                     }
+                    else if (kind == "N")
+                    {
+                        // v4.115: N:target:by
+                        string by = f.Length >= 3 ? f[2] : "1";
+                        if (by == "1") { Sanctioned.Add(id); continue; }   // 旧格式(只知被制裁, 无发起者)
+                        HashSet<string> set;
+                        if (!SanctionBy.TryGetValue(id, out set)) { set = new HashSet<string>(); SanctionBy[id] = set; }
+                        set.Add(by);
+                        Sanctioned.Add(id);
+                    }
                 }
                 DLog.Force("战争经济: 读档 金库=" + Gold.Count + " 焦土=" + Scorched.Count);
             }
@@ -492,6 +605,8 @@ namespace FeudalInternalAffairs
             Gold.Clear();
             DeficitDays.Clear();
             Scorched.Clear();
+            Sanctioned.Clear();   // v4.114
+            SanctionBy.Clear();   // v4.115
             _crisis.Clear();
             _lastNotice.Clear();
             _lastDay = -1;

@@ -119,8 +119,9 @@ namespace FeudalInternalAffairs
                     typeof(ProductionTakeover.TownFoodSource),
                     typeof(MessageListShift),
                     typeof(PanelInputGuard.ChatLogHandleInputPatch),
-                    typeof(PanelInputGuard.InputEnterPressedPatch),
-                    typeof(PanelInputGuard.InputEnterReleasedPatch),
+                    typeof(PanelInputGuard.InputMousePressedPatch),
+                    typeof(PanelInputGuard.InputMouseReleasedPatch),
+                    typeof(PanelInputGuard.AnyMultiInquiryShownPatch),
                     typeof(NotificationFilter.DisplayMessageFilter),
                     typeof(DefArmyAi.AiGuard),
                     typeof(DefArmyAi.NoAutoRecruit)

@@ -353,6 +353,42 @@ namespace FeudalInternalAffairs
         [DataSourceProperty]
         public bool HasSelection { get { return _selected != null; } }
 
+        // v4.114: 经济制裁(玩家对外; 收入 -25%)
+        [DataSourceProperty]
+        public string SanctionText
+        {
+            get
+            {
+                try
+                {
+                    var pk = PlayerKingdom();
+                    return _selected != null && pk != null && WarEconomy.SanctionedBy(_selected, pk) ? "解除制裁" : "经济制裁";
+                }
+                catch { return "经济制裁"; }
+            }
+        }
+
+        [DataSourceProperty]
+        public bool SanctionVisible { get { return _selected != null; } }
+
+        public void ExecuteSanction()
+        {
+            try
+            {
+                if (_selected == null) return;
+                var pk = PlayerKingdom();
+                if (pk == null) return;
+                bool on = !WarEconomy.SanctionedBy(_selected, pk);
+                WarEconomy.SetSanction(_selected, pk, on);
+                MapSelection.Message((on ? "已对 " : "已解除对 ")
+                    + (_selected.Name != null ? _selected.Name.ToString() : "?")
+                    + (on ? " 的经济制裁(其收入 -25%)" : " 的经济制裁"));
+                OnPropertyChanged("SanctionText");
+                OnPropertyChanged("SanctionVisible");
+            }
+            catch (Exception ex) { DLog.Force("制裁操作失败: " + ex.Message); }
+        }
+
         [DataSourceProperty]
         public string SelName
         {
@@ -535,6 +571,8 @@ namespace FeudalInternalAffairs
                     Rows.Add(new DiplomacyRowVM(list[i], i % 2 == 1, OnWar, OnPeace, OnAlly, OnBreak, OnSelect));
                 NotifyTabs();
                 if (_selected != null) NotifySelection();
+                OnPropertyChanged("SanctionText");   // v4.114
+                OnPropertyChanged("SanctionVisible");
             }
             catch (Exception ex) { DLog.Info("外交列表刷新异常: " + ex.Message); }
         }

@@ -30,6 +30,13 @@ namespace FeudalInternalAffairs
             internal bool Bound;            // 代码动画是否已绑定成功
         }
 
+        // v5.0-P22b: 政治页改全屏(宽度 = 屏幕宽 - 导航栏), 内容居中设计宽 1700
+        internal static float FullWidth()
+        {
+            try { return Math.Max(700f, ScreenWidth() - PanelX); }
+            catch { return 1856f; }
+        }
+
         internal static float WidthOf(string key)
         {
             switch (key)
@@ -41,7 +48,8 @@ namespace FeudalInternalAffairs
                 case "soc": return 680f;
                 case "guild": return 620f;
                 case "stats": return 680f;
-                case "pol": return 680f;
+                case "pol": return FullWidth();
+                case "contracts": return 720f;
                 case "play": return 680f;
                 case "army": return 680f;
                 case "bld": return 680f;
@@ -117,7 +125,8 @@ namespace FeudalInternalAffairs
                 if (e.CloseDelay > 0f) return;                  // 已经在关了
                 if (e.OnCloseAnim != null)
                 {
-                    e.CloseDelay = 0.30f;                       // 给动画留时间(停靠偏移加大后滑出距离变长)
+                    // v5.0-P22b: 关闭延迟按面板宽度算(全屏面板滑出距离大, 0.3s 不够会"闪现消失")
+                    e.CloseDelay = Math.Max(0.30f, WidthOf(key) / 3000f + 0.06f);
                     try { e.OnCloseAnim(); } catch { }
                     DLog.Force("侧边栏正在关闭(播滑出动画): " + key);
                     return;
@@ -163,7 +172,8 @@ namespace FeudalInternalAffairs
             if (Open.ContainsKey("soc")) return 680f;
             if (Open.ContainsKey("guild")) return 620f;
             if (Open.ContainsKey("stats")) return 680f;
-            if (Open.ContainsKey("pol")) return 680f;
+            if (Open.ContainsKey("pol")) return FullWidth();
+                if (Open.ContainsKey("contracts")) return 720f;
             if (Open.ContainsKey("play")) return 680f;
             if (Open.ContainsKey("army")) return 680f;
             if (Open.ContainsKey("bld")) return 680f;
@@ -292,7 +302,7 @@ namespace FeudalInternalAffairs
             {
                 if (Spots.Count == 0) { _leftWasDown = false; return; }
                 // v4.85: 弹窗(Inquiry)打开时热区不响应, 避免点击弹窗按钮被面板热区重复吃掉
-                if (InformationManager.IsAnyInquiryActive()) { _leftWasDown = true; return; }
+                if (PanelInputGuard.AnyPopupActive()) { _leftWasDown = true; return; }
                 bool down = TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton);
                 if (!down) { _leftWasDown = false; return; }
                 if (_leftWasDown) return;   // 只在按下那一瞬触发一次

@@ -15,6 +15,7 @@ namespace FeudalInternalAffairs
 
         internal static void Open(TaleWorlds.CampaignSystem.Settlements.Settlement s)
         {
+            Tutorials.Page("page_garrison");
             try
             {
                 if (s == null) return;
@@ -71,7 +72,7 @@ namespace FeudalInternalAffairs
                 for (int i = 0; i < _vm.Rows.Count; i++)
                 {
                     int idx = i;
-                    float y = 200f + i * 42f;
+                    float y = 232f + i * 42f;
                     PanelScreen.AddSpot(466f, y, 74f, 34f, delegate { _vm.ExecuteRowAction(idx); });   // 出城(部队行)
                 }
             }

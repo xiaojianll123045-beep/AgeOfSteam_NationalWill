@@ -52,6 +52,10 @@
                         MarginLeft="430" MarginTop="174" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="操作" />
 
             <!-- 成员列表 -->
+            <TextWidget IsVisible="@EmptyVisible" WidthSizePolicy="Fixed" SuggestedWidth="510" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="30" MarginTop="220"
+                        Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#8A8070FF"
+                        Text="该军团暂无成员部队" />
             <ListPanel DataSource="{Rows}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="200" MarginLeft="14" MarginRight="14"
                        StackLayout.LayoutMethod="VerticalTopToBottom">

@@ -15,6 +15,7 @@ namespace FeudalInternalAffairs
 
         internal static void Open(TaleWorlds.CampaignSystem.Army a)
         {
+            Tutorials.Page("page_armycmd");
             try
             {
                 if (a == null) return;

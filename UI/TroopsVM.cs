@@ -18,8 +18,7 @@ namespace FeudalInternalAffairs
         {
             Party = p;
             _name = MapSelection.NameOf(p);
-            int men = 0;
-            try { men = p.MemberRoster.TotalManCount; } catch { }
+            int men = DefArmy.RegularsOf(p);   // v4.123: 士兵数(不含将军)
             _men = men.ToString("N0") + " 人";
             bool def = DefArmy.IsDefArmyParty(p);
             _kind = def ? "国防军" : (p.LeaderHero != null ? "领主军" : "其它");
@@ -82,6 +81,9 @@ namespace FeudalInternalAffairs
         private int _scroll;
         private string _summary = "";
         private string _armySummary = "";
+        private string _menText = "0";
+        private string _legionText = "0";
+        private string _composedText = "0";
 
         internal TroopsPanelVM(Action onClose)
         {
@@ -94,6 +96,10 @@ namespace FeudalInternalAffairs
 
         [DataSourceProperty] public string Summary { get { return _summary; } }
         [DataSourceProperty] public string ArmySummary { get { return _armySummary; } }
+        [DataSourceProperty] public string MenText { get { return _menText; } }
+        [DataSourceProperty] public string LegionText { get { return _legionText; } }
+        [DataSourceProperty] public string ComposedText { get { return _composedText; } }
+        [DataSourceProperty] public bool EmptyVisible { get { return Rows == null || Rows.Count == 0; } }
 
         public void ExecuteClose() { if (_onClose != null) _onClose(); }
 
@@ -119,7 +125,7 @@ namespace FeudalInternalAffairs
                     bool ours = DefArmy.IsDefArmyParty(p) || (kingdom != null && ReferenceEquals(p.MapFaction, kingdom));
                     if (!ours) continue;
                     int men = 0;
-                    try { men = p.MemberRoster.TotalManCount; } catch { }
+                    try { men = DefArmy.RegularsOf(p); } catch { }   // v4.123: 士兵数
                     total += men;
                     // v4.104: 已加入联军的部队不单独列, 合并到联军行
                     Army a = null;
@@ -153,7 +159,12 @@ namespace FeudalInternalAffairs
                 for (int i = _scroll; i < _view.Count && Rows.Count < Page; i++)
                     Rows.Add(_view[i]);
 
-                _summary = "我方部队 " + _view.Count + " 支 · 共 " + total.ToString("N0") + " 人 ｜ 国防军 " + defs.Count + " 支(" + defMen.ToString("N0") + " 人) ｜ 联军 " + armies.Count + " 个";
+                _summary = _view.Count + " 支部队";
+                int armyMenTotal = 0;
+                foreach (var kv in armyMen) armyMenTotal += kv.Value;
+                _menText = total.ToString("N0");
+                _legionText = defs.Count + " 支 · " + defMen.ToString("N0") + " 人";
+                _composedText = armies.Count + " 个 · " + armyMenTotal.ToString("N0") + " 人";
                 string asum = "";
                 for (int i = 0; i < armies.Count; i++)
                 {
@@ -172,13 +183,17 @@ namespace FeudalInternalAffairs
                 _armySummary = armies.Count > 0 ? ("组建的军团(联军): " + asum.TrimEnd()) : "组建的军团(联军): 暂无";
                 OnPropertyChangedWithValue(_summary, "Summary");
                 OnPropertyChangedWithValue(_armySummary, "ArmySummary");
+                OnPropertyChangedWithValue(_menText, "MenText");
+                OnPropertyChangedWithValue(_legionText, "LegionText");
+                OnPropertyChangedWithValue(_composedText, "ComposedText");
+                OnPropertyChangedWithValue(EmptyVisible, "EmptyVisible");
             }
             catch (Exception ex) { DLog.Force("军队页刷新异常: " + ex.Message); }
         }
 
         private static int MenOf(MobileParty p)
         {
-            try { return p.MemberRoster.TotalManCount; } catch { return 0; }
+            try { return DefArmy.RegularsOf(p); } catch { return 0; }   // v4.123: 士兵数
         }
 
         internal void ScrollStep(int dir)

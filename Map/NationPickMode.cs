@@ -153,6 +153,7 @@ namespace FeudalInternalAffairs
         {
             try
             {
+                if (PanelInputGuard.SuppressAfterInquiry(TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton))) return;   // v4.143: 弹窗/未松手抑制
                 if (!TaleWorlds.InputSystem.Input.IsKeyReleased(TaleWorlds.InputSystem.InputKey.LeftMouseButton)) return;
                 if (!MapBoxSelect.LastReleaseWasClick) return;   // 拖动(平移/框选)不算点击
                 MapBoxSelect.ClearClickFlag();

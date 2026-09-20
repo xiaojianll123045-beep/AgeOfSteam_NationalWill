@@ -193,6 +193,24 @@
               </Children>
             </ButtonWidget>
 
+            <!-- v4.114: 国家战略储备(用国库买粮到 30 天) -->
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="150" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="160" MarginBottom="26" Brush="ButtonBrush2" UpdateChildrenStates="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8C33AFF" Text="战略储备" />
+              </Children>
+            </ButtonWidget>
+
+            <!-- v5.0-P24: 贸易路线 -->
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="150" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="320" MarginBottom="26" Brush="ButtonBrush2" UpdateChildrenStates="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#6AB0FFFF" Text="贸易路线" />
+              </Children>
+            </ButtonWidget>
+
           </Children>
         </BrushWidget>
 

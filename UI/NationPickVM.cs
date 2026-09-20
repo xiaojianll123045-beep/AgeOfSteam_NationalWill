@@ -276,6 +276,20 @@ namespace FeudalInternalAffairs
                 else { Row(desc.Substring(0, perLine), "", Grey, Grey); desc = desc.Substring(perLine); }
             }
 
+            // ==== 国家性格(v4.106: 开局随机, 鹰派影响宣战/扩军, 建设影响自动建设) ====
+            Header("国家性格");
+            try
+            {
+                int agg = AiPersonality.AggressionOf(k);
+                int dev = AiPersonality.DevelopmentOf(k);
+                int com = AiPersonality.CommerceOf(k);
+                Row("鹰派(战争)", agg.ToString(), agg >= 70 ? Red : (agg <= 30 ? Green : Grey), Grey);
+                Row("建设(发展)", dev.ToString(), dev >= 70 ? Green : Grey, Grey);
+                Row("商贸", com.ToString(), Grey, Grey);
+                Row(AiPersonality.Describe(k), "", Grey, Grey);
+            }
+            catch { }
+
             // ==== 国家专属加成(第二) ====
             Header("国家专属加成");
             try

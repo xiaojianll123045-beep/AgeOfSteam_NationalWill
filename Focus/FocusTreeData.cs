@@ -191,33 +191,28 @@ namespace FeudalInternalAffairs
                 switch (f.Id)
                 {
                     case "f_root":
-                        Influence(50);
+                        Gold(2000);   // v4.139: 国家意志无"影响力"概念(用户要求) -> 改为国库拨款
                         foreach (var h in OurLords()) ChangeRelationAction.ApplyRelationChangeBetweenHeroes(Hero.MainHero, h, 2, false);
                         break;
                     case "f_econ": Gold(5000); break;
-                    case "f_army": Influence(50); break;
-                    case "f_diplo": Influence(30); break;
+                    case "f_army": Gold(2000); break;
+                    case "f_diplo": Gold(1200); break;
                     case "f_farm": Gold(8000); break;
                     case "f_trade": Gold(8000); break;
-                    case "f_drill": Influence(60); break;
+                    case "f_drill": Gold(2400); break;
                     case "f_fort": Loyalty(5f); break;
-                    case "f_marry": Influence(40); break;
+                    case "f_marry": Gold(1600); break;
                     case "f_granary": Prosperity(1f); break;
                     case "f_market": Gold(12000); break;
-                    case "f_veteran": Influence(80); break;
+                    case "f_veteran": Gold(3200); break;
                     case "f_wall": Loyalty(5f); break;
-                    case "f_envoy": Influence(40); break;
+                    case "f_envoy": Gold(1600); break;
                     case "f_prosper": Prosperity(2f); break;
-                    case "f_empire": Influence(150); break;
+                    case "f_empire": Gold(6000); break;
                     case "f_hegemony": Prosperity(2f); Loyalty(5f); break;
                 }
             }
             catch (Exception ex) { DLog.Force("国策效果失败: " + ex.Message); }
-        }
-
-        private static void Influence(float amount)
-        {
-            if (Clan.PlayerClan != null) ChangeClanInfluenceAction.Apply(Clan.PlayerClan, amount);
         }
 
         private static void Gold(int amount)

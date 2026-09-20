@@ -16,8 +16,7 @@ namespace FeudalInternalAffairs
         {
             Party = p;
             _name = MapSelection.NameOf(p);
-            int men = 0;
-            try { men = p.MemberRoster.TotalManCount; } catch { }
+            int men = DefArmy.RegularsOf(p);   // v4.123: 士兵数
             _men = men.ToString("N0") + " 人";
             string ld = "—";
             try { if (p.LeaderHero != null) ld = p.LeaderHero.Name != null ? p.LeaderHero.Name.ToString() : "?"; } catch { }
@@ -47,6 +46,7 @@ namespace FeudalInternalAffairs
 
         [DataSourceProperty] public string Title { get { return _title; } }
         [DataSourceProperty] public string Info { get { return _info; } }
+        [DataSourceProperty] public bool EmptyVisible { get { return Rows == null || Rows.Count == 0; } }
 
         public void ExecuteClose() { if (_onClose != null) _onClose(); }
 
@@ -76,6 +76,7 @@ namespace FeudalInternalAffairs
                 _info = "成员 " + pc + " 支部队 · 共 " + men.ToString("N0") + " 人 · 首领 " + leader;
                 OnPropertyChangedWithValue(_title, "Title");
                 OnPropertyChangedWithValue(_info, "Info");
+                OnPropertyChangedWithValue(EmptyVisible, "EmptyVisible");
             }
             catch (Exception ex) { DLog.Force("军团操作页刷新异常: " + ex.Message); }
         }

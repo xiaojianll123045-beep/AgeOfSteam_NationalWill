@@ -169,7 +169,7 @@ namespace FeudalInternalAffairs
                     new InquiryElement("cmd", "亲自指挥（进入战场）", null, true, "以统帅身份进入战场，亲自指挥"),
                     new InquiryElement("no", "交给将领们", null, true, "照常交给 AI 打完")
                 };
-                MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
+                PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
                     "发现战斗", desc, options, true, 1, 1, "确定", "取消",
                     OnPicked, null, null, false), false);
             }

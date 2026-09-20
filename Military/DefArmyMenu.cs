@@ -47,7 +47,7 @@ namespace FeudalInternalAffairs
                     options.Add(new InquiryElement("split_def", "拆分国防军", null, true, "把兵力最多的一支一分为二(1 名小兵升任将军, 花费 500)"));
                 }
                 if (options.Count == 0) return;
-                MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
+                PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
                     "国防军指挥", "已选中 " + n + " 支国防军军团(绿圈)",
                     options, true, 1, 1, "执行", "取消",
                     OnPicked, null, null, false));

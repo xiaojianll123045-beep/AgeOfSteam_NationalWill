@@ -27,6 +27,16 @@ namespace FeudalInternalAffairs
         private string _own = "";            // v4.0: 所有权池(20.4)
         private string _ledger2 = "";        // v4.0: 统计快照(20.9)
         private string _politics = "";       // v4.1: 政治系统(第 21 章)
+        private string _laws = "";           // v5.0-P22: 法律体系(文档 24.3)
+        private string _ig = "";             // v5.0-P22: 利益集团(文档 24.2)
+        private string _rev = "";            // v5.0-P23: 革命(文档 24.5)
+        private string _trade = "";          // v5.0-P24: 贸易路线(文档 24.7)
+        private string _warmob = "";         // v5.0-P25: 动员
+        private string _elec = "";           // v5.0-P25: 选举
+        private string _research = "";       // v5.0-P26: 研究
+        private string _inst = "";           // v5.0-P26: 机构/文化
+        private string _bloc = "";           // v5.0-P27: 权力集团
+        private string _interests = "";      // v5.0-P27: 利益宣示
         private int _lastDay = -1;
         private const int StarterVer = 4;   // v4.66: 起步建筑版本(1=基础, 2=+炭窑, 3=+炼铁厂/工具坊/纺织厂, 4=+武器/盔甲作坊; 老档升级自动补新项)
         private int _starterVersion;        // 已补发到的版本(每档记录)
@@ -75,6 +85,16 @@ namespace FeudalInternalAffairs
                     _own = Ownership.Save();
                     _ledger2 = Stats.Save();
                     _politics = Politics.Save();
+                    _laws = LawSystem.Save();
+                    _ig = InterestGroups.Save();
+                    _rev = Revolution.Save();
+                    _trade = TradeRoutes.Save();
+                    _warmob = WarMobilization.Save();
+                    _elec = Elections.Save();
+                    _research = Research.Save();
+                    _inst = Institutions.Save();
+                    _bloc = PowerBlocs.Save();
+                    _interests = Interests.Save();
                     DLog.Force("存档: 经济数据 -> " + EconomyWorld.Describe());
                     DLog.Force("存档长度: bld=" + (_buildings ?? "").Length + " mkt=" + (_markets ?? "").Length
                         + " nat=" + (_national ?? "").Length + " pops=" + (_pops ?? "").Length
@@ -82,6 +102,7 @@ namespace FeudalInternalAffairs
                         + " tax=" + (_tax ?? "").Length + " credit=" + (_credit ?? "").Length
                         + " mint=" + (_mint ?? "").Length + " own=" + (_own ?? "").Length
                         + " ledger=" + (_ledger2 ?? "").Length + " pol=" + (_politics ?? "").Length
+                        + " laws=" + (_laws ?? "").Length + " ig=" + (_ig ?? "").Length + " rev=" + (_rev ?? "").Length
                         + " lords=" + (_lords ?? "").Length + " brush=" + (_brushes ?? "").Length
                         + " autob=" + (_autoBuild ?? "").Length + " trea=" + (_treasury ?? "").Length);
                 }
@@ -104,6 +125,16 @@ namespace FeudalInternalAffairs
                     SyncChunks.Save(dataStore, "FIA_Own", _own);
                     SyncChunks.Save(dataStore, "FIA_Ledger2", _ledger2);
                     SyncChunks.Save(dataStore, "FIA_Politics", _politics);
+                    SyncChunks.Save(dataStore, "FIA_Laws", _laws);
+                    SyncChunks.Save(dataStore, "FIA_IG", _ig);
+                    SyncChunks.Save(dataStore, "FIA_Rev", _rev);
+                    SyncChunks.Save(dataStore, "FIA_Trade", _trade);
+                    SyncChunks.Save(dataStore, "FIA_WarMob", _warmob);
+                    SyncChunks.Save(dataStore, "FIA_Elec", _elec);
+                    SyncChunks.Save(dataStore, "FIA_Research", _research);
+                    SyncChunks.Save(dataStore, "FIA_Inst", _inst);
+                    SyncChunks.Save(dataStore, "FIA_Bloc", _bloc);
+                    SyncChunks.Save(dataStore, "FIA_Interests", _interests);
                     dataStore.SyncData("FIA_EcoDay", ref _lastDay);   // 上次结算日(读档补结算用)
                     dataStore.SyncData("FIA_StarterVer", ref _starterVersion);   // v4.64: 起步建筑补发版本
                 }
@@ -125,6 +156,16 @@ namespace FeudalInternalAffairs
                     _own = SyncChunks.Load(dataStore, "FIA_Own");
                     _ledger2 = SyncChunks.Load(dataStore, "FIA_Ledger2");
                     _politics = SyncChunks.Load(dataStore, "FIA_Politics");
+                    _laws = SyncChunks.Load(dataStore, "FIA_Laws");
+                    _ig = SyncChunks.Load(dataStore, "FIA_IG");
+                    _rev = SyncChunks.Load(dataStore, "FIA_Rev");
+                    _trade = SyncChunks.Load(dataStore, "FIA_Trade");
+                    _warmob = SyncChunks.Load(dataStore, "FIA_WarMob");
+                    _elec = SyncChunks.Load(dataStore, "FIA_Elec");
+                    _research = SyncChunks.Load(dataStore, "FIA_Research");
+                    _inst = SyncChunks.Load(dataStore, "FIA_Inst");
+                    _bloc = SyncChunks.Load(dataStore, "FIA_Bloc");
+                    _interests = SyncChunks.Load(dataStore, "FIA_Interests");
                     dataStore.SyncData("FIA_EcoDay", ref _lastDay);
                     dataStore.SyncData("FIA_StarterVer", ref _starterVersion);
                     EconomyWorld.LoadBuildings(_buildings);
@@ -142,7 +183,17 @@ namespace FeudalInternalAffairs
                     MintRight.Load(_mint);
                     Ownership.Load(_own);
                     Stats.Load(_ledger2);
+                    LawSystem.Load(_laws);          // v5.0-P22: 先于 Politics(旧 6 法迁移判定)
                     Politics.Load(_politics);
+                    InterestGroups.Load(_ig);       // v5.0-P22: 集团(依赖 Politics.Lords)
+                    Revolution.Load(_rev);          // v5.0-P23: 革命
+                    TradeRoutes.Load(_trade);       // v5.0-P24: 贸易路线
+                    WarMobilization.Load(_warmob);  // v5.0-P25: 动员
+                    Elections.Load(_elec);          // v5.0-P25: 选举
+                    Research.Load(_research);       // v5.0-P26: 研究
+                    Institutions.Load(_inst);       // v5.0-P26: 机构/文化
+                    PowerBlocs.Load(_bloc);         // v5.0-P27: 权力集团
+                    Interests.Load(_interests);     // v5.0-P27: 利益宣示
                     DLog.Force("读档: 经济数据 -> " + EconomyWorld.Describe());
                 }
             }
@@ -342,12 +393,31 @@ namespace FeudalInternalAffairs
                 Credit.Daily();
                 MintRight.Daily();
                 Stats.Capture();
+                LawSystem.TickDay(day);          // v5.0-P22: 立法推进(文档 24.3)
+                InterestGroups.TickDay(day);     // v5.0-P22: 政治运动激进度(文档 24.4)
+                Revolution.TickDay(day);         // v5.0-P23: 革命进度(文档 24.5)
+                TradeRoutes.Daily(day);          // v5.0-P24: 贸易路线结算(文档 24.7)
+                WarMobilization.Daily(day);      // v5.0-P25: 动员到期检查
+                Research.Daily(day);             // v5.0-P26: 研究点累积
+                Institutions.Daily(day);         // v5.0-P26: 机构/文化效果
+                Elections.Daily(day);            // v5.0-P25/P26: 竞选期与开票(V3 官方)
+                PowerBlocs.Weekly(day);          // v5.0-P27: 集团凝聚力/授权(V3 官方)
                 Politics.TickDay(day);
+                try { AiDevelopment.Daily(day); } catch { }   // v4.106: AI 国家自己建设(排队建筑/扣国库)
+                try { AiDevelopment.DailyDefense(day); } catch { }   // v4.111: AI 防守(解围/回防)
                 // 月度结算: 按游戏历法(骑砍 1 月 = 7 天, 1 年 = 12 月 = 84 天) -> 每月第一天触发一次
                 // (文档 19.15 原写"30 天"是误解, 见 v3.11 变更记录)
                 if (TaleWorlds.CampaignSystem.CampaignTime.Now.GetDayOfWeek == 0)
                 {
-                    try { InvestmentPool.Monthly(); Fiscal.Month(); Guilds.MonthlyFee(); TaxPolicy.Month(); Politics.Month(day); } catch { }
+                    try { InvestmentPool.Monthly(); Fiscal.Month(); Guilds.MonthlyFee(); TaxPolicy.Month(); InterestGroups.Monthly(day); Institutions.Monthly(); Politics.Month(day); } catch { }
+                    try { int trib = PowerBlocs.EmpireTribute(); if (trib > 0) { EconomyWorld.TreasuryAdd(trib); Fiscal.Export += trib; } } catch { }   // v5.0-P27: 附庸贡金
+                    try { AiDevelopment.Monthly(day); } catch { }   // v4.106: AI 国家自己扩军
+                    try { AiDevelopment.MonthlyArmy(day); } catch { }   // v4.110: AI 军团集结
+                    try { AiDevelopment.MonthlyOffensive(day); } catch { }   // v4.109: AI 主动进攻
+                    try { AiDevelopment.MonthlyPressure(day); } catch { }   // v4.112: AI 外交施压索贡
+                    try { AiDevelopment.MonthlyEconomy(day); } catch { }   // v4.113: AI 战略储备/饥荒自救
+                    try { AiDevelopment.MonthlySanctions(day); } catch { }   // v4.115: AI 对外制裁(可制裁玩家)
+                    try { AiDevelopment.MonthlyBalanceOfPower(day); } catch { }   // v4.117: 反霸权外交平衡
                 }
                 EconomyWorld.MarkDirty();
                 if (DLog.Flag("econ") && TaleWorlds.CampaignSystem.CampaignTime.Now.GetDayOfWeek == 0)

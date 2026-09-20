@@ -79,6 +79,7 @@ namespace FeudalInternalAffairs
 
         internal static void Open()
         {
+            Tutorials.Page("page_focus");
             try
             {
                 if (_current != null) return;
@@ -169,7 +170,7 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
+                PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
                     def.Name,
                     BuildBody(def) + "\n\n点击「开始」后将开始推进该政策。",
                     new List<InquiryElement> { new InquiryElement("start", "开始", null, true, null) },
@@ -192,7 +193,7 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
+                PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
                     def.Name,
                     BuildBody(def) + (string.IsNullOrEmpty(extra) ? "" : "\n\n" + extra),
                     new List<InquiryElement> { new InquiryElement("ok", "知道了", null, true, null) },

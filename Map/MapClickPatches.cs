@@ -25,6 +25,9 @@ namespace FeudalInternalAffairs
             {
                 try
                 {
+                    // v4.144: 弹窗期间 / 鼠标在自建面板或导航栏上 -> 不算地图点击(修: 点弹窗被当成点地面)
+                    if (PanelInputGuard.BlockMapClick()) return false;
+                    PanelInputGuard.DiagClick("地面");
                     // v4.75: 新档选国模式: 点领地 -> 右侧国家栏(拦住原版点击)
                     if (NationPickMode.Active)
                     {
@@ -80,6 +83,9 @@ namespace FeudalInternalAffairs
             {
                 try
                 {
+                    // v4.144: 弹窗期间 / 鼠标在自建面板或导航栏上 -> 不当成点部队
+                    if (PanelInputGuard.BlockMapClick()) { __result = true; return false; }
+                    PanelInputGuard.DiagClick("部队");
                     // v4.75: 选国模式: 点部队不处理(只认领地)
                     if (NationPickMode.Active) { __result = true; return false; }
                     if (followModifierUsed || !NationalWillOrders.IsActive) return true;
@@ -140,6 +146,11 @@ namespace FeudalInternalAffairs
                     // v4.75h: 选国阶段也要鼠标机制(右键平移/中键旋转), 但不做指挥/框选/菜单
                     bool pick = NationPickMode.Active && !NationalWillOrders.IsActive;
                     if (!NationalWillOrders.IsActive && !pick) return;
+                    // v4.143: 弹窗输入抑制(含"退出弹窗未松手也不触发", 用户要求)
+                    bool mouseHeld = TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton)
+                                  || TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.RightMouseButton)
+                                  || TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.MiddleMouseButton);
+                    if (PanelInputGuard.SuppressAfterInquiry(mouseHeld)) return;
                     var screen = MapScreen.Instance;
                     if (screen == null) return;
 
@@ -402,7 +413,7 @@ namespace FeudalInternalAffairs
                         options.Add(new InquiryElement("merge_def", "合并国防军", null, true, "把选中的国防军军团合并为一支(多余将军卸任转为 1 名小兵, 免费)"));
                     if (DefArmyMenu.CountSelectedDefLegions() >= 1)
                         options.Add(new InquiryElement("split_def", "拆分国防军", null, true, "把兵力最多的一支一分为二(1 名小兵升任将军, 花费 500)"));
-                    MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
+                    PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
                         "部队指挥", "已选中 " + MapSelection.Count + " 支部队",
                         options, true, 1, 1, "确定", "取消",
                         OnPicked, null, null, false));
@@ -446,7 +457,7 @@ namespace FeudalInternalAffairs
                     if (options.Count == 0)
                     {
                         // 没人能建立军团 -> 告诉玩家条件
-                        MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
+                        PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
                             "无法建立军团",
                             "建立军团的条件:\n" +
                             "· 军团长必须是【选中的部队】里的【家族领袖】\n" +
@@ -460,7 +471,7 @@ namespace FeudalInternalAffairs
                         return;
                     }
 
-                    MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
+                    PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
                         "建立军团", "选择由哪位领主建立军团(当前选中的部队会一起加入)",
                         options, true, 1, 1, "确定", "取消",
                         OnLeaderPicked, null, null, false));
@@ -558,7 +569,7 @@ namespace FeudalInternalAffairs
                         options.Add(new InquiryElement(p, name, null, true, null));
                     }
                     if (options.Count == 0) return;
-                    MBInformationManager.ShowMultiSelectionInquiry(new MultiSelectionInquiryData(
+                    PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
                         "军团指挥", "选择要指挥的领主。成员脱离军团后会变成可单独下令的小图标。",
                         options, true, 1, 1, "确定", "取消",
                         OnPick, null, null, false));
@@ -604,6 +615,9 @@ namespace FeudalInternalAffairs
             {
                 try
                 {
+                    // v4.144: 弹窗期间 / 鼠标在自建面板或导航栏上 -> 不当点定居点(修: 点弹窗结果打开驻军)
+                    if (PanelInputGuard.BlockMapClick()) { __result = true; return false; }
+                    PanelInputGuard.DiagClick("定居点");
                     // v4.75: 选国模式: 点定居点 = 点该国领地 -> 右侧国家栏
                     if (NationPickMode.Active)
                     {

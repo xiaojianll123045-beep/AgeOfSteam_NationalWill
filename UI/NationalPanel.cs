@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using SandBox.View.Map;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Engine.GauntletUI;
+using TaleWorlds.Library;
 
 namespace FeudalInternalAffairs
 {
@@ -27,7 +28,7 @@ namespace FeudalInternalAffairs
                 if (_flagLayer == null) return;
 
                 // 国旗点击: 没开 -> 打开根面板(国家面板); 开着根面板 -> 关闭; 开着别的面板 -> 切回根面板
-                if (IsMouseOnFlag()
+                if (!PanelInputGuard.SuppressAfterInquiry(TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton)) && IsMouseOnFlag()   // v4.143: 弹窗时不点国旗
                     && TaleWorlds.InputSystem.Input.IsKeyPressed(TaleWorlds.InputSystem.InputKey.LeftMouseButton))
                 {
                     if (IsOpen) CloseSidebar();
@@ -82,6 +83,7 @@ namespace FeudalInternalAffairs
         // 打开侧边栏(独立屏幕, 点击可用)
         internal static void OpenSidebar()
         {
+            Tutorials.Page("page_nation");
             try
             {
                 if (IsOpen) return;
