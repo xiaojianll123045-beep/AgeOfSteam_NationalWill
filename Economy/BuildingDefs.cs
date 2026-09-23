@@ -62,6 +62,7 @@ namespace FeudalInternalAffairs
         internal int[] Work = new int[3];                     // 建造工时
         internal float[] ExtraStoneOverride = null;           // 附加石料覆盖(默认全局规则)
         internal float[] ExtraIronOverride = null;            // 附加铁覆盖(默认全局规则)
+        internal string ReqTech;                              // v4.167: 建造前置科技(空=无)
 
         internal bool IsEffect
         {
@@ -96,6 +97,8 @@ namespace FeudalInternalAffairs
         internal const string EffFocusSpeed = "@focus_speed";          // 国策推进 %
         internal const string EffPopulation = "@population";           // 人口增长 %
         internal const string EffMarketPrice = "@market_price";        // 市场价改善(占位)
+        internal const string EffInfra = "@infra";                     // v4.163: 基础设施(V3: 铁路每级 +20)
+        internal const string EffTransport = "@transport";             // v4.163: 运输(铁路每级 +20)
 
         private static Amount A(string good, float w, float s, float i)
         {
@@ -119,6 +122,118 @@ namespace FeudalInternalAffairs
 
         internal static readonly List<BuildDef> All = new List<BuildDef>
         {
+            // ================= 发展类 · 铁路(v4.163, V3 官方: 800 建造点/级, 基建用量 0, 基建 +20/级, 运输 +20/级) =================
+            new BuildDef { Id = "railway", Name = "铁路", Sprite = "fia_bld_railway", Loc = BuildLoc.Town | BuildLoc.Castle, Cat = BuildCat.Logistics, CanBePrivate = true,
+                Outputs = { AM(EffInfra, 20f), AM(EffTransport, 20f), AM(EffTradeCap, 10f) },
+                Inputs = { AM(FeudalGoods.Iron, 2f), AM(FeudalGoods.Charcoal, 1f) },
+                Maintenance = F(12f, 9f, 6f), Work = new[] { 600, 800, 1000 }, ReqTech = "railways" },
+
+            // ================= v4.167: V3 化建筑扩展(第 25 章, 26 种) =================
+            // 交通物流
+            new BuildDef { Id = "port", Name = "港口", Sprite = "fia_bld_tradepost", Loc = BuildLoc.Town, Cat = BuildCat.Trade, CanBePrivate = true,
+                Outputs = { AM(EffInfra, 5f), AM(EffTradeCap, 15f) },
+                Inputs = { AM(FeudalGoods.Hardwood, 2f) },
+                Maintenance = F(5f, 4f, 3f), Work = WResource, ReqTech = "navigation" },
+            new BuildDef { Id = "telegraph", Name = "电报局", Sprite = "fia_bld_courier", Loc = BuildLoc.Town, Cat = BuildCat.Admin, CanBePrivate = false,
+                Outputs = { AM(EffInfra, 2f), AM(EffTax, 5f) },
+                Inputs = { AM(FeudalGoods.Iron, 1f) },
+                Maintenance = F(4f, 3f, 2f), Work = WAdmin, ReqTech = "electric_telegraph" },
+            // 能源与矿业
+            new BuildDef { Id = "coal_mine", Name = "煤矿", Sprite = "fia_bld_mine", Loc = BuildLoc.Village | BuildLoc.Castle, Cat = BuildCat.Resource, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Charcoal, 8f, 12f, 18f) },
+                Maintenance = F(3f, 2f, 1.5f), Work = WResource, ReqTech = "shaft_mining" },
+            new BuildDef { Id = "lead_mine", Name = "铅矿", Sprite = "fia_bld_mine", Loc = BuildLoc.Village, Cat = BuildCat.Resource, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Lead, 4f, 6f, 9f) },
+                Maintenance = F(3f, 2f, 1.5f), Work = WResource, ReqTech = "prospecting" },
+            new BuildDef { Id = "sulfur_mine", Name = "硫磺矿", Sprite = "fia_bld_mine", Loc = BuildLoc.Village, Cat = BuildCat.Resource, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Sulfur, 3f, 5f, 7f) },
+                Maintenance = F(3f, 2f, 1.5f), Work = WResource, ReqTech = "prospecting" },
+            new BuildDef { Id = "oil_rig", Name = "油井", Sprite = "fia_bld_mine", Loc = BuildLoc.Village, Cat = BuildCat.Resource, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Oil, 3f, 5f, 7f) },
+                Maintenance = F(5f, 4f, 3f), Work = WResource, ReqTech = "pumpjacks" },
+            new BuildDef { Id = "power_plant", Name = "发电厂", Sprite = "fia_bld_mill", Loc = BuildLoc.Town, Cat = BuildCat.Industry, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Electricity, 6f, 9f, 13f) },
+                Inputs = { AM(FeudalGoods.Charcoal, 4f) },
+                Maintenance = F(6f, 5f, 4f), Work = WIndustry, ReqTech = "electrical_gen" },
+            // 工业
+            new BuildDef { Id = "steel_mill", Name = "钢铁厂", Sprite = "fia_bld_ironworks", Loc = BuildLoc.Town, Cat = BuildCat.Industry, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Steel, 4f, 6f, 9f) },
+                Inputs = { AM(FeudalGoods.Iron, 3f), AM(FeudalGoods.Charcoal, 2f) },
+                Maintenance = F(6f, 5f, 4f), Work = WIndustry, ReqTech = "bessemer" },
+            new BuildDef { Id = "glassworks", Name = "玻璃厂", Sprite = "fia_bld_pottery", Loc = BuildLoc.Town, Cat = BuildCat.Industry, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Glass, 3f, 5f, 7f) },
+                Inputs = { AM(FeudalGoods.Clay, 2f), AM(FeudalGoods.Charcoal, 1f) },
+                Maintenance = F(4f, 3f, 2f), Work = WIndustry, ReqTech = "crystal_glass" },
+            new BuildDef { Id = "paper_mill", Name = "造纸厂", Sprite = "fia_bld_lumber", Loc = BuildLoc.Town, Cat = BuildCat.Industry, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Paper, 3f, 5f, 7f) },
+                Inputs = { AM(FeudalGoods.Hardwood, 2f) },
+                Maintenance = F(4f, 3f, 2f), Work = WIndustry, ReqTech = "mechanical_tools" },
+            new BuildDef { Id = "furniture_manufactury", Name = "家具厂", Sprite = "fia_bld_lumber", Loc = BuildLoc.Town, Cat = BuildCat.Industry, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Furniture, 3f, 5f, 7f) },
+                Inputs = { AM(FeudalGoods.Hardwood, 2f) },
+                Maintenance = F(4f, 3f, 2f), Work = WIndustry, ReqTech = "mechanical_tools" },
+            new BuildDef { Id = "food_industry", Name = "食品工业", Sprite = "fia_bld_granary", Loc = BuildLoc.Town, Cat = BuildCat.Industry, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Groceries, 4f, 6f, 9f) },
+                Inputs = { AM(FeudalGoods.Grain, 3f), AM(FeudalGoods.Meat, 1f) },
+                Maintenance = F(4f, 3f, 2f), Work = WIndustry, ReqTech = "canneries" },
+            new BuildDef { Id = "textile_mill", Name = "纺织厂", Sprite = "fia_bld_weavery", Loc = BuildLoc.Town, Cat = BuildCat.Industry, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Linen, 4f, 6f, 9f) },
+                Inputs = { AM("wool|cotton|flax", 3f) },
+                Maintenance = F(4f, 3f, 2f), Work = WIndustry, ReqTech = "cotton_gin" },
+            new BuildDef { Id = "clothing_factory", Name = "服装厂", Sprite = "fia_bld_weavery", Loc = BuildLoc.Town, Cat = BuildCat.Industry, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Clothes, 3f, 5f, 7f) },
+                Inputs = { AM(FeudalGoods.Linen, 2f) },
+                Maintenance = F(4f, 3f, 2f), Work = WIndustry, ReqTech = "cotton_gin" },
+            new BuildDef { Id = "chemical_plant", Name = "化工厂", Sprite = "fia_bld_mine", Loc = BuildLoc.Town, Cat = BuildCat.Industry, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Fertilizer, 3f, 5f, 7f), A(FeudalGoods.Explosives, 1f, 2f, 3f) },
+                Inputs = { AM(FeudalGoods.Sulfur, 2f), AM(FeudalGoods.Charcoal, 2f) },
+                Maintenance = F(6f, 5f, 4f), Work = WIndustry, ReqTech = "fractional_dist" },
+            new BuildDef { Id = "motor_industry", Name = "发动机工业", Sprite = "fia_bld_ironworks", Loc = BuildLoc.Town, Cat = BuildCat.Industry, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Engines, 2f, 4f, 6f) },
+                Inputs = { AM(FeudalGoods.Iron, 2f), AM(FeudalGoods.Steel, 2f) },
+                Maintenance = F(7f, 6f, 5f), Work = WIndustry, ReqTech = "combustion" },
+            // 种植园(8)
+            new BuildDef { Id = "coffee_plantation", Name = "咖啡园", Sprite = "fia_bld_orchard", Loc = BuildLoc.Village, Cat = BuildCat.Resource, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Coffee, 3f, 5f, 7f) },
+                Maintenance = F(3f, 2f, 1.5f), Work = WResource, ReqTech = "colonization" },
+            new BuildDef { Id = "sugar_plantation", Name = "甘蔗园", Sprite = "fia_bld_orchard", Loc = BuildLoc.Village, Cat = BuildCat.Resource, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Sugar, 4f, 6f, 9f) },
+                Maintenance = F(3f, 2f, 1.5f), Work = WResource, ReqTech = "colonization" },
+            new BuildDef { Id = "tea_plantation", Name = "茶园", Sprite = "fia_bld_orchard", Loc = BuildLoc.Village, Cat = BuildCat.Resource, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Tea, 3f, 5f, 7f) },
+                Maintenance = F(3f, 2f, 1.5f), Work = WResource, ReqTech = "colonization" },
+            new BuildDef { Id = "tobacco_plantation", Name = "烟草园", Sprite = "fia_bld_orchard", Loc = BuildLoc.Village, Cat = BuildCat.Resource, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Tobacco, 4f, 6f, 9f) },
+                Maintenance = F(3f, 2f, 1.5f), Work = WResource, ReqTech = "colonization" },
+            new BuildDef { Id = "opium_plantation", Name = "鸦片园", Sprite = "fia_bld_orchard", Loc = BuildLoc.Village, Cat = BuildCat.Resource, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Opium, 3f, 5f, 7f) },
+                Maintenance = F(3f, 2f, 1.5f), Work = WResource, ReqTech = "colonization" },
+            new BuildDef { Id = "silk_plantation", Name = "桑园", Sprite = "fia_bld_orchard", Loc = BuildLoc.Village, Cat = BuildCat.Resource, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Silk, 3f, 5f, 7f) },
+                Maintenance = F(3f, 2f, 1.5f), Work = WResource, ReqTech = "sericulture" },
+            new BuildDef { Id = "rubber_plantation", Name = "橡胶园", Sprite = "fia_bld_orchard", Loc = BuildLoc.Village, Cat = BuildCat.Resource, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Rubber, 3f, 5f, 7f) },
+                Maintenance = F(3f, 2f, 1.5f), Work = WResource, ReqTech = "rubber_mastication" },
+            new BuildDef { Id = "dye_plantation", Name = "染料园", Sprite = "fia_bld_orchard", Loc = BuildLoc.Village, Cat = BuildCat.Resource, CanBePrivate = true,
+                Outputs = { A(FeudalGoods.Dye, 3f, 5f, 7f) },
+                Maintenance = F(3f, 2f, 1.5f), Work = WResource, ReqTech = "fractional_dist" },
+            // 军事
+            new BuildDef { Id = "arms_industry", Name = "军械工业", Sprite = "fia_bld_armory", Loc = BuildLoc.Town, Cat = BuildCat.Military, CanBePrivate = false,
+                Outputs = { A(FeudalGoods.Weapons, 3f, 5f, 7f), A(FeudalGoods.Ammunition, 2f, 4f, 6f) },
+                Inputs = { AM(FeudalGoods.Steel, 2f), AM(FeudalGoods.Explosives, 1f) },
+                Maintenance = F(8f, 7f, 6f), Work = WMilitary, ReqTech = "gunsmithing" },
+            new BuildDef { Id = "shipyard", Name = "造船厂", Sprite = "fia_bld_tradepost", Loc = BuildLoc.Town, Cat = BuildCat.Military, CanBePrivate = false,
+                Outputs = { A(FeudalGoods.Clippers, 1f, 2f, 3f), A(FeudalGoods.Steamers, 0.5f, 1f, 2f) },
+                Inputs = { AM(FeudalGoods.Hardwood, 3f), AM(FeudalGoods.Steel, 2f) },
+                Maintenance = F(8f, 7f, 6f), Work = WMilitary, ReqTech = "drydocks" },
+            // 城市
+            new BuildDef { Id = "urban_center", Name = "城市中心", Sprite = "fia_bld_townhall", Loc = BuildLoc.Town, Cat = BuildCat.Living, CanBePrivate = false,
+                Outputs = { AM(EffPopulation, 5f), AM(EffProsperity, 2f), A(FeudalGoods.Service, 3f, 5f, 7f) },
+                Maintenance = F(6f, 5f, 4f), Work = WAdmin, ReqTech = "urbanization" },
+            new BuildDef { Id = "financial_district", Name = "金融区", Sprite = "fia_bld_bank", Loc = BuildLoc.Town, Cat = BuildCat.Trade, CanBePrivate = true,
+                Outputs = { AM(EffTax, 8f), AM(EffInterest, -5f) },
+                Maintenance = F(5f, 4f, 3f), Work = WAdmin, ReqTech = "banking" },
+
             // ================= 村庄 · 资源类 =================
             new BuildDef { Id = "farm", Name = "农田", Sprite = "fia_bld_farm", Loc = BuildLoc.Village, Cat = BuildCat.Resource, CanBePrivate = true,
                 Outputs = { A(FeudalGoods.Grain, 6f, 9f, 13.8f) }, Maintenance = F(2.0f, 1.4f, 0.9f), Work = WResource },
@@ -262,6 +377,13 @@ namespace FeudalInternalAffairs
         internal static bool AllowedAt(BuildDef def, bool isVillage, bool isCastle, bool isTown)
         {
             if (def == null) return false;
+            // v4.167: 建造前置科技(V3: 建筑由科技/法律解锁)
+            if (!string.IsNullOrEmpty(def.ReqTech))
+            {
+                bool ok = false;
+                try { ok = Research.IsDone(def.ReqTech); } catch { }
+                if (!ok) return false;
+            }
             if (isVillage) return (def.Loc & BuildLoc.Village) != 0;
             if (isCastle) return (def.Loc & BuildLoc.Castle) != 0;
             if (isTown) return (def.Loc & BuildLoc.Town) != 0;

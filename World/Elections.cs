@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
 using TaleWorlds.Library;
 
 namespace FeudalInternalAffairs
@@ -231,6 +232,167 @@ namespace FeudalInternalAffairs
             catch { return ""; }
         }
 
+        // ================= v5.x: AI 选举(AI 段) =================
+        //   AI 国家按自己的权力分配档位跑 4 年周期; 竞选期 42 天: 压税/游说加票/不启战端;
+        //   开票后若胜选集团诉求与议程不符 -> 转联盟/妥协(AiAgenda.NoteElectionLoss)。
+        internal class AiElectState
+        {
+            internal int LastDay = -9999;
+            internal int CampaignStart = -9999;
+            internal bool Campaign;
+            internal int Winner = -1;
+            internal readonly float[] Momentum = new float[InterestGroups.GroupCount];
+        }
+
+        private static readonly Dictionary<string, AiElectState> AiMap = new Dictionary<string, AiElectState>();
+        private static int _aiLastDay = -1;
+
+        private static AiElectState AiOf(Kingdom k)
+        {
+            try
+            {
+                if (k == null || string.IsNullOrEmpty(k.StringId)) return null;
+                AiElectState st;
+                if (!AiMap.TryGetValue(k.StringId, out st)) { st = new AiElectState(); AiMap[k.StringId] = st; }
+                return st;
+            }
+            catch { return null; }
+        }
+
+        internal static bool AiInCampaign(Kingdom k)
+        {
+            try
+            {
+                var st = AiOf(k);
+                return st != null && st.Campaign;
+            }
+            catch { return false; }
+        }
+
+        internal static int AiDaysToElection(Kingdom k)
+        {
+            try
+            {
+                var st = AiOf(k);
+                if (st == null || st.LastDay < 0) return -1;
+                return Math.Max(0, st.LastDay + CycleDays - Politics.Today());
+            }
+            catch { return -1; }
+        }
+
+        // 月度: 推进各国选举周期与竞选行为(由 AiDiplomacy.Month 调用)
+        internal static void AiMonthly(int day)
+        {
+            try
+            {
+                if (day < _aiLastDay) AiMap.Clear();   // 新档/读档 -> 重置
+                _aiLastDay = day;
+                var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                foreach (var k in Kingdom.All)
+                {
+                    if (k == null || k.IsEliminated) continue;
+                    if (pk != null && ReferenceEquals(pk, k)) continue;
+                    try { AiStep(k, day); } catch { }
+                }
+            }
+            catch (Exception ex) { DLog.Force("AI 选举月结异常: " + ex.Message); }
+        }
+
+        private static void AiStep(Kingdom k, int day)
+        {
+            var st = AiOf(k);
+            if (st == null) return;
+            int franchise = 0;
+            try { franchise = Parliament.AiLevelOf(k, LawSystem.LFranchise); } catch { }
+            if (franchise <= 0) { st.Campaign = false; return; }   // 无选举 -> 不竞选
+            if (st.LastDay < 0) { st.LastDay = day; return; }
+            int next = st.LastDay + CycleDays;
+            if (!st.Campaign && day >= next - CampaignDays)
+            {
+                st.Campaign = true;
+                st.CampaignStart = day;
+                AiAgenda.LogPol(k, "竞选期开始(大选剩 " + Math.Max(0, next - day) + " 天)");
+            }
+            if (st.Campaign)
+            {
+                AiCampaign(k, st);
+                for (int w = 0; w < 4; w++) AiFluctuate(st, day + w * 7);
+            }
+            if (day >= next) AiRunElection(k, st, day);
+        }
+
+        // 竞选期: 压税安抚 + 游说加票(避免做惹怒选民的事)
+        private static void AiCampaign(Kingdom k, AiElectState st)
+        {
+            try
+            {
+                int tax;
+                if (AiEconomyDeep.TaxLevel.TryGetValue(k.StringId, out tax) && tax > 1)
+                    AiEconomyDeep.TaxLevel[k.StringId] = tax - 1;
+                try { Parliament.AiLobbyPush(k, "民权"); } catch { }
+                if (MBRandom.RandomFloat < 0.5f) { try { Parliament.AiLobbyPush(k, "权力"); } catch { } }
+            }
+            catch { }
+        }
+
+        private static void AiFluctuate(AiElectState st, int day)
+        {
+            try
+            {
+                var rnd = new Random(day * 31 + 11);
+                for (int g = 0; g < InterestGroups.GroupCount; g++)
+                {
+                    float swing = (float)(rnd.NextDouble() * 40.0 - 18.0);
+                    st.Momentum[g] = Math.Max(-50f, Math.Min(100f, st.Momentum[g] + swing));
+                }
+            }
+            catch { }
+        }
+
+        private static void AiRunElection(Kingdom k, AiElectState st, int day)
+        {
+            try
+            {
+                st.LastDay = day;
+                st.Campaign = false;
+                int winner = -1;
+                float best = -1f;
+                int[] seats = null;
+                try { seats = Parliament.AiSeatsOf(k); } catch { }
+                for (int g = 1; g < InterestGroups.GroupCount; g++)
+                {
+                    float s = seats != null ? seats[g] : 0f;
+                    float vote = s * (1f + st.Momentum[g] / 100f);
+                    if (vote > best) { best = vote; winner = g; }
+                }
+                st.Winner = winner;
+                bool lost = false;
+                try
+                {
+                    int law = AiAgenda.LawOf(k, 0);
+                    if (law < 0) law = AiAgenda.LawOf(k, 1);
+                    if (law >= 0 && winner > 0)
+                    {
+                        int pref = -1, pv = 8;
+                        for (int i = 0; i < LawSystem.LawCount; i++)
+                        {
+                            var d = LawSystem.Def(i);
+                            if (d == null || !string.IsNullOrEmpty(d.Scope)) continue;
+                            if (Parliament.AiLevelOf(k, i) >= LawSystem.TierCount(i) - 1) continue;
+                            int v = LawSystem.AdvanceStance(i, winner);
+                            if (v > pv) { pv = v; pref = i; }
+                        }
+                        lost = pref >= 0 && pref != law;
+                    }
+                }
+                catch { }
+                if (lost) { try { AiAgenda.NoteElectionLoss(k, winner); } catch { } }
+                else AiAgenda.LogPol(k, "大选: " + (winner >= 0 ? InterestGroups.NameOf(winner) : "无") + " 胜出(议程不变)");
+                for (int g = 0; g < InterestGroups.GroupCount; g++) st.Momentum[g] = 0f;
+            }
+            catch { }
+        }
+
         internal static string Save()
         {
             var sb = new StringBuilder();
@@ -241,6 +403,15 @@ namespace FeudalInternalAffairs
             sb.Append(';');
             for (int g = 0; g < InterestGroups.GroupCount; g++) { if (g > 0) sb.Append(','); sb.Append(((int)(VoteStrength[g] * 1000))); }
             sb.Append(';');
+            // v5.x: AI 选举段(旧档无此段, Load 兼容)
+            sb.Append('~');
+            foreach (var kv in AiMap)
+            {
+                var st = kv.Value;
+                if (st == null) continue;
+                sb.Append(kv.Key).Append(',').Append(st.LastDay).Append(',').Append(st.CampaignStart).Append(',')
+                  .Append(st.Campaign ? "1" : "0").Append(',').Append(st.Winner).Append(';');
+            }
             return sb.ToString();
         }
 
@@ -249,6 +420,10 @@ namespace FeudalInternalAffairs
             try
             {
                 if (string.IsNullOrEmpty(data)) return;
+                string aiPart = null;
+                int tilde = data.IndexOf('~');
+                if (tilde >= 0) { aiPart = data.Substring(tilde + 1); data = data.Substring(0, tilde); }
+                LoadAi(aiPart);
                 var seg = data.Split(';');
                 if (seg.Length > 1)
                 {
@@ -275,6 +450,29 @@ namespace FeudalInternalAffairs
             catch { }
         }
 
+        private static void LoadAi(string aiPart)
+        {
+            try
+            {
+                AiMap.Clear();
+                if (string.IsNullOrEmpty(aiPart)) return;
+                foreach (var seg in aiPart.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var f = seg.Split(',');
+                    if (f.Length < 5) continue;
+                    var st = new AiElectState();
+                    int v;
+                    if (int.TryParse(f[1], out v)) st.LastDay = v;
+                    if (int.TryParse(f[2], out v)) st.CampaignStart = v;
+                    st.Campaign = f[3] == "1";
+                    if (int.TryParse(f[4], out v)) st.Winner = v;
+                    AiMap[f[0]] = st;
+                }
+                DLog.Force("选举: AI 读档 " + AiMap.Count + " 国");
+            }
+            catch { }
+        }
+
         internal static void Reset()
         {
             LastElectionDay = -9999;
@@ -284,6 +482,8 @@ namespace FeudalInternalAffairs
             LastResult = "";
             _lastMomentumDay = -9999;
             for (int g = 0; g < InterestGroups.GroupCount; g++) { Momentum[g] = 0f; VoteStrength[g] = 0f; }
+            AiMap.Clear();      // v5.x: AI 选举状态
+            _aiLastDay = -1;
         }
     }
 }

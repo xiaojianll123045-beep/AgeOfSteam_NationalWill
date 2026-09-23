@@ -35,7 +35,10 @@ namespace FeudalInternalAffairs
                         v += s.Village.Hearth * 0.02f;
                     }
                     if (v <= 0f) continue;
-                    total += (int)Math.Round(v * (1f + RateBonus) * TaxRate);
+                    // v4.186: 文化法律的税收倍率(文档 24.13)
+                    float culTax = 1f;
+                    try { culTax = 1f + CultureSystem.TaxOf(s.Culture != null ? s.Culture.StringId : null); } catch { }
+                    total += (int)Math.Round(v * (1f + RateBonus) * TaxRate * culTax);
                 }
                 if (total > 0)
                 {

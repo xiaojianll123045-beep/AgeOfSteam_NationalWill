@@ -90,15 +90,25 @@ namespace FeudalInternalAffairs
                 _sideVm = new NationalPanelVM();
                 _sideVm.OnCloseRequested = CloseSidebar;
                 _sideVm.OpenPanel();
+                _acc = 0f;
                 PanelScreen.OpenPanel(Key, "FeudalNational", _sideVm, null,
-                    delegate (float dt) { if (_sideVm != null) _sideVm.TickAnim(dt); },
+                    delegate (float dt)
+                    {
+                        if (_sideVm == null) return;
+                        _sideVm.TickAnim(dt);
+                        _acc += dt;
+                        if (_acc < 2f) return;
+                        _acc = 0f;
+                        _sideVm.Refresh();
+                    },
                     delegate { if (_sideVm != null) _sideVm.ClosePanel(); });   // 关闭前先播滑出动画
                 RegisterButtonSpots();
             }
             catch (Exception ex) { DLog.Force("打开国家面板失败: " + ex.Message); }
         }
 
-        // 底部四个按钮的热区(兜底点击方案; 布局对应 prefab: 面板宽440, 两行 160x44, 间距16, MarginLeft24, MarginBottom24)
+        // 底部九个按钮的热区(兜底点击方案 —— PanelScreen 面板层收不到 Command.Click)
+        // v4.150: 布局同步为 520 宽 + 三行 × 三钮(150x44, 间距 11, MarginLeft 24, MarginBottom 20)
         private static void RegisterButtonSpots()
         {
             try
@@ -106,15 +116,22 @@ namespace FeudalInternalAffairs
                 if (_sideVm == null) return;
                 PanelScreen.ClearSpots();
                 float sh = PanelScreen.ScreenHeight();
-                float row2 = sh - 24f - 44f;
-                float row1 = row2 - 12f - 44f;
-                PanelScreen.AddSpot(24f, row1, 120f, 44f, _sideVm.ExecutePopulation);
-                PanelScreen.AddSpot(160f, row1, 120f, 44f, _sideVm.ExecuteMarket);
-                PanelScreen.AddSpot(296f, row1, 120f, 44f, _sideVm.ExecuteDiplomacy);
-                PanelScreen.AddSpot(24f, row2, 160f, 44f, _sideVm.ExecuteBuild);
-                PanelScreen.AddSpot(200f, row2, 160f, 44f, _sideVm.ExecuteClose);
-                PanelScreen.AddSpot(24f, 322f, 190f, 42f, _sideVm.ExecuteFocus);   // 打开国策树(修复: 之前只有 Command.Click, 收不到点击)
-                DLog.Force("国家面板: 已注册 5 个按钮热区(行1 y=" + (int)row1 + " 行2 y=" + (int)row2 + ")");
+                float r3 = sh - 20f - 44f;
+                float r2 = r3 - 11f - 44f;
+                float r1 = r2 - 11f - 44f;
+                // 行 1: 人口 / 市场 / 外交
+                PanelScreen.AddSpot(24f, r1, 150f, 44f, _sideVm.ExecutePopulation);
+                PanelScreen.AddSpot(185f, r1, 150f, 44f, _sideVm.ExecuteMarket);
+                PanelScreen.AddSpot(346f, r1, 150f, 44f, _sideVm.ExecuteDiplomacy);
+                // 行 2: 政治 / 军务 / 财政
+                PanelScreen.AddSpot(24f, r2, 150f, 44f, _sideVm.ExecutePolitics);
+                PanelScreen.AddSpot(185f, r2, 150f, 44f, _sideVm.ExecuteArmy);
+                PanelScreen.AddSpot(346f, r2, 150f, 44f, _sideVm.ExecuteFiscal);
+                // 行 3: 社会 / 国策 / 收起
+                PanelScreen.AddSpot(24f, r3, 150f, 44f, _sideVm.ExecuteSociety);
+                PanelScreen.AddSpot(185f, r3, 150f, 44f, _sideVm.ExecuteFocus);
+                PanelScreen.AddSpot(346f, r3, 150f, 44f, _sideVm.ExecuteClose);
+                DLog.Force("国家面板: 已注册 9 个按钮热区(行1 y=" + (int)r1 + " 行2 y=" + (int)r2 + " 行3 y=" + (int)r3 + ")");
             }
             catch (Exception ex) { DLog.Force("注册热区失败: " + ex.Message); }
         }

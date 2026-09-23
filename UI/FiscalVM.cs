@@ -40,6 +40,7 @@ namespace FeudalInternalAffairs
         private string _poolText = "", _poolSubText = "", _poolSub2Text = "", _ledgerText = "";
         private string _taxA = "", _taxB = "", _taxC = "", _taxD = "", _taxEffect = "", _creditText = "", _mintText = "", _mintSubText = "", _status = "";
         private string _taxLA = "", _taxLB = "", _taxLC = "", _taxLD = "";
+        private string _researchCost = "";
         // v4.7 悬停光带
         private float _hoverY;
         private bool _hoverVisible;
@@ -112,6 +113,7 @@ namespace FeudalInternalAffairs
         [DataSourceProperty] public string NetColor { get { return _netColor; } }
         [DataSourceProperty] public string IncomeSum { get { return _incomeSum; } }
         [DataSourceProperty] public string ExpenseSum { get { return _expenseSum; } }
+        [DataSourceProperty] public string ResearchCost { get { return _researchCost; } }
         [DataSourceProperty] public string PoolText { get { return _poolText; } }
         [DataSourceProperty] public string PoolSubText { get { return _poolSubText; } }
         [DataSourceProperty] public string PoolSubText2 { get { return _poolSub2Text; } }
@@ -132,10 +134,10 @@ namespace FeudalInternalAffairs
 
         public void ExecuteClose() { if (_onClose != null) _onClose(); }
 
-        // v4.114: 国家战略储备(用国库从市面买粮到 30 天)
+        // v4.152: 战略储备面板(重做: 4 资源/容量/采购/释放; 旧 EconomyOps 一键买粮保留为兼容)
         public void ExecuteReserve()
         {
-            try { MapSelection.Message(EconomyOps.StrategicReserve(30f, 500)); Refresh(); }
+            try { StrategicReserveUi.Open(); }
             catch (Exception ex) { DLog.Force("战略储备异常: " + ex.Message); }
         }
 
@@ -187,6 +189,7 @@ namespace FeudalInternalAffairs
                 if (Fiscal.TodayMilitary != 0) ExpenseRows.Add(new FiscalRowVM("国防军军费(募兵/军饷/建军)", Fiscal.TodayMilitary, false));
                 if (Fiscal.TodayCourt > 0) ExpenseRows.Add(new FiscalRowVM("宫廷与外交往来(宴会/赏赐/赔款/购买)", Fiscal.TodayCourt, false));
                 if (ExpenseRows.Count == 0) ExpenseRows.Add(new FiscalRowVM("今日暂无支出", 0, false));
+                _researchCost = Institutions.MaintenanceFee.ToString("N0") + " 金/月";
 
                 // 投资池(V3 财政窗口同款: 独立于国库的第二本账, 分红注入 -> 私人建造)
                 var k = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
@@ -217,6 +220,7 @@ namespace FeudalInternalAffairs
                 OnPropertyChangedWithValue(_netColor, "NetColor");
                 OnPropertyChangedWithValue(_incomeSum, "IncomeSum");
                 OnPropertyChangedWithValue(_expenseSum, "ExpenseSum");
+                OnPropertyChangedWithValue(_researchCost, "ResearchCost");
                 OnPropertyChangedWithValue(_poolText, "PoolText");
                 OnPropertyChangedWithValue(_poolSubText, "PoolSubText");
                 OnPropertyChangedWithValue(_poolSub2Text, "PoolSubText2");

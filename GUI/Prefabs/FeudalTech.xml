@@ -1,0 +1,235 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+
+        <!-- ===== 科技页(v4.179 照 经典科技树) ===== -->
+        <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="@PanelWidth" HeightSizePolicy="StretchToParent"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
+          <Children>
+
+            <!-- 九宫格面板框 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    Sprite="fia_ui_frame" />
+
+            <!-- 内容容器(设计宽 1700, 超宽屏居中) -->
+            <Widget WidthSizePolicy="Fixed" SuggestedWidth="1700" HeightSizePolicy="StretchToParent"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@ContentPad" ClipContents="true">
+              <Children>
+
+                <!-- ===== 标题栏(y 36~112, 酒红横幅) ===== -->
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedHeight="76"
+                        HorizontalAlignment="StretchToParent" VerticalAlignment="Top" MarginTop="36" MarginLeft="14" MarginRight="14"
+                        Sprite="fia_ui_banner_red" />
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="56" SuggestedHeight="56"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="82" MarginTop="46" Sprite="fia_tech_jenny" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="154" MarginTop="47"
+                            Brush="MapTextBrushGal" Brush.FontSize="40" Brush.FontColor="#E8C33AFF" Text="科技树" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="286" MarginTop="61"
+                            Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#C8B98FCC"
+                            Text="生产 · 军事 · 社会 · 左键点节点研究 · 滚轮缩放 · 右键拖动" />
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="64" SuggestedHeight="48"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="1616" MarginTop="50"
+                        Sprite="fia_ui_button">
+                  <Children>
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Brush="MapTextBrushGal" Brush.FontSize="26" Brush.FontColor="#F0E4C8FF" Text="X" />
+                  </Children>
+                </Widget>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="1664" SuggestedHeight="10"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="18" MarginTop="122"
+                        Sprite="fia_ui2_divider_ornate" />
+
+                <!-- ===== 三树页签(y 130~184, 通栏三等分) ===== -->
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="566" SuggestedHeight="54"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="130"
+                        Sprite="@Tab0Sprite" />
+                <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="566" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="142"
+                            Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="@Tab0Color" Text="生产科技" />
+
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="566" SuggestedHeight="54"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="567" MarginTop="130"
+                        Sprite="@Tab1Sprite" />
+                <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="566" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="567" MarginTop="142"
+                            Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="@Tab1Color" Text="军事科技" />
+
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="566" SuggestedHeight="54"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="1134" MarginTop="130"
+                        Sprite="@Tab2Sprite" />
+                <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="566" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="1134" MarginTop="142"
+                            Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="@Tab2Color" Text="社会科技" />
+
+                <!-- ===== 顶栏三栏状态(y 192~256) ===== -->
+                <!-- 左: 当前研究(图标 + 名称 + 进度 + 剩余年 + 进度条) -->
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="660" SuggestedHeight="64"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="14" MarginTop="192"
+                        Sprite="fia_ui_row" />
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="40" SuggestedHeight="40"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="28" MarginTop="204"
+                        Sprite="@CurIcon" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="76" MarginTop="200"
+                            Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#E8D9B0FF" Text="@CurName" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="22" MarginTop="204"
+                            Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#D8C9A0FF" Text="@CurProg" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="76" MarginTop="228"
+                            Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#8FD8E8CC" Text="@CurEta" />
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="560" SuggestedHeight="5"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="76" MarginTop="246"
+                        Sprite="BlankWhiteSquare" Color="#FFFFFF1A" />
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@CurBarW" SuggestedHeight="5"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="76" MarginTop="246"
+                        Sprite="BlankWhiteSquare" Color="@CurBarColor" />
+
+                <!-- 中: 当前研究 + 创新统计 -->
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="660" SuggestedHeight="64"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="674" MarginTop="192"
+                        Sprite="fia_ui_row" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" IsVisible="@NoCurrent"
+                            HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="200"
+                            Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#8A8070FF" Text="没有科技位于队列中" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" IsVisible="@NoCurrent"
+                            HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="228"
+                            Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#6E6656FF" Text="(左键点击节点直接开始研究, 进度保留)" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" IsVisible="@HasCurrent"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="690" MarginTop="198"
+                            Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#E9CD74FF" Text="@CurText" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="690" MarginTop="230"
+                            Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#A08F6CFF" Text="识字率" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="752" MarginTop="229"
+                            Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#E9CD74FF" Text="@LitText" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="858" MarginTop="230"
+                            Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#A08F6CFF" Text="创新/日" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="932" MarginTop="229"
+                            Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#E9CD74FF" Text="@InnovText" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="1060" MarginTop="230"
+                            Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#A08F6CFF" Text="上限" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="1108" MarginTop="229"
+                            Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#E9CD74FF" Text="@CapText" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="1190" MarginTop="230"
+                            Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#A08F6CFF" Text="速度" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="1238" MarginTop="229"
+                            Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#E9CD74FF" Text="@SpeedText" />
+
+                <!-- 右: 创新力 / 扩散 -->
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="312" SuggestedHeight="64"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="1374" MarginTop="192"
+                        Sprite="fia_ui_row" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="1430" MarginTop="200"
+                            Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#F0E4C8FF" Text="@InnovWeekly" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="1430" MarginTop="228"
+                            Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#D8C9A0FF" Text="@SpreadText" />
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="56" MarginTop="214"
+                            Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8A8070FF" Text="@DoneText" />
+
+                <!-- ===== 树区域(y 从 266 起; 与 TechPanel.cs 热区一致) ===== -->
+                <Widget WidthSizePolicy="Fixed" SuggestedWidth="1700" HeightSizePolicy="StretchToParent"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="266" ClipContents="true">
+                  <Children>
+                    <!-- 时代条带 + 连线(: 粗棕曲线 + 当前研究青色高亮) -->
+                    <Widget DataSource="{Lines}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+                      <ItemTemplate>
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" PositionXOffset="@X" PositionYOffset="@Y"
+                                SuggestedWidth="@W" SuggestedHeight="@H" Rotation="@Rotation"
+                                Sprite="BlankWhiteSquare" Color="@Color" />
+                      </ItemTemplate>
+                    </Widget>
+
+                    <!-- 时代标签(I · 传统 ...) -->
+                    <Widget DataSource="{Heads}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+                      <ItemTemplate>
+                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                    PositionXOffset="@PosX" PositionYOffset="@PosY"
+                                    Brush="MapTextBrushGal" Brush.FontSize="@FontSize" Brush.FontColor="@TextColor" Text="@Text" />
+                      </ItemTemplate>
+                    </Widget>
+
+                    <!-- 节点(横卡: 左圆徽章 + 名称/效果 + 状态角标 + 底部进度条) -->
+                    <Widget DataSource="{Nodes}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+                      <ItemTemplate>
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                SuggestedWidth="@Width" SuggestedHeight="@Height"
+                                PositionXOffset="@PosX" PositionYOffset="@PosY">
+                          <Children>
+                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                    Sprite="BlankWhiteSquare" Color="@PlateColor" />
+                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="2" VerticalAlignment="Top"
+                                    Sprite="BlankWhiteSquare" Color="@FrameColor" />
+                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="2" VerticalAlignment="Bottom"
+                                    Sprite="BlankWhiteSquare" Color="@FrameColor" />
+                            <Widget WidthSizePolicy="Fixed" SuggestedWidth="2" HeightSizePolicy="StretchToParent" HorizontalAlignment="Left"
+                                    Sprite="BlankWhiteSquare" Color="@FrameColor" />
+                            <Widget WidthSizePolicy="Fixed" SuggestedWidth="2" HeightSizePolicy="StretchToParent" HorizontalAlignment="Right"
+                                    Sprite="BlankWhiteSquare" Color="@FrameColor" />
+                            <!-- 圆徽章 -->
+                            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                    SuggestedWidth="@IconSize" SuggestedHeight="@IconSize"
+                                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@MedLeft" MarginTop="@MedTop"
+                                    Sprite="@Icon" Color="@IconColor" />
+                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="4"
+                                    Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#D9C07AFF" Text="@EraText" />
+                            <!-- 名称 + 效果 -->
+                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@NameLeft" MarginTop="@NameTop"
+                                        Brush="MapTextBrushGal" Brush.FontSize="@FontSize" Brush.FontColor="@NameColor" Text="@Name" />
+                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@EffectLeft" MarginTop="@EffectTop"
+                                        Brush="MapTextBrushGal" Brush.FontSize="@EffectSize" Brush.FontColor="@EffectColor" Text="@EffectText" />
+                            <!-- 状态(可研究/研究中/前置未完成) -->
+                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@EffectLeft" MarginTop="@StateTop"
+                                        Brush="MapTextBrushGal" Brush.FontSize="13" Brush.FontColor="#D8C9A0FF" Text="@StateText" />
+                            <!-- 状态角标(+ / ✓ / ◉ / ◆) -->
+                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                        HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="@BadgeRight" MarginTop="@BadgeTop"
+                                        Brush="MapTextBrushGal" Brush.FontSize="@BadgeSize" Brush.FontColor="@BadgeColor" Text="@BadgeText" />
+                            <!-- 进度条 -->
+                            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="128" SuggestedHeight="3"
+                                    HorizontalAlignment="Right" VerticalAlignment="Bottom" MarginRight="10" MarginBottom="@BarBottom"
+                                    Sprite="BlankWhiteSquare" Color="#FFFFFF14" />
+                            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@BarW" SuggestedHeight="3"
+                                    HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="@BarSide" MarginBottom="@BarBottom"
+                                    Sprite="BlankWhiteSquare" Color="@BarColor" />
+                          </Children>
+                        </Widget>
+                      </ItemTemplate>
+                    </Widget>
+                  </Children>
+                </Widget>
+
+                <!-- 底部提示 -->
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                            MarginLeft="30" MarginBottom="30"
+                            Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#8A8070FF" Text="@TipText" />
+
+              </Children>
+            </Widget>
+          </Children>
+        </BrushWidget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

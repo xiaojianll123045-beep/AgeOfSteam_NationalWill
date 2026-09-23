@@ -59,7 +59,7 @@ namespace FeudalInternalAffairs
                     Set(__instance, "_hitPointsInfo", "领主生命值",
                         h != null ? ((int)h.HitPoints).ToString() : "***");
                     Set(__instance, "_troopsInfo", "部队人数",
-                        p.MemberRoster != null ? p.MemberRoster.TotalManCount.ToString() : "***");
+                        p.MemberRoster != null ? DefArmy.RegularsOf(p).ToString() : "***");
                     Set(__instance, "_foodInfo", "部队食物", ((int)p.Food).ToString());
                     Set(__instance, "_moraleInfo", "部队士气", ((int)p.Morale).ToString());
                     Set(__instance, "_speedInfo", "部队速度", p.Speed.ToString("F1"));

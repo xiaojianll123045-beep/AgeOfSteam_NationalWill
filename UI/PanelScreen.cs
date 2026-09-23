@@ -42,21 +42,27 @@ namespace FeudalInternalAffairs
             switch (key)
             {
                 case "market": return 780f;
-                case "pop": return 620f;
+                case "pop": return FullWidth();   // v4.147: 人口页改全屏
                 case "fiscal": return 680f;
                 case "breg": return 680f;
                 case "soc": return 680f;
                 case "guild": return 620f;
                 case "stats": return 680f;
                 case "pol": return FullWidth();
+                case "focus": return FullWidth();   // v4.146: 国策页(全屏面板)
+                case "tech": return FullWidth();    // v4.151: 科技页(全屏面板)
                 case "contracts": return 720f;
                 case "play": return 680f;
-                case "army": return 680f;
+                case "army": return 860f;     // 军务三页: 加宽(原 680)
+                case "troops": return 860f;   // 军队页: 加宽登记(原缺省 500)
+                case "military": return 860f; // 军务总览页: 加宽(原缺省 500)
+                case "amg": return 760f;      // 28.6 部队管理页
+                case "legion": return 980f;   // 27.18 建军设计器页
                 case "bld": return 680f;
                 case "drawer": return 560f;
                 case "diplomacy": return 540f;
                 case "build": return 480f;
-                case "national": return 440f;
+                case "national": return 520f;   // v4.150: 国家总页加宽
                 default: return 500f;
             }
         }
@@ -166,21 +172,35 @@ namespace FeudalInternalAffairs
             try
             {
                 if (Open.ContainsKey("market")) return 780f;
-            if (Open.ContainsKey("pop")) return 620f;
+            if (Open.ContainsKey("pop")) return FullWidth();   // v4.147: 人口页改全屏
             if (Open.ContainsKey("fiscal")) return 680f;
             if (Open.ContainsKey("breg")) return 680f;
             if (Open.ContainsKey("soc")) return 680f;
             if (Open.ContainsKey("guild")) return 620f;
             if (Open.ContainsKey("stats")) return 680f;
             if (Open.ContainsKey("pol")) return FullWidth();
+            if (Open.ContainsKey("focus")) return FullWidth();   // v4.146: 国策页
+            if (Open.ContainsKey("tech")) return FullWidth();    // v4.151: 科技页
+            if (Open.ContainsKey("culture")) return FullWidth();  // v4.186: 文化页
+            if (Open.ContainsKey("event")) return 560f;           // v4.197: 事件面板
+            if (Open.ContainsKey("military")) return 860f;        // v4.199: 军务页(加宽)
+            if (Open.ContainsKey("treaty")) return 680f;          // v4.204: 条约页
+            if (Open.ContainsKey("breport")) return 680f;         // v4.209: 战报页
+            if (Open.ContainsKey("decree")) return 680f;          // v4.210: 法令页
+            if (Open.ContainsKey("lobby")) return 680f;           // v4.211: 游说页
+            if (Open.ContainsKey("parly")) return 680f;           // v4.211: 议会页
+            if (Open.ContainsKey("chest")) return 680f;           // v4.211: 钱箱页
                 if (Open.ContainsKey("contracts")) return 720f;
             if (Open.ContainsKey("play")) return 680f;
-            if (Open.ContainsKey("army")) return 680f;
+            if (Open.ContainsKey("army")) return 860f;          // 军务三页: 加宽(原 680)
+            if (Open.ContainsKey("troops")) return 860f;        // 军队页: 加宽登记(原缺省 500)
+            if (Open.ContainsKey("amg")) return 760f;          // 28.6 部队管理页
+            if (Open.ContainsKey("legion")) return 760f;       // 27.18 建军设计器页
             if (Open.ContainsKey("bld")) return 680f;
                 if (Open.ContainsKey("drawer")) return 560f;
                 if (Open.ContainsKey("diplomacy")) return 540f;
                 if (Open.ContainsKey("build")) return 480f;
-                if (Open.ContainsKey("national")) return 440f;
+                if (Open.ContainsKey("national")) return 520f;   // v4.150: 国家总页加宽
             }
             catch { }
             return 0f;
@@ -303,6 +323,12 @@ namespace FeudalInternalAffairs
                 if (Spots.Count == 0) { _leftWasDown = false; return; }
                 // v4.85: 弹窗(Inquiry)打开时热区不响应, 避免点击弹窗按钮被面板热区重复吃掉
                 if (PanelInputGuard.AnyPopupActive()) { _leftWasDown = true; return; }
+                // v27.x: "开始游戏"确认后的抑制窗口内热区一律忽略(同步按下状态, 窗口结束不误触发)
+                if (PanelInputGuard.ClicksSuppressed)
+                {
+                    _leftWasDown = TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton);
+                    return;
+                }
                 bool down = TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton);
                 if (!down) { _leftWasDown = false; return; }
                 if (_leftWasDown) return;   // 只在按下那一瞬触发一次

@@ -1,0 +1,64 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+
+        <!-- ===== 事件面板(v4.197, 左侧 560 宽; 横幅 + 标题 + 描述 + 选项) ===== -->
+        <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="560" HeightSizePolicy="StretchToParent"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
+          <Children>
+
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_frame" />
+
+            <!-- 事件横幅 520x260 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="520" SuggestedHeight="260"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="20" MarginTop="20"
+                    Sprite="@Icon" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="520" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="20" MarginTop="294"
+                        Brush="MapTextBrushGal" Brush.FontSize="28" Brush.FontColor="#E9CD74FF" Text="@Title" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="520" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="20" MarginTop="334"
+                        Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#D8C9A0FF" Text="@Desc" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="520" SuggestedHeight="10"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="20" MarginTop="430"
+                    Sprite="fia_ui_divider" />
+
+            <!-- 选项(最多 3 条, 每条 64 高) -->
+            <ListPanel DataSource="{Choices}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="20" MarginTop="450"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="520" HeightSizePolicy="Fixed" SuggestedHeight="64"
+                             MarginBottom="10" Brush="Fia.Button">
+                  <Children>
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="480" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="20" MarginTop="10"
+                                Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#F0E4C8FF" Text="@Text" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="480" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="20" MarginTop="36"
+                                Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#8FD8E8CC" Text="@Effect" />
+                  </Children>
+                </BrushWidget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- 底部: 暂不处理 -->
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="180" SuggestedHeight="48" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="20" MarginBottom="24" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="暂不处理" />
+              </Children>
+            </ButtonWidget>
+
+          </Children>
+        </BrushWidget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

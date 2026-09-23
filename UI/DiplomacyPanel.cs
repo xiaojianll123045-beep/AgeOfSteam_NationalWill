@@ -25,6 +25,7 @@ namespace FeudalInternalAffairs
                     PanelScreen.OpenPanel(Key, Movie, _vm, null,
                         delegate (float dt) { if (_vm != null) _vm.TickAnim(dt); OnTick(dt); },
                         delegate { if (_vm != null) _vm.ClosePanelAnim(540f); });
+                    PanelScreen.SetScrollHandler(Key, delegate (int dir) { if (_vm != null) { _vm.ScrollStep(dir); RegisterSpots(); } });
                 }
                 if (_vm != null)
                 {
@@ -71,6 +72,7 @@ namespace FeudalInternalAffairs
                 PanelScreen.AddSpot(420f, 238f, 104f, 32f, _vm.ExecuteSanction);    // v4.114: 经济制裁
                 PanelScreen.AddSpot(26f, sh - 24f - 42f, 122f, 42f, _vm.ExecuteClose); // 关闭
                 PanelScreen.AddSpot(160f, sh - 24f - 42f, 150f, 42f, PowerBlocUi.Show); // v5.0-P27: 权力集团
+        PanelScreen.AddSpot(340f, sh - 24f - 42f, 150f, 42f, TreatyPanel.Open);  // v4.204: 条约(自建页)
                 // 国家行(动态): 左段=选中看详情, 右侧单一行动按钮(按状态自动: 求和/解除/缔结/宣战)
                 int i = 0;
                 foreach (var row in _vm.Rows)

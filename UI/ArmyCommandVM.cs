@@ -68,7 +68,7 @@ namespace FeudalInternalAffairs
                 for (int i = 0; i < list.Count; i++)
                 {
                     Rows.Add(new ArmyMemberRowVM(list[i]));
-                    try { men += list[i].MemberRoster.TotalManCount; } catch { }
+                    try { men += DefArmy.RegularsOf(list[i]); } catch { }
                     pc++;
                 }
                 string leader = "—";

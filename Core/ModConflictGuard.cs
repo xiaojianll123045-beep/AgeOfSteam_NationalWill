@@ -57,7 +57,7 @@ namespace FeudalInternalAffairs
             {
                 string nm = RivalName();
                 string body = "有【" + nm + "】没我，有我没【" + nm + "】，选一个！！！";
-                InformationManager.ShowInquiry(new InquiryData("内政与经济扩展", body, true, false, "知道了", null, null, null, "", 0f, null, null, null), true, false);
+                InformationManager.ShowInquiry(new InquiryData("蒸汽时代：国家意志", body, true, false, "知道了", null, null, null, "", 0f, null, null, null), true, false);
                 DLog.Force("已弹出冲突提示: " + body);
             }
             catch (Exception ex) { DLog.Force("弹窗失败: " + ex.Message); }

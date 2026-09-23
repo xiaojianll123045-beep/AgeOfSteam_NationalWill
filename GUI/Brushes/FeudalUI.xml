@@ -1,0 +1,161 @@
+<Brushes>
+  <Brush Name="Fia.Panel">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_frame" ExtendLeft="48" ExtendTop="48" ExtendRight="48" ExtendBottom="48" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="Fia.PanelLite">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_frame_lite" ExtendLeft="44" ExtendTop="44" ExtendRight="44" ExtendBottom="44" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="Fia.Button">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_button" ExtendLeft="14" ExtendTop="10" ExtendRight="14" ExtendBottom="10" />
+      <BrushLayer Name="HoverLayer" Sprite="fia_ui_button_hover" ExtendLeft="14" ExtendTop="10" ExtendRight="14" ExtendBottom="10" />
+      <BrushLayer Name="PressLayer" Sprite="fia_ui_button_press" ExtendLeft="14" ExtendTop="10" ExtendRight="14" ExtendBottom="10" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+        <BrushLayer Name="HoverLayer" IsHidden="true" />
+        <BrushLayer Name="PressLayer" IsHidden="true" />
+      </Style>
+      <Style Name="Hovered">
+        <BrushLayer Name="Default" IsHidden="true" />
+        <BrushLayer Name="HoverLayer" AlphaFactor="1" />
+        <BrushLayer Name="PressLayer" IsHidden="true" />
+      </Style>
+      <Style Name="Pressed">
+        <BrushLayer Name="Default" IsHidden="true" />
+        <BrushLayer Name="HoverLayer" IsHidden="true" />
+        <BrushLayer Name="PressLayer" AlphaFactor="1" />
+      </Style>
+      <Style Name="Disabled">
+        <BrushLayer Name="Default" AlphaFactor="1" SaturationFactor="-50" ValueFactor="-50" />
+        <BrushLayer Name="HoverLayer" IsHidden="true" />
+        <BrushLayer Name="PressLayer" IsHidden="true" />
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="Fia.Row">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_row" ExtendLeft="32" ExtendTop="32" ExtendRight="14" ExtendBottom="14" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="Fia.RowSel">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_row_sel" ExtendLeft="32" ExtendTop="32" ExtendRight="14" ExtendBottom="14" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="Fia.Banner">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_banner" ExtendLeft="52" ExtendTop="52" ExtendRight="14" ExtendBottom="14" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="Fia.BannerRed">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_banner_red" ExtendLeft="52" ExtendTop="52" ExtendRight="14" ExtendBottom="14" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="Fia.Divider">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_divider" ExtendLeft="24" ExtendTop="24" ExtendRight="8" ExtendBottom="8" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="Fia.BarBg">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_bar_bg" ExtendLeft="30" ExtendTop="30" ExtendRight="12" ExtendBottom="12" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="Fia.BarFill">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_bar_fill" ExtendLeft="24" ExtendTop="24" ExtendRight="10" ExtendBottom="10" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="Fia.Tooltip">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_tooltip" ExtendLeft="36" ExtendTop="36" ExtendRight="36" ExtendBottom="36" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="Fia.TabOn">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_tab_on" ExtendLeft="36" ExtendTop="36" ExtendRight="14" ExtendBottom="14" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="Fia.TabOff">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_tab_off" ExtendLeft="36" ExtendTop="36" ExtendRight="20" ExtendBottom="20" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+      </Style>
+    </Styles>
+  </Brush>
+  <Brush Name="Fia.SlotRing">
+    <Layers>
+      <BrushLayer Name="Default" Sprite="fia_ui_slot_ring" />
+    </Layers>
+    <Styles>
+      <Style Name="Default">
+        <BrushLayer Name="Default" AlphaFactor="1" />
+      </Style>
+    </Styles>
+  </Brush>
+</Brushes>

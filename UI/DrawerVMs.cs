@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
@@ -326,6 +326,9 @@ namespace FeudalInternalAffairs
         private string _subtitle = "";
         private string _milText = "";
         private string _armyText = "";
+        private readonly List<DrawerNodeVM> _allNodes = new List<DrawerNodeVM>();
+        private readonly List<DrawerRowVM> _allRows = new List<DrawerRowVM>();
+        internal int Scroll;
 
         internal SettlementDrawerVM(Action onClose)
         {
@@ -442,8 +445,9 @@ namespace FeudalInternalAffairs
                     list.Add(node);
                     list.AddRange(children);
                 }
-                Nodes.Clear();
-                foreach (var n in list) Nodes.Add(n);
+                _allNodes.Clear();
+                foreach (var n in list) _allNodes.Add(n);
+                RebuildTreeWindow();
             }
             catch (Exception ex) { DLog.Force("抽屉建树失败: " + ex.Message); }
         }
@@ -464,18 +468,19 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                for (int i = 0; i < Nodes.Count; i++)
+                for (int i = 0; i < _allNodes.Count; i++)
                 {
-                    var n = Nodes[i];
+                    var n = _allNodes[i];
                     if (!n.HasChildren || n.Expanded) continue;
-                    for (int j = i + 1; j < Nodes.Count; j++)
+                    for (int j = i + 1; j < _allNodes.Count; j++)
                     {
-                        if (Nodes[j].Depth <= n.Depth) break;
-                        Nodes[j].IsVisible = false;
+                        if (_allNodes[j].Depth <= n.Depth) break;
+                        _allNodes[j].IsVisible = false;
                     }
                 }
                 // 被折叠的父节点重新展开时, 恢复其后代可见(受各自父节点约束)
-                for (int i = 0; i < Nodes.Count; i++) Nodes[i].IsVisible = IsNodeVisible(i);
+                for (int i = 0; i < _allNodes.Count; i++) _allNodes[i].IsVisible = IsNodeVisible(i);
+                RebuildTreeWindow();
             }
             catch { }
         }
@@ -484,13 +489,13 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                int depth = Nodes[index].Depth;
+                int depth = _allNodes[index].Depth;
                 if (depth == 0) return true;
                 // 往前找最近的一个更浅的父节点, 父节点必须可见且展开
                 for (int j = index - 1; j >= 0; j--)
                 {
-                    if (Nodes[j].Depth < depth)
-                        return Nodes[j].IsVisible && Nodes[j].Expanded;
+                    if (_allNodes[j].Depth < depth)
+                        return _allNodes[j].IsVisible && _allNodes[j].Expanded;
                 }
                 return true;
             }
@@ -523,12 +528,12 @@ namespace FeudalInternalAffairs
                 Subtitle = "已建 " + (sb != null ? sb.BuiltCount : 0)
                     + ((sb != null && sb.QueuedCount > 0) ? " + 在建 " + sb.QueuedCount : "")
                     + " / 上限 " + limit;
-                Rows.Clear();
+                _allRows.Clear();
                 foreach (var def in BuildDefs.All)
                 {
                     if (!BuildDefs.AllowedAt(def, s.IsVillage, s.IsCastle, s.IsTown)) continue;
                     var g = sb != null ? sb.Find(def.Id) : null;
-                    Rows.Add(new DrawerRowVM(def,
+                    _allRows.Add(new DrawerRowVM(def,
                         g != null ? g.Count : 0,
                         sb != null ? sb.QueuedOf(def.Id) : 0,
                         g != null ? g.Mode : BuildMode.Wood,
@@ -543,7 +548,7 @@ namespace FeudalInternalAffairs
                 IsBuildMode = true;
                 ApplyFilter();
                 UpdateMilitary(s);
-                DLog.Info("抽屉: 显示 " + Title + " 的建筑 " + Rows.Count + " 项");
+                DLog.Info("抽屉: 显示 " + Title + " 的建筑 " + _allRows.Count + " 项");
             }
             catch (Exception ex) { DLog.Force("抽屉建筑列表失败: " + ex.Message); }
         }
@@ -646,11 +651,71 @@ namespace FeudalInternalAffairs
             try
             {
                 string key = _searchText != null ? _searchText.Trim() : "";
-                foreach (var r in Rows)
+                foreach (var r in _allRows)
                 {
                     bool show = key.Length == 0 || (r.Name != null && r.Name.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0);
                     r.IsVisible = show;
                 }
+                RebuildRowWindow();
+            }
+            catch { }
+        }
+
+        private int TreePage()
+        {
+            float h = 0f;
+            try { h = PanelScreen.ScreenHeight(); } catch { }
+            if (h <= 100f) h = 1080f;
+            int n = (int)((h - 92f - 26f) / 52f);
+            return n < 3 ? 3 : n;
+        }
+
+        private int RowPage()
+        {
+            float h = 0f;
+            try { h = PanelScreen.ScreenHeight(); } catch { }
+            if (h <= 100f) h = 1080f;
+            int n = (int)((h - 224f - 92f) / 54f);
+            return n < 3 ? 3 : n;
+        }
+
+        private void RebuildTreeWindow()
+        {
+            try
+            {
+                Nodes.Clear();
+                var vis = new List<DrawerNodeVM>();
+                foreach (var n in _allNodes) if (n.IsVisible) vis.Add(n);
+                int max = Math.Max(0, vis.Count - TreePage());
+                if (Scroll > max) Scroll = max;
+                if (Scroll < 0) Scroll = 0;
+                for (int i = Scroll; i < vis.Count && Nodes.Count < TreePage(); i++) Nodes.Add(vis[i]);
+            }
+            catch { }
+        }
+
+        private void RebuildRowWindow()
+        {
+            try
+            {
+                Rows.Clear();
+                var vis = new List<DrawerRowVM>();
+                foreach (var r in _allRows) if (r.IsVisible) vis.Add(r);
+                int max = Math.Max(0, vis.Count - RowPage());
+                if (Scroll > max) Scroll = max;
+                if (Scroll < 0) Scroll = 0;
+                for (int i = Scroll; i < vis.Count && Rows.Count < RowPage(); i++) Rows.Add(vis[i]);
+            }
+            catch { }
+        }
+
+        internal void ScrollStep(int dir)
+        {
+            try
+            {
+                Scroll += dir;
+                if (Scroll < 0) Scroll = 0;
+                if (_buildMode) RebuildRowWindow(); else RebuildTreeWindow();
             }
             catch { }
         }
@@ -659,8 +724,13 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                if (_buildMode) { UpdateMilitary(_current); return; }   // v4.100: 建筑态也刷新军事信息
-                foreach (var n in Nodes) n.RefreshTexts();
+                if (_buildMode)
+                {
+                    if (_current != null) ShowBuildings(_current);
+                    else UpdateMilitary(null);
+                    return;
+                }
+                foreach (var n in _allNodes) n.RefreshTexts();
             }
             catch { }
         }

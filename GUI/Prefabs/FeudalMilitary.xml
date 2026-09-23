@@ -1,0 +1,203 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+
+        <!-- ===== 军务总览(宽 860: 12 项统计 3×4 + 兵种图鉴 3 列) ===== -->
+        <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="860" HeightSizePolicy="StretchToParent"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
+          <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_frame" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    MarginLeft="8" MarginRight="8" MarginTop="8" MarginBottom="8" Sprite="fia_ui2_tex_wood" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    MarginLeft="10" MarginRight="10" MarginTop="10" MarginBottom="10"
+                    Sprite="BlankWhiteSquare" Color="#0D0A0780" />
+
+            <!-- 标题栏 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="832" SuggestedHeight="72"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="14" MarginTop="14" Sprite="fia_ui2_plate_dark" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="48" SuggestedHeight="48"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="30" MarginTop="26" Sprite="fia_cat_military" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="Fixed" SuggestedHeight="40"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="92" MarginTop="32"
+                        Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="#E9CD74FF" Text="@Title" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="420" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="88" MarginTop="42" TextHorizontalAlignment="Right"
+                        Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#D8C9A0FF" Text="@Sub" />
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="56" SuggestedHeight="52" HorizontalAlignment="Left" VerticalAlignment="Top"
+                          MarginLeft="780" MarginTop="26" Brush="Fia.Button" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="26" Text="X" />
+              </Children>
+            </ButtonWidget>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="10" VerticalAlignment="Top"
+                    MarginTop="96" MarginLeft="22" MarginRight="22" Sprite="fia_ui2_divider_ornate" />
+
+            <!-- 分区头: 军务统计 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="808" SuggestedHeight="36"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="112" Sprite="fia_ui2_subheader" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="400" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="44" MarginTop="120"
+                        Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E9CD74FF" Text="军务统计" />
+
+            <!-- 统计卡 3 列 × 4 行(每卡 266×86, 图标 56) -->
+            <ListPanel DataSource="{StatsCol0}" WidthSizePolicy="Fixed" SuggestedWidth="266" HeightSizePolicy="Fixed" SuggestedHeight="368"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="156"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="266" SuggestedHeight="86" MarginBottom="6"
+                        Sprite="fia_ui2_plate_dark">
+                  <Children>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="56" SuggestedHeight="56"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="10" MarginTop="15" Sprite="@Icon" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="184" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="74" MarginTop="10"
+                                Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#D8C9A0FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="184" HeightSizePolicy="Fixed" SuggestedHeight="36"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="74" MarginTop="38"
+                                Brush="MapTextBrushGal" Brush.FontSize="26" Brush.FontColor="@ValueColor" Text="@Value" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+            <ListPanel DataSource="{StatsCol1}" WidthSizePolicy="Fixed" SuggestedWidth="266" HeightSizePolicy="Fixed" SuggestedHeight="368"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="296" MarginTop="156"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="266" SuggestedHeight="86" MarginBottom="6"
+                        Sprite="fia_ui2_plate_dark">
+                  <Children>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="56" SuggestedHeight="56"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="10" MarginTop="15" Sprite="@Icon" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="184" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="74" MarginTop="10"
+                                Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#D8C9A0FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="184" HeightSizePolicy="Fixed" SuggestedHeight="36"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="74" MarginTop="38"
+                                Brush="MapTextBrushGal" Brush.FontSize="26" Brush.FontColor="@ValueColor" Text="@Value" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+            <ListPanel DataSource="{StatsCol2}" WidthSizePolicy="Fixed" SuggestedWidth="266" HeightSizePolicy="Fixed" SuggestedHeight="368"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="566" MarginTop="156"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="266" SuggestedHeight="86" MarginBottom="6"
+                        Sprite="fia_ui2_plate_dark">
+                  <Children>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="56" SuggestedHeight="56"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="10" MarginTop="15" Sprite="@Icon" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="184" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="74" MarginTop="10"
+                                Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#D8C9A0FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="184" HeightSizePolicy="Fixed" SuggestedHeight="36"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="74" MarginTop="38"
+                                Brush="MapTextBrushGal" Brush.FontSize="26" Brush.FontColor="@ValueColor" Text="@Value" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- 分区头: 兵种图鉴 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="808" SuggestedHeight="36"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="530" Sprite="fia_ui2_subheader" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="500" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="44" MarginTop="538"
+                        Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E9CD74FF" Text="兵种图鉴(军事科技解锁)" />
+
+            <!-- 图鉴左列(5 行) -->
+            <ListPanel DataSource="{UnitsLeft}" WidthSizePolicy="Fixed" SuggestedWidth="266" HeightSizePolicy="Fixed" SuggestedHeight="370"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="574"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="266" SuggestedHeight="72" MarginBottom="2"
+                        Sprite="BlankWhiteSquare" Color="@Plate">
+                  <Children>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="64" SuggestedHeight="64"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="2" MarginTop="4" Sprite="@Icon" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="88" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="72" MarginTop="22"
+                                Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#E8DCC0FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="100" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="164" MarginTop="22" TextHorizontalAlignment="Right"
+                                Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@StatusColor" Text="@Status" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- 图鉴中列(5 行) -->
+            <ListPanel DataSource="{UnitsMid}" WidthSizePolicy="Fixed" SuggestedWidth="266" HeightSizePolicy="Fixed" SuggestedHeight="370"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="296" MarginTop="574"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="266" SuggestedHeight="72" MarginBottom="2"
+                        Sprite="BlankWhiteSquare" Color="@Plate">
+                  <Children>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="64" SuggestedHeight="64"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="2" MarginTop="4" Sprite="@Icon" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="88" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="72" MarginTop="22"
+                                Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#E8DCC0FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="100" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="164" MarginTop="22" TextHorizontalAlignment="Right"
+                                Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@StatusColor" Text="@Status" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- 图鉴右列(4 行) -->
+            <ListPanel DataSource="{UnitsRight}" WidthSizePolicy="Fixed" SuggestedWidth="266" HeightSizePolicy="Fixed" SuggestedHeight="370"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="566" MarginTop="574"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="266" SuggestedHeight="72" MarginBottom="2"
+                        Sprite="BlankWhiteSquare" Color="@Plate">
+                  <Children>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="64" SuggestedHeight="64"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="2" MarginTop="4" Sprite="@Icon" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="88" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="72" MarginTop="22"
+                                Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#E8DCC0FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="100" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="164" MarginTop="22" TextHorizontalAlignment="Right"
+                                Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@StatusColor" Text="@Status" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="808" HeightSizePolicy="Fixed" SuggestedHeight="28"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="952"
+                        Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8C33AFF" Text="@StatusText" />
+
+            <!-- 底部 -->
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="150" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="26" MarginBottom="26" Brush="Fia.Button" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="关闭" />
+              </Children>
+            </ButtonWidget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="170" SuggestedHeight="44"
+                    HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="190" MarginBottom="26" Sprite="fia_ui_button">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8C33AFF" Text="战报" />
+              </Children>
+            </Widget>
+
+          </Children>
+        </BrushWidget>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

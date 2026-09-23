@@ -130,6 +130,11 @@ namespace FeudalInternalAffairs
                     // ---- 饥荒 ----
                     float foodDays;
                     bool famine = FoodDaysOf(k, out foodDays) < FamineDays;
+                    // v4.152: 玩家战略储备充足 -> 饥荒免疫
+                    if (famine && isPlayer)
+                    {
+                        try { if (StrategicReserve.FamineImmune()) famine = false; } catch { }
+                    }
 
                     // ---- 装备 / 人力 ----
                     bool equip = EquipRatioOf(k, troops) < EquipRatio;
@@ -169,6 +174,9 @@ namespace FeudalInternalAffairs
                     foreach (var kv in Scorched) if (day > kv.Value) del.Add(kv.Key);
                     for (int i = 0; i < del.Count; i++) Scorched.Remove(del[i]);
                 }
+
+                // v27: 军械库工厂订单推进(材料已在 Armory 内经 TryConsumeMaterials 从市场扣)
+                try { Armory.Daily(day); } catch { }
             }
             catch (Exception ex) { DLog.Force("战争经济异常: " + ex.Message); }
         }
@@ -189,6 +197,8 @@ namespace FeudalInternalAffairs
             catch { }
             float total = inc * 0.7f;
             try { if (IsSanctioned(k)) total *= 0.75f; } catch { }   // v4.114: 经济制裁 -> 收入 -25%
+            try { total = AiEconomyDeep.IncomeAdjust(k, total); } catch { }   // v4.149: AI 税制/行会/铸币/信贷
+            try { total *= NationalSpirits.IncomeMult(k); } catch { }         // v4.150: 民族精神(重商主义/霸权等)
             return total;
         }
 
@@ -366,7 +376,7 @@ namespace FeudalInternalAffairs
                 float lose = 0f;
                 if (famine) lose += 0.02f;      // 饥荒: 逃兵 2%/日
                 if (bankrupt) lose += 0.01f;    // 欠饷: 1%/日
-                // v4.93: 删除"装备枯竭"减员(用户: 装备不足减员个锤子啊)
+                // v4.93: 删除"装备枯竭"减员(用户明确反对该机制; 缺装统一走满足率乘子)
                 if (levy) lose += 0.01f;        // 无人可补: 1%/日
                 if (lose > 0.29f) lose = 0.29f;
 
@@ -468,6 +478,157 @@ namespace FeudalInternalAffairs
             catch { }
         }
 
+        // ================= 军械库/工厂接线(第 27 章) =================
+        // 国家资金口径: 玩家国 = 国库, AI 国 = 战经金库
+        internal static float KingdomGold(Kingdom k)
+        {
+            try
+            {
+                if (k == null) return 0f;
+                var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                if (pk != null && k == pk) return EconomyWorld.Treasury.Gold;
+                return GoldOf(k);
+            }
+            catch { return 0f; }
+        }
+
+        internal static bool TryPayKingdom(Kingdom k, int v)
+        {
+            try
+            {
+                if (k == null) return false;
+                if (v <= 0) return true;
+                var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                if (pk != null && k == pk)
+                {
+                    if (EconomyWorld.Treasury.Gold < v) return false;
+                    EconomyWorld.TreasurySpend(v);
+                    return true;
+                }
+                if (GoldOf(k) < v) return false;
+                SpendPublic(k, v);
+                return true;
+            }
+            catch { return false; }
+        }
+
+        internal static void RefundKingdom(Kingdom k, int v)
+        {
+            try
+            {
+                if (k == null || v <= 0) return;
+                var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                if (pk != null && k == pk) { EconomyWorld.TreasuryAdd(v); return; }
+                AddPublic(k, v);
+            }
+            catch { }
+        }
+
+        // 工厂用料: 先在市场上验量(不扣), 再由 TryConsumeMaterials 实扣
+        internal static bool HasMaterials(Kingdom k, List<string> goods, List<int> amounts)
+        {
+            try
+            {
+                if (k == null) return false;
+                if (goods == null || amounts == null || goods.Count == 0) return true;
+                for (int i = 0; i < goods.Count && i < amounts.Count; i++)
+                    if (AmountAvailable(k, goods[i]) < amounts[i]) return false;
+                return true;
+            }
+            catch { return false; }
+        }
+
+        internal static bool TryConsumeMaterials(Kingdom k, List<string> goods, List<int> amounts)
+        {
+            try
+            {
+                if (k == null) return false;
+                if (goods == null || amounts == null || goods.Count == 0) return true;
+                for (int i = 0; i < goods.Count && i < amounts.Count; i++)
+                    if (AmountAvailable(k, goods[i]) < amounts[i]) return false;
+
+                for (int i = 0; i < goods.Count && i < amounts.Count; i++)
+                {
+                    int left = amounts[i];
+                    if (left <= 0) continue;
+                    var item = FeudalGoods.Item(goods[i]);
+                    if (item == null) return false;
+                    foreach (var s in k.Settlements)
+                    {
+                        if (s == null || left <= 0) continue;
+                        var roster = s.ItemRoster;
+                        if (roster == null) continue;
+                        int have = roster.GetItemNumber(item);
+                        if (have <= 0) continue;
+                        int take = Math.Min(have, left);
+                        roster.AddToCounts(item, -take);
+                        left -= take;
+                        // 物理扣减同步到市场(军用采购; 武器/盔甲/皮革从此不上市的口径)
+                        try
+                        {
+                            var m = EconomyWorld.FindMarket(s.StringId);
+                            if (m != null)
+                            {
+                                var e = m.GetOrCreate(goods[i]);
+                                e.DailyConsumption += take;
+                                if (e.Stock > take) e.Stock -= take; else e.Stock = 0f;
+                            }
+                        }
+                        catch { }
+                    }
+                    if (left > 0) return false;
+                }
+                return true;
+            }
+            catch { return false; }
+        }
+
+        private static int AmountAvailable(Kingdom k, string goodId)
+        {
+            try
+            {
+                var item = FeudalGoods.Item(goodId);
+                if (item == null) return 0;
+                int have = 0;
+                foreach (var s in k.Settlements)
+                {
+                    if (s == null) continue;
+                    var roster = s.ItemRoster;
+                    if (roster != null) have += roster.GetItemNumber(item);
+                }
+                return have;
+            }
+            catch { return 0; }
+        }
+
+        // v4.149: AI 信贷借入/危机查询
+        internal static void AddPublic(Kingdom k, float v)
+        {
+            try
+            {
+                if (k == null || v <= 0f) return;
+                Gold[k.StringId] = GoldOf(k) + v;
+            }
+            catch { }
+        }
+
+        internal static int DeficitDaysOf(Kingdom k)
+        {
+            try
+            {
+                if (k == null) return 0;
+                int d;
+                return DeficitsOf(k) >= 0 && DeficitDays.TryGetValue(k.StringId, out d) ? d : 0;
+            }
+            catch { return 0; }
+        }
+
+        internal static bool IsScorched(string settlementId)
+        {
+            try { return !string.IsNullOrEmpty(settlementId) && Scorched.ContainsKey(settlementId); }
+            catch { return false; }
+        }
+
         private static float GoldOf(Kingdom k)
         {
             try
@@ -545,6 +706,7 @@ namespace FeudalInternalAffairs
                 foreach (var by in kv.Value)
                     sb.Append('|').Append('N').Append(':').Append(kv.Key).Append(':').Append(by);   // v4.115: N:target:by
             }
+            // 注: 军械库/订单已独立为 FIA_Armory / FIA_Orders(见 DefArmyBehavior / World\Armory.cs)
             return sb.ToString();
             }
             catch { return "1"; }
@@ -610,6 +772,7 @@ namespace FeudalInternalAffairs
             _crisis.Clear();
             _lastNotice.Clear();
             _lastDay = -1;
+            Armory.Reset();       // v27: 军械库/订单
         }
     }
 }

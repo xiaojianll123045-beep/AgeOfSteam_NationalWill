@@ -220,6 +220,27 @@ namespace FeudalInternalAffairs
             get { try { return Diplomacy.Describe(Diplomacy.Get(PlayerKingdom(), K)); } catch { return ""; } }
         }
 
+        // v4.192: 关系图标(fia_dip_*, 圆角方形新标准)
+        [DataSourceProperty]
+        public string RelationIcon
+        {
+            get
+            {
+                try
+                {
+                    int v = Diplomacy.Get(PlayerKingdom(), K);
+                    if (v >= 60) return "fia_dip_friendly";
+                    if (v >= 30) return "fia_dip_amicable";
+                    if (v >= 10) return "fia_dip_cordial";
+                    if (v > -10) return "fia_dip_neutral";
+                    if (v > -30) return "fia_dip_poor";
+                    if (v > -60) return "fia_dip_cold";
+                    return "fia_dip_hostile";
+                }
+                catch { return "fia_dip_neutral"; }
+            }
+        }
+
         // 关系值 + 描述(一行显示)
         [DataSourceProperty]
         public string RelationFull
@@ -254,6 +275,7 @@ namespace FeudalInternalAffairs
         private readonly Action _onClose;
         private int _tab;                 // 0=战争 1=同盟 2=关系
         private Kingdom _selected;
+        private int _scroll;
 
         internal DiplomacyVM(Action onClose)
         {
@@ -546,6 +568,26 @@ namespace FeudalInternalAffairs
             catch { }
         }
 
+        private int Page()
+        {
+            float h = 0f;
+            try { h = PanelScreen.ScreenHeight(); } catch { }
+            if (h <= 100f) h = 1080f;
+            int n = (int)((h - 354f - 120f) / 54f);
+            return n < 4 ? 4 : n;
+        }
+
+        internal void ScrollStep(int dir)
+        {
+            try
+            {
+                _scroll += dir;
+                if (_scroll < 0) _scroll = 0;
+                Refresh();
+            }
+            catch { }
+        }
+
         internal void Refresh()
         {
             try
@@ -566,8 +608,11 @@ namespace FeudalInternalAffairs
                     return Diplomacy.Get(pk, b).CompareTo(Diplomacy.Get(pk, a));
                 });
 
+                int max = Math.Max(0, list.Count - Page());
+                if (_scroll > max) _scroll = max;
+                if (_scroll < 0) _scroll = 0;
                 Rows.Clear();
-                for (int i = 0; i < list.Count; i++)
+                for (int i = _scroll; i < list.Count && Rows.Count < Page(); i++)
                     Rows.Add(new DiplomacyRowVM(list[i], i % 2 == 1, OnWar, OnPeace, OnAlly, OnBreak, OnSelect));
                 NotifyTabs();
                 if (_selected != null) NotifySelection();

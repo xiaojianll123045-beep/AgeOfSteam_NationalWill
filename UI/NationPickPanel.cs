@@ -110,6 +110,7 @@ namespace FeudalInternalAffairs
             {
                 if (_kingdom == null) return;
                 NationChoice.ChosenKingdomId = _kingdom.StringId;
+                PanelInputGuard.SuppressClicksAfterStartGame();   // v27.x: 之后 800ms 内地图点击/面板热区统一忽略(防确认点击被驻军页热区/地图点击链吃到)
                 NationPickMode.Stop();   // 立刻退出选国模式(即使后面的过渡动画/层出问题, 接管也能照常进行)
                 string kname = _kingdom.Name != null ? _kingdom.Name.ToString() : "这个国家";
                 DLog.Force("地图选国: 玩家选择 " + _kingdom.StringId + " (" + kname + ") -> 开始游戏");

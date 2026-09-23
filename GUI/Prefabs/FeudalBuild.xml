@@ -9,36 +9,37 @@
         <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="480" HeightSizePolicy="StretchToParent"
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
           <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_frame" />
 
-            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6" Sprite="BlankWhiteSquare" Color="#100C08EE" />
 
             <!-- 标题栏 -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" VerticalAlignment="Top"
-                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000055">
+                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="fia_ui_banner_red">
               <Children>
                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="27" Brush.FontColor="#C9A227FF" Text="@Title" />
+                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="27" Brush.FontColor="#E9CD74FF" Text="@Title" />
                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="38"
-                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="ButtonBrush1"
+                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="Fia.Button"
                               Command.Click="ExecuteClose" UpdateChildrenStates="true">
                   <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Text="X" />
                   </Children>
                 </ButtonWidget>
               </Children>
             </Widget>
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
-                    MarginTop="82" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF59" />
+                    MarginTop="82" MarginLeft="22" MarginRight="22" Sprite="fia_ui_divider" />
 
             <!-- 提示 -->
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="424" HeightSizePolicy="CoverChildren"
                         HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="96"
-                        Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#C8B98FFF" Text="@Hint" />
+                        Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#D8C9A0FF" Text="@Hint" />
 
             <!-- 方案统计 -->
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                         HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="140"
-                        Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#C9A227FF" Text="@PlanSummary" />
+                        Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#E9CD74FF" Text="@PlanSummary" />
 
             <!-- ===== 方案列表(可滚动) ===== -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
@@ -53,7 +54,7 @@
                                    HorizontalAlignment="Left" VerticalAlignment="Top" StackLayout.LayoutMethod="VerticalTopToBottom">
                           <ItemTemplate>
                             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="54"
-                                    Sprite="ArmyManagement\voter_tuple" Color="#FFFFFFE6">
+                                    Sprite="fia_ui_row" Color="#FFFFFFE6">
                               <Children>
                                 <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
                                            HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="16"
@@ -64,29 +65,32 @@
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
                                                 MarginLeft="10" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#F0E4C8FF" Text="@Name" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                                MarginLeft="12" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C8B98FFF" Text="@CategoryText" />
+                                                MarginLeft="12" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#D8C9A0FF" Text="@CategoryText" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                                MarginLeft="12" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#C9A227FF" Text="@CountText" />
+                                                MarginLeft="12" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E9CD74FF" Text="@CountText" />
                                   </Children>
                                 </ListPanel>
                                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="32"
-                                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="114" Brush="ButtonBrush1"
+                                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="114" Brush="Fia.Button"
                                               Command.Click="ExecuteMinus" UpdateChildrenStates="true">
                                   <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="-" />
                                   </Children>
                                 </ButtonWidget>
                                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="32"
-                                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="64" Brush="ButtonBrush1"
+                                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="64" Brush="Fia.Button"
                                               Command.Click="ExecutePlus" UpdateChildrenStates="true">
                                   <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="+" />
                                   </Children>
                                 </ButtonWidget>
                                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="32"
-                                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="ButtonBrush1"
+                                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="Fia.Button"
                                               Command.Click="ExecuteRemove" UpdateChildrenStates="true">
                                   <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="×" />
                                   </Children>
                                 </ButtonWidget>
@@ -120,14 +124,16 @@
                 <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="HorizontalLeftToRight">
                   <Children>
                     <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="42"
-                                  Brush="ButtonBrush2" Command.Click="ExecuteAdd" UpdateChildrenStates="true">
+                                  Brush="Fia.Button" Command.Click="ExecuteAdd" UpdateChildrenStates="true">
                       <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="+ 添加建筑" />
                       </Children>
                     </ButtonWidget>
                     <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="92" SuggestedHeight="42"
-                                  MarginLeft="20" Brush="ButtonBrush1" Command.Click="ExecuteClear" UpdateChildrenStates="true">
+                                  MarginLeft="20" Brush="Fia.Button" Command.Click="ExecuteClear" UpdateChildrenStates="true">
                       <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="清空" />
                       </Children>
                     </ButtonWidget>
@@ -137,20 +143,23 @@
                 <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MarginTop="12" StackLayout.LayoutMethod="HorizontalLeftToRight">
                   <Children>
                     <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="132" SuggestedHeight="42"
-                                  Brush="ButtonBrush2" Command.Click="ExecutePreset1" UpdateChildrenStates="true">
+                                  Brush="Fia.Button" Command.Click="ExecutePreset1" UpdateChildrenStates="true">
                       <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="18" Text="@Preset1" />
                       </Children>
                     </ButtonWidget>
                     <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="132" SuggestedHeight="42"
-                                  MarginLeft="16" Brush="ButtonBrush2" Command.Click="ExecutePreset2" UpdateChildrenStates="true">
+                                  MarginLeft="16" Brush="Fia.Button" Command.Click="ExecutePreset2" UpdateChildrenStates="true">
                       <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="18" Text="@Preset2" />
                       </Children>
                     </ButtonWidget>
                     <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="132" SuggestedHeight="42"
-                                  MarginLeft="16" Brush="ButtonBrush2" Command.Click="ExecutePreset3" UpdateChildrenStates="true">
+                                  MarginLeft="16" Brush="Fia.Button" Command.Click="ExecutePreset3" UpdateChildrenStates="true">
                       <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="18" Text="@Preset3" />
                       </Children>
                     </ButtonWidget>
@@ -160,14 +169,16 @@
                 <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MarginTop="12" StackLayout.LayoutMethod="HorizontalLeftToRight">
                   <Children>
                     <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="172" SuggestedHeight="42"
-                                  Brush="ButtonBrush1" Command.Click="ExecuteUndo" UpdateChildrenStates="true">
+                                  Brush="Fia.Button" Command.Click="ExecuteUndo" UpdateChildrenStates="true">
                       <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="撤销(Ctrl+Z)" />
                       </Children>
                     </ButtonWidget>
                     <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="172" SuggestedHeight="42"
-                                  MarginLeft="20" Brush="ButtonBrush2" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+                                  MarginLeft="20" Brush="Fia.Button" Command.Click="ExecuteClose" UpdateChildrenStates="true">
                       <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="退出建造模式" />
                       </Children>
                     </ButtonWidget>

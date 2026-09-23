@@ -1,0 +1,120 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+        <!-- ===== 外交条约页(v4.204: 自己实现, 不用系统弹窗) ===== -->
+        <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="680" HeightSizePolicy="StretchToParent"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
+          <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_frame" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" VerticalAlignment="Top"
+                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="fia_ui_banner_red" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="28" Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="#E8C33AFF" Text="外交条约" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        MarginRight="24" MarginTop="26" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#D8C9A0FF" Text="@CreditText" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        MarginRight="24" MarginTop="48" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#C8B98FCC" Text="@AuthText" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="10" VerticalAlignment="Top"
+                    MarginTop="80" MarginLeft="22" MarginRight="22" Sprite="fia_ui_divider" />
+
+            <!-- 条款等级 -->
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="92" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#C8B98FCC" Text="条款等级(缔约成本/月收益/期限)" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="200" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="116" Sprite="@Lv0Bg">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@Lv0Color" Text="标准" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="200" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="238" MarginTop="116" Sprite="@Lv1Bg">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@Lv1Color" Text="优厚 ×1.8 收益" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="200" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="450" MarginTop="116" Sprite="@Lv2Bg">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@Lv2Color" Text="苛刻 ×2.8 收益" />
+              </Children>
+            </Widget>
+
+            <!-- 缔约 -->
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="168" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="缔约(点图标 = 签署 / 已有 = 撕毁)" />
+            <ListPanel DataSource="{Cands}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="194"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="Fixed" SuggestedHeight="46" Sprite="fia_ui_row" MarginBottom="4">
+                  <Children>
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="130" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="8"
+                                Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E8DCC0FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="140"
+                                Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#8A8070FF" Text="@Relation" />
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="26" SuggestedHeight="26"
+                            HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="250" Sprite="@Icon0" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="278"
+                                Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#D8C9A0FF" Text="@Cost0" />
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="26" SuggestedHeight="26"
+                            HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="356" Sprite="@Icon1" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="384"
+                                Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#D8C9A0FF" Text="@Cost1" />
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="26" SuggestedHeight="26"
+                            HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="462" Sprite="@Icon2" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="490"
+                                Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#D8C9A0FF" Text="@Cost2" />
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="26" SuggestedHeight="26"
+                            HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="556" Sprite="@Icon3" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="584"
+                                Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#D8C9A0FF" Text="@Cost3" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- 生效中条约 -->
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="500" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="生效中条约(点行 = 撕毁)" />
+            <ListPanel DataSource="{Actives}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="526"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="Fixed" SuggestedHeight="42" Sprite="BlankWhiteSquare" Color="#FFFFFF0C" MarginBottom="4">
+                  <Children>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="28" SuggestedHeight="28"
+                            HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="8" Sprite="@Icon" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="220" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="46"
+                                Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E8DCC0FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="290"
+                                Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="@DescColor" Text="@Desc" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="122" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="30" MarginBottom="26" Brush="Fia.Button" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Text="关闭" />
+              </Children>
+            </ButtonWidget>
+          </Children>
+        </BrushWidget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

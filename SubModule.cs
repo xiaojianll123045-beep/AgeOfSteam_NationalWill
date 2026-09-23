@@ -12,6 +12,9 @@ namespace FeudalInternalAffairs
     {
         internal static Harmony HarmonyInstance;
 
+        // v4.200: RTS 指挥系统开关(用户要求暂时移除; 改回 true 即恢复)
+        internal const bool RtsEnabled = false;
+
         protected override void OnSubModuleLoad()
         {
             base.OnSubModuleLoad();
@@ -32,7 +35,6 @@ namespace FeudalInternalAffairs
                     typeof(MapBarPatches.MapBarHideTickPatch),
                     typeof(MapBarPatches.MapBarVMDressHideTick),
                     typeof(MapBarPatches.MapBarVMDressHideRefresh),
-                    typeof(FocusTreeMapGuardPatch.SkipMapVisualTick),
                     typeof(FeudalMapViewPatch),
                     typeof(FocusTreeMapGuardPatch.BlockMapNavigationInput),
                     typeof(FocusTreeMapGuardPatch.BlockMapCameraInput),
@@ -58,6 +60,7 @@ namespace FeudalInternalAffairs
                     typeof(MapClickPatches.SettlementClick),
                     typeof(MapClickPatches.NoEncyclopediaDuringPick),
                     typeof(MapClickPatches.NoClickTimeChange),
+                    typeof(MapClickPatches.BlockOutlinerWheelZoom),
                     typeof(MapVisionPatches.NationalWillVision),
                     typeof(SettlementNameplateRelationPatch.SyncOnRefreshValues),
                     typeof(SettlementNameplateRelationPatch.SyncOnDynamicProperties),
@@ -95,6 +98,11 @@ namespace FeudalInternalAffairs
                     typeof(DiplomacyPatches.DeclareWarDirectly),
                     typeof(DiplomacyPatches.PeaceByEnemyVote),
                     typeof(MapInfoSelectionPatch.OverrideInfoBase),
+                    // v4.235 地图名板人数 = 名册 − 将军(修 100 兵军团显示 101)
+                    typeof(PartyNameplateCountPatch),
+                    // 28.7 悬停劫持: 原版部队 tooltip 的兵种列表 -> 我们的
+                    typeof(PartyTooltipPatch.TroopListReplace),
+                    typeof(PartyTooltipPatch.RefreshPartyTooltip),
                     typeof(KingdomTraitPatches.Speed),
                     typeof(KingdomTraitPatches.TownProsperity),
                     typeof(KingdomTraitPatches.TownLoyalty),
@@ -124,19 +132,45 @@ namespace FeudalInternalAffairs
                     typeof(PanelInputGuard.AnyMultiInquiryShownPatch),
                     typeof(NotificationFilter.DisplayMessageFilter),
                     typeof(DefArmyAi.AiGuard),
-                    typeof(DefArmyAi.NoAutoRecruit)
+                    typeof(DefArmyAi.NoAutoRecruit),
+                    // 28.3 禁止原版军队入口(招募/升级/组建军团/解散劫持)
+                    typeof(VanillaArmySuppress.HideTownRecruitMenu),
+                    typeof(VanillaArmySuppress.HideVillageRecruitMenu),
+                    typeof(VanillaArmySuppress.BlockRecruitScreen),
+                    typeof(VanillaArmySuppress.BlockPlayerRecruitApply),
+                    typeof(VanillaArmySuppress.BlockPlayerRecruitMap),
+                    typeof(VanillaArmySuppress.BlockPlayerRecruitIndividual),
+                    typeof(VanillaArmySuppress.BlockUpgrade),
+                    typeof(VanillaArmySuppress.GrayUpgrade),
+                    typeof(VanillaArmySuppress.BlockPlayerArmyButton),
+                    typeof(VanillaArmySuppress.BlockPlayerCreateArmy),
+                    typeof(VanillaArmySuppress.HijackClanDisband)
                 };
                 int ok = 0;
                 foreach (var t in patches)
                 {
                     try
                     {
+                        // v4.200: 暂时移除 RTS 指挥系统(相机/终结补丁不注册)
+                        if (!RtsEnabled && (t == typeof(BattleRtsCamera.CameraTickPatch) || t == typeof(BattleRtsCamera.FinalizePatch)))
+                        {
+                            DLog.Force("RTS 已暂时移除, 跳过补丁 " + t.Name);
+                            continue;
+                        }
                         HarmonyInstance.CreateClassProcessor(t).Patch();
                         ok++;
                     }
                     catch (Exception ex) { DLog.Force("补丁失败 " + t.Name + ": " + ex.Message); }
                 }
-                DLog.Force("内政与经济扩展加载完成, 补丁 " + ok + "/" + patches.Count);
+                DLog.Force("蒸汽时代：国家意志 加载完成, 补丁 " + ok + "/" + patches.Count);
+                // v4.241: 装备/兵种 -> 科技树 门控自检(错一个 id 就等于那件装备永不开放)
+                try
+                {
+                    string bad = Equipment.Validate();
+                    if (string.IsNullOrEmpty(bad)) DLog.Force("装备科技校验: 39 件装备 + 14 兵种全部对齐科技表");
+                    else DLog.Force("装备科技校验: 以下 id 在科技表里不存在 -> " + bad);
+                }
+                catch (Exception ex) { DLog.Force("装备科技校验异常: " + ex.Message); }
                 KingdomTraitPatches.NavalTraitPatches.Apply(HarmonyInstance);
                 NavalVisualGuard.Apply(HarmonyInstance);
                 TerritoryColorMode.NameplateWidgetPatch.Apply(HarmonyInstance);
@@ -144,7 +178,7 @@ namespace FeudalInternalAffairs
 
                 try
                 {
-                    var extender = UIExtender.Create("_FeudalInternalAffairs");
+                    var extender = UIExtender.Create("AgeOfSteam_NationalWill");
                     DLog.Info("UIExtender：Create 完成");
                     extender.Register(typeof(SubModule).Assembly);
                     DLog.Info("UIExtender：Register 完成");
@@ -184,6 +218,8 @@ namespace FeudalInternalAffairs
                     starter.AddBehavior(new EconomyBehavior());
                     starter.AddBehavior(new DiplomacyBehavior());
                     starter.AddBehavior(new DefArmyBehavior());
+                    starter.AddBehavior(new SoldiersBehavior());   // 28.5: FIA_Soldiers/FIA_Converted 存档接线 + 建档转化入口
+                    starter.AddModel(new FeudalCombatModel());   // v4.200: 接管坐镇指挥伤害(高级热武器高伤害)
                     DLog.Info("已注册 NationalWillBehavior / EconomyBehavior / DiplomacyBehavior / DefArmyBehavior");
                 }
             }

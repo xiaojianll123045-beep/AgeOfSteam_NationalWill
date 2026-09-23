@@ -413,6 +413,7 @@ namespace FeudalInternalAffairs
             EnsureRulerName();
 
             _setupDone = true;
+            try { DefArmy.TempFillIfReady(); } catch { }   // TEMP: 选国完成, 玩家王国已确定 -> 补给一次
             Tutorials.StartIntro();   // v4.124: 接管完成 -> 3 秒后弹开局分步教程
             NationPickMode.Stop();   // v4.75: 接管完成 -> 退出选国模式(相机解锁)
             // 国家一确定就立即把视角瞬移到版图中心(地图已就绪时一次成功)

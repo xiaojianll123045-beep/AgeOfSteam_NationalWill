@@ -40,6 +40,12 @@ namespace FeudalInternalAffairs
                     options.Add(new InquiryElement("replenish", "从守备营补员", null, true, "从驻地守备营抽调兵员补充该军团"));
                     options.Add(new InquiryElement("disband", "解散军团", null, true, "兵员转入驻地守备营, 视国库支付遣散费"));
                     options.Add(new InquiryElement("split_def", "拆分军团", null, true, "把该军团一分为二(1 名小兵升任将军, 花费 500)"));
+                    // v4.245: 玩家接管 / 交还军事总监(接管后军事总监与外交 AI 都不再调走它)
+                    bool held = one != null && DefArmy.IsPlayerHeld(one);
+                    options.Add(new InquiryElement("hold_on", held ? "√ 归玩家指挥" : "归玩家指挥", null, true,
+                        "接管该军团: 军事总监不再自动调它(你点过地图/驻防/巡逻/状态就自动接管)"));
+                    options.Add(new InquiryElement("hold_off", held ? "交还军事总监" : "√ 由军事总监调度", null, true,
+                        "交还给军事总监: 恢复自动休整/集结/进攻"));
                 }
                 else if (n >= 2)
                 {
@@ -81,6 +87,14 @@ namespace FeudalInternalAffairs
                 string id = selected[0].Identifier as string;
                 if (id == "merge_def") { DoMerge(); return; }
                 if (id == "split_def") { DoSplit(); return; }
+                if (id == "hold_on" || id == "hold_off")
+                {
+                    var hp = BestSelectedLegion();
+                    if (hp == null) { MapSelection.Message("没有可指挥的国防军军团"); return; }
+                    if (id == "hold_on") { DefArmy.MarkPlayerOrder(hp); MapSelection.Message(MapSelection.NameOf(hp) + " 已归玩家指挥(军事总监不再调它)"); }
+                    else MapSelection.Message(DefArmy.ReleaseToAi(hp));
+                    return;
+                }
                 if (id != "task_hold" && id != "task_patrol" && id != "replenish" && id != "disband") return;
                 var p = BestSelectedLegion();
                 if (p == null) { MapSelection.Message("没有可指挥的国防军军团"); return; }

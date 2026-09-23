@@ -60,6 +60,7 @@ namespace FeudalInternalAffairs
         internal static float Authority = 200f;   // 0..1000
         internal static float Legitimacy = 50f;   // 0..100
         internal static float Tyranny;            // 暴政值
+        internal static float ConscriptGrievance; // v4.239: 强制征兵民怨 0..100(强制征兵累积 -> 反征兵请愿 / 征丁逃亡)
         internal static bool CivilWar;
         internal static int CivilWarDay = -9999;
         internal static readonly int[] Laws = new int[6];
@@ -293,6 +294,8 @@ namespace FeudalInternalAffairs
                 // 3) 阶层愤怒偏移衰减 + 聚合
                 if (ChurchAngerOffset > 0) ChurchAngerOffset = Math.Max(0, ChurchAngerOffset - 2);
                 if (BurgerAngerOffset > 0) BurgerAngerOffset = Math.Max(0, BurgerAngerOffset - 2);
+                // 3.5) v4.239: 强制征兵民怨自然平息(停征就慢慢过去; 停征 1 年约降 48)
+                if (ConscriptGrievance > 0f) ConscriptGrievance = Math.Max(0f, ConscriptGrievance - 4f);
                 Aggregate();
 
                 // 4) 合法性重算(v5.0-P22: 主干 = 执政集团(组阁)影响力, 文档 24.2; v4.140: 抽出为公共方法即时刷新)
@@ -455,6 +458,15 @@ namespace FeudalInternalAffairs
                 // 市民: 物价
                 if (Petitions.Count < 3 && (MintRight.Purity > 0 || PriceIndex() > 1.08f) && CanAdd("price_control"))
                     AddPetition(new Petition { Kind = "price_control", Estate = 2, Text = "市民请愿: 物价飞涨, 请求货币足银", Expire = day + 14 });
+                // v4.239 乡民: 反强制征兵(民怨 >= 50 起)
+                if (Petitions.Count < 3 && ConscriptGrievance >= 50f && CanAdd("anti_conscript"))
+                    AddPetition(new Petition
+                    {
+                        Kind = "anti_conscript",
+                        Estate = 2,
+                        Text = "乡民请愿: 征召太重、父子离散, 请求放归部分征丁(民怨 " + ((int)Math.Round(ConscriptGrievance)) + "/100)",
+                        Expire = day + 14
+                    });
                 // 市民: 特许
                 if (Petitions.Count < 3 && Guilds.Founded.Count > 0 && CountChartered() == 0 && CanAdd("charter"))
                     AddPetition(new Petition { Kind = "charter", Estate = 2, Text = "行会请愿: 请求王室授予首份特许状(免费)", Expire = day + 14 });
@@ -608,7 +620,10 @@ namespace FeudalInternalAffairs
             {
                 float m;
                 if (categoryName == "军事")
+                {
                     m = (LawSystem.MilitaryMult() + (SeatHeld(3) ? 0.04f : 0f)) * WarMobilization.MilitaryMult() * PowerBlocs.MilitaryMult();   // v4.133/v5.0-P25/P27
+                    m *= Research.MilitaryMult();   // v4.241: 军事树科技(+军事 N%)接进军事产业产出(此前完全没接线)
+                }
                 else if (categoryName == "资源")
                     m = (CivilWar ? 0.85f : 1f) * LawSystem.AgriOutputMult();    // v4.133: 土地制度
                 else
@@ -629,6 +644,13 @@ namespace FeudalInternalAffairs
                 if (Treasury() > 10000) legit += 3f;
                 if (Treasury() < 0) legit -= 5f;
                 if (SeatHeld(1)) legit += 2f;   // 掌玺大臣(文档 21.3)
+                // v4.150: 民族精神(民权勃兴/凯歌高奏等)
+                try
+                {
+                    var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                    if (pk != null) legit += NationalSpirits.LegitBonus(pk);
+                }
+                catch { }
                 Legitimacy = ClampF(legit, 0f, 100f);
             }
             catch { }
@@ -855,6 +877,17 @@ namespace FeudalInternalAffairs
                         if (p.ClanId != null) TouchLord(p.ClanId, 20, -15);
                         DLog.Force("政治: 同意授勋请愿(-40 权威)");
                         break;
+                    case "anti_conscript":
+                        {
+                            // v4.239: 放归 25% 征丁 + 民心回补
+                            string r = "";
+                            try { r = DefArmy.ReleaseConscriptShare(0.25f); } catch { }
+                            ConscriptGrievance = Math.Max(0f, ConscriptGrievance - 30f);
+                            BurgerAngerOffset = Clamp(BurgerAngerOffset - 8, -40, 100);
+                            Legitimacy = ClampF(Legitimacy + 2f, 0f, 100f);
+                            DLog.Force("政治: 同意反征兵请愿 -> " + r + " 民怨 " + ((int)Math.Round(ConscriptGrievance)));
+                        }
+                        break;
                 }
             }
             catch { }
@@ -873,6 +906,8 @@ namespace FeudalInternalAffairs
                 }
                 if (p.ClanId != null) TouchLord(p.ClanId, -8, d);
                 Legitimacy = ClampF(Legitimacy - (expired ? 1f : 2f), 0f, 100f);
+                if (p.Kind == "anti_conscript")   // v4.239: 拒绝/拖过反征兵请愿 -> 民怨继续涨
+                    ConscriptGrievance = Math.Min(100f, ConscriptGrievance + (expired ? 6f : 12f));
                 DLog.Force("政治: " + (expired ? "请愿逾期作废" : "拒绝请愿") + " -> " + p.Text);
             }
             catch { }
@@ -1101,7 +1136,8 @@ namespace FeudalInternalAffairs
                   .Append(UltimatumActive ? "1" : "0").Append(',')
                   .Append(UltimatumDay).Append(',')
                   .Append(UltimatumKind).Append(',')
-                  .Append(LastRebellionDay).Append(';');
+                  .Append(LastRebellionDay).Append(',')
+                  .Append(ConscriptGrievance.ToString("F1", CultureInfo.InvariantCulture)).Append(';');
                 for (int i = 0; i < 6; i++) { if (i > 0) sb.Append(','); sb.Append(Laws[i]); }
                 sb.Append(';');
                 for (int i = 0; i < 5; i++) { if (i > 0) sb.Append(','); sb.Append(Council[i] ?? ""); }
@@ -1146,6 +1182,7 @@ namespace FeudalInternalAffairs
                     if (f.Length > 8 && int.TryParse(f[8], out x)) UltimatumDay = x;
                     if (f.Length > 9 && int.TryParse(f[9], out x)) UltimatumKind = x;
                     if (f.Length > 10 && int.TryParse(f[10], out x)) LastRebellionDay = x;
+                    if (f.Length > 11 && float.TryParse(f[11], NumberStyles.Float, CultureInfo.InvariantCulture, out v)) ConscriptGrievance = v;
                 }
                 if (seg.Length > 2)
                 {
@@ -1212,6 +1249,7 @@ namespace FeudalInternalAffairs
                 case "price_control": return "市民请愿: 物价飞涨, 请求货币足银";
                 case "charter": return "行会请愿: 请求王室授予首份特许状(免费)";
                 case "tithe_raise": return "教会请愿: 教产入不敷出, 请求提高什一税";
+                case "anti_conscript": return "乡民请愿: 征召太重、父子离散, 请求放归部分征丁";
                 case "title":
                     {
                         LordProfile lp;

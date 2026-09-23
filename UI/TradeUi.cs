@@ -1,35 +1,39 @@
 using System;
 using System.Collections.Generic;
-using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
-using TaleWorlds.Library;
 
 namespace FeudalInternalAffairs
 {
-    // 贸易路线 UI(文档 24.7; 多级弹窗: 路线列表 -> 建立 -> 选伙伴 -> 选商品 -> 选方向)
+    // v4.152: 贸易路线 UI 重做(按 V3 官方: 贸易容量/贸易优势/禁运/垄断)
     internal static class TradeUi
     {
-        internal static void Show()
+        internal static void Open()
         {
             try
             {
-                if (PanelInputGuard.AnyPopupActive()) return;
                 var opts = new List<InquiryElement>();
                 for (int i = 0; i < TradeRoutes.Routes.Count; i++)
                 {
                     var r = TradeRoutes.Routes[i];
-                    string label = (r.Export ? "出口 " : "进口 ") + FeudalGoods.NameOf(r.GoodId)
-                        + " ↔ " + r.PartnerName + " (Lv" + r.Level + ")";
-                    opts.Add(new InquiryElement(i, label, null, true,
-                        "昨日净收益 " + r.LastProfit.ToString("N0") + " · 累计 " + r.TotalProfit.ToString("N0")
-                        + "\n关税率 " + (int)(TradeRoutes.TariffRate() * 100) + "% · 货量 " + (r.Level * TradeRoutes.VolumePerLevel) + "/日"));
+                    string name = (r.Export ? "出口 " : "进口 ") + FeudalGoods.NameOf(r.GoodId) + " @ " + r.PartnerName;
+                    string hint = "Lv" + r.Level + " · 货量 " + (r.Level * TradeRoutes.VolumePerLevel) + "/日"
+                        + " · 昨日 " + (r.LastProfit >= 0 ? "+" : "") + r.LastProfit
+                        + " · 累计 " + r.TotalProfit;
+                    opts.Add(new InquiryElement(i, name, null, true, hint));
                 }
-                opts.Add(new InquiryElement(-1, "建立新贸易路线...", null, TradeRoutes.Routes.Count < TradeRoutes.MaxRoutes(),
-                    "名额 " + TradeRoutes.Routes.Count + "/" + TradeRoutes.MaxRoutes() + "(关税政策与贸易行会增加名额)"));
+                opts.Add(new InquiryElement(-1, "建立新贸易路线...", null,
+                    TradeRoutes.Routes.Count < TradeRoutes.MaxRoutes() && TradeRoutes.UsedCapacity() + TradeRoutes.VolumePerLevel <= TradeRoutes.TotalCapacity(),
+                    "名额 " + TradeRoutes.Routes.Count + "/" + TradeRoutes.MaxRoutes()
+                    + " · 容量 " + TradeRoutes.UsedCapacity() + "/" + TradeRoutes.TotalCapacity()));
+                opts.Add(new InquiryElement(-2, "禁运管理...", null, true, "对某国禁运: 断其贸易(花 500 第纳尔, 优势 -60)"));
+
+                string body = "贸易容量 " + TradeRoutes.UsedCapacity() + "/" + TradeRoutes.TotalCapacity()
+                    + " · 关税政策 " + (int)(TradeRoutes.TariffRate() * 100) + "%"
+                    + " · 自由贸易 +25% 优势"
+                    + "\n贸易优势: 100% 优势 = 25% 更好价格; 利益/同盟/贸易法提升优势"
+                    + "\n货量每周按利润自动调整: 赚则扩量, 亏则缩量直至关停; 交战/禁运强制切断";
                 PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
-                    "贸易路线",
-                    "跨市场贸易: 低价买入/高价卖出赚取差价并按政策缴纳关税 · 差价过小或交战会自动关停",
-                    opts, true, 1, 1, "确定", "关闭", OnPick, null, null, false));
+                    "贸易路线", body, opts, true, 1, 1, "确定", "关闭", OnPick, null, null, false));
             }
             catch (Exception ex) { DLog.Force("贸易 UI 失败: " + ex.Message); }
         }
@@ -41,6 +45,7 @@ namespace FeudalInternalAffairs
                 if (sel == null || sel.Count == 0) return;
                 int idx = (int)sel[0].Identifier;
                 if (idx == -1) { PickPartner(); return; }
+                if (idx == -2) { EmbargoMenu(); return; }
                 RouteActions(idx);
             }
             catch { }
@@ -52,128 +57,165 @@ namespace FeudalInternalAffairs
             {
                 if (idx < 0 || idx >= TradeRoutes.Routes.Count) return;
                 var r = TradeRoutes.Routes[idx];
-                var opts = new List<InquiryElement>();
-                opts.Add(new InquiryElement("up", "升级路线 -> Lv" + Math.Min(TradeRoutes.LevelCap(), r.Level + 1),
-                    null, r.Level < TradeRoutes.LevelCap(), "提升货量(当前 " + (r.Level * TradeRoutes.VolumePerLevel) + "/日)"));
-                opts.Add(new InquiryElement("close", "切断路线", null, true, "取消该贸易路线"));
+                float profit = TradeRoutes.EstimateDailyProfit(r, AiDiplomacy.Today());
+                float advantage = TradeRoutes.TradeAdvantageOf(r.PartnerId);
+                float monopoly = TradeRoutes.MonopolyMult(r.GoodId);
+                string body = (r.Export ? "出口" : "进口") + " " + FeudalGoods.NameOf(r.GoodId) + " ↔ " + r.PartnerName + "\n"
+                    + "等级 Lv" + r.Level + " · 货量 " + (r.Level * TradeRoutes.VolumePerLevel) + "/日 · 占用容量 " + (r.Level * TradeRoutes.VolumePerLevel) + "\n"
+                    + "昨日收益 " + (r.LastProfit >= 0 ? "+" : "") + r.LastProfit + " · 累计 " + r.TotalProfit + "\n"
+                    + "预计日利润 " + (profit >= 0 ? "+" : "") + profit.ToString("F0") + "(含关税按基础价)\n"
+                    + "其中关税 " + TradeRoutes.EstimateDailyTariff(r).ToString("F0") + " 金/日\n"
+                    + "贸易优势 " + advantage.ToString("F0") + "(价格 ×" + TradeRoutes.AdvantagePriceMult(r.PartnerId).ToString("F2") + ")"
+                    + (monopoly > 1.001f ? " · 垄断加成 ×" + monopoly.ToString("F2") : "") + "\n\n"
+                    + "货量每周按利润自动调整; 可手动升级(受容量限制)";
+
+                var opts = new List<InquiryElement>
+                {
+                    new InquiryElement("up", "升级货量 -> Lv" + Math.Min(TradeRoutes.LevelCap(), r.Level + 1), null,
+                        r.Level < TradeRoutes.LevelCap() && TradeRoutes.UsedCapacity() + TradeRoutes.VolumePerLevel <= TradeRoutes.TotalCapacity(),
+                        "货量 " + ((r.Level + 1) * TradeRoutes.VolumePerLevel) + "/日"),
+                    new InquiryElement("close", "切断路线", null, true, "取消该贸易路线"),
+                    new InquiryElement("ok", "返回", null, true, null)
+                };
                 PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
-                    "路线: " + (r.Export ? "出口 " : "进口 ") + FeudalGoods.NameOf(r.GoodId) + " ↔ " + r.PartnerName,
-                    "我方价 " + (int)TradeRoutes.MyPriceOf(r.GoodId) + " · 对方价 " + (int)TradeRoutes.PartnerPriceOf(r, Politics.Today()),
-                    opts, true, 1, 1, "执行", "返回", delegate (List<InquiryElement> s2)
+                    "路线操作", body, opts, true, 1, 1, "确定", "取消",
+                    delegate (List<InquiryElement> sel2)
                     {
                         try
                         {
-                            if (s2 == null || s2.Count == 0) return;
-                            string act = s2[0].Identifier as string;
-                            if (act == "up") MapSelection.Message(TradeRoutes.Upgrade(idx));
-                            else MapSelection.Message(TradeRoutes.Cancel(idx));
+                            if (sel2 == null || sel2.Count == 0) return;
+                            string id = sel2[0].Identifier as string;
+                            if (id == "up") MapSelection.Message(TradeRoutes.Upgrade(idx));
+                            else if (id == "close") MapSelection.Message(TradeRoutes.Cancel(idx));
+                            Open();
                         }
                         catch { }
-                    }, delegate (List<InquiryElement> c) { Show(); }, null, false));
+                    }, null, null, false));
             }
-            catch { }
+            catch (Exception ex) { DLog.Force("贸易路线操作失败: " + ex.Message); }
         }
 
         private static void PickPartner()
         {
             try
             {
-                if (PanelInputGuard.AnyPopupActive()) return;
-                var list = TradeRoutes.PartnerKingdoms();
                 var opts = new List<InquiryElement>();
+                var list = TradeRoutes.PartnerKingdoms();
                 for (int i = 0; i < list.Count; i++)
                 {
                     var k = list[i];
-                    string label = (k.Name != null ? k.Name.ToString() : k.StringId)
-                        + (k.IsAtWarWith(GetMyKingdom()) ? " [交战]" : "");
-                    opts.Add(new InquiryElement(k.StringId, label, null, !k.IsAtWarWith(GetMyKingdom()),
-                        "与我国关系: " + (k.IsAtWarWith(GetMyKingdom()) ? "交战(不可通商)" : "和平")));
+                    bool war = false;
+                    try { war = k.IsAtWarWith(NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null); } catch { }
+                    bool embargo = TradeRoutes.IsEmbargoed(k.StringId);
+                    float adv = TradeRoutes.TradeAdvantageOf(k.StringId);
+                    opts.Add(new InquiryElement(k.StringId, k.Name != null ? k.Name.ToString() : k.StringId, null, !war && !embargo,
+                        (war ? "交战中(不可贸易) · " : (embargo ? "已禁运 · " : "")) + "贸易优势 " + adv.ToString("F0")));
                 }
-                if (opts.Count == 0) { MapSelection.Message("没有可通商的王国"); return; }
                 PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
-                    "建立贸易路线 · 选择伙伴",
-                    "交战中的王国不可通商(路线会被强制切断)", opts, true, 1, 1, "下一步", "返回",
+                    "选择伙伴", "与哪个国家建立贸易路线? (交战/禁运国不可选)", opts, true, 1, 1, "确定", "取消",
                     delegate (List<InquiryElement> sel)
                     {
                         try
                         {
                             if (sel == null || sel.Count == 0) return;
-                            string kid = sel[0].Identifier as string;
-                            Kingdom pick = null;
-                            foreach (var k in list) if (k.StringId == kid) { pick = k; break; }
-                            if (pick != null) PickGood(pick);
+                            string pid = sel[0].Identifier as string;
+                            string pname = sel[0].Title != null ? sel[0].Title.ToString() : pid;
+                            PickGood(pid, pname);
                         }
                         catch { }
-                    }, delegate (List<InquiryElement> c) { Show(); }, null, false));
+                    }, null, null, false));
             }
-            catch { }
+            catch (Exception ex) { DLog.Force("选择伙伴失败: " + ex.Message); }
         }
 
-        private static Kingdom GetMyKingdom()
-        {
-            try { return NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null; } catch { return null; }
-        }
-
-        private static void PickGood(Kingdom partner)
+        private static void PickGood(string partnerId, string partnerName)
         {
             try
             {
-                if (PanelInputGuard.AnyPopupActive()) return;
                 var opts = new List<InquiryElement>();
-                int n = Math.Min(12, FeudalGoods.Main.Count);
-                for (int i = 0; i < n; i++)
+                foreach (var g in FeudalGoods.Main)
                 {
-                    var g = FeudalGoods.Main[i];
+                    if (g == null || string.IsNullOrEmpty(g.Id)) continue;
+                    var item = FeudalGoods.Item(g.Id);
+                    if (item == null) continue;
                     float my = TradeRoutes.MyPriceOf(g.Id);
-                    float pp = 0f;
-                    var tmp = new TradeRoute { GoodId = g.Id, PartnerId = partner.StringId };
-                    pp = TradeRoutes.PartnerPriceOf(tmp, Politics.Today());
-                    float diffPct = my > 0f ? (pp - my) / my * 100f : 0f;
-                    opts.Add(new InquiryElement(g.Id,
-                        FeudalGoods.NameOf(g.Id) + "  (我方 " + (int)my + " / 对方 " + (int)pp + ", " + (diffPct >= 0 ? "+" : "") + (int)diffPct + "%)",
-                        null, true, diffPct >= 0 ? "出口有利(对方价高)" : "进口有利(我方价高)"));
+                    opts.Add(new InquiryElement(g.Id, item.Name.ToString(), null, true,
+                        "本国价 " + my.ToString("F1") + " · 基础价 " + g.BasePrice));
                 }
-                if (opts.Count == 0) { MapSelection.Message("没有可贸易的商品"); return; }
                 PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
-                    "建立贸易路线 · 选择商品(与 " + (partner.Name != null ? partner.Name.ToString() : partner.StringId) + ")",
-                    "差价 >10% 才有利润; 关税率 " + (int)(TradeRoutes.TariffRate() * 100) + "%", opts, true, 1, 1, "下一步", "返回",
+                    "选择商品 - " + partnerName, "进口(买入)还是出口(卖出)?", opts, true, 1, 1, "确定", "取消",
                     delegate (List<InquiryElement> sel)
                     {
                         try
                         {
                             if (sel == null || sel.Count == 0) return;
-                            string goodId = sel[0].Identifier as string;
-                            PickDirection(partner, goodId);
+                            string gid = sel[0].Identifier as string;
+                            string gname = sel[0].Title != null ? sel[0].Title.ToString() : gid;
+                            DirectionMenu(partnerId, partnerName, gid, gname);
                         }
                         catch { }
-                    }, delegate (List<InquiryElement> c) { PickPartner(); }, null, false));
+                    }, null, null, false));
             }
-            catch { }
+            catch (Exception ex) { DLog.Force("选择商品失败: " + ex.Message); }
         }
 
-        private static void PickDirection(Kingdom partner, string goodId)
+        private static void DirectionMenu(string partnerId, string partnerName, string goodId, string goodName)
         {
             try
             {
-                if (PanelInputGuard.AnyPopupActive()) return;
-                var opts = new List<InquiryElement>();
-                opts.Add(new InquiryElement("exp", "出口 " + FeudalGoods.NameOf(goodId), null, true, "卖出本国货物, 收差价 + 关税"));
-                opts.Add(new InquiryElement("imp", "进口 " + FeudalGoods.NameOf(goodId), null, true, "买入外国货物, 压低本国物价"));
+                float my = TradeRoutes.MyPriceOf(goodId);
+                var opts = new List<InquiryElement>
+                {
+                    new InquiryElement("exp", "出口(卖出)", null, true, "外国更贵时赚差价; 本国价 " + my.ToString("F1")),
+                    new InquiryElement("imp", "进口(买入)", null, true, "外国更便宜时赚差价; 本国价 " + my.ToString("F1"))
+                };
                 PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
-                    "建立贸易路线 · 方向", "路线建立后每日结算, 差价过小或交战自动关停", opts, true, 1, 1, "建立", "返回",
+                    goodName + " @ " + partnerName, "选择贸易方向(差价每周自动调整货量)", opts, true, 1, 1, "确定", "取消",
                     delegate (List<InquiryElement> sel)
                     {
                         try
                         {
                             if (sel == null || sel.Count == 0) return;
-                            bool export = (sel[0].Identifier as string) == "exp";
-                            MapSelection.Message(TradeRoutes.Establish(partner.StringId,
-                                partner.Name != null ? partner.Name.ToString() : partner.StringId, goodId, export));
+                            bool export = (string)sel[0].Identifier == "exp";
+                            MapSelection.Message(TradeRoutes.Establish(partnerId, partnerName, goodId, export));
                         }
                         catch { }
-                    }, delegate (List<InquiryElement> c) { PickGood(partner); }, null, false));
+                    }, null, null, false));
             }
-            catch { }
+            catch (Exception ex) { DLog.Force("选择方向失败: " + ex.Message); }
+        }
+
+        // 禁运管理(V3 官方: 手动禁运; 交战自动)
+        private static void EmbargoMenu()
+        {
+            try
+            {
+                var opts = new List<InquiryElement>();
+                var list = TradeRoutes.PartnerKingdoms();
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var k = list[i];
+                    bool embargo = TradeRoutes.IsEmbargoed(k.StringId);
+                    float adv = TradeRoutes.TradeAdvantageOf(k.StringId);
+                    opts.Add(new InquiryElement(k.StringId, (embargo ? "[已禁运] " : "") + (k.Name != null ? k.Name.ToString() : k.StringId), null, true,
+                        "贸易优势 " + adv.ToString("F0") + " · 点击切换禁运状态"));
+                }
+                PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
+                    "禁运管理", "对某国禁运: 立即切断所有路线, 贸易优势 -60(花 500 第纳尔); 再次点击解除\n交战国自动禁运(免费)", opts, true, 1, 1, "切换", "关闭",
+                    delegate (List<InquiryElement> sel)
+                    {
+                        try
+                        {
+                            if (sel == null || sel.Count == 0) return;
+                            string pid = sel[0].Identifier as string;
+                            string pname = sel[0].Title != null ? sel[0].Title.ToString() : pid;
+                            bool on = !TradeRoutes.IsEmbargoed(pid);
+                            MapSelection.Message(TradeRoutes.SetEmbargo(pid, pname, on));
+                        }
+                        catch { }
+                    }, null, null, false));
+            }
+            catch (Exception ex) { DLog.Force("禁运管理失败: " + ex.Message); }
         }
     }
 }

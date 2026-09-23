@@ -471,12 +471,39 @@ namespace FeudalInternalAffairs
             }
         }
 
+        // 贸易/粮食列表一屏行数(列表起点 282 = 252 顶部 + 30 间距, 底部 82, 行高 48)
+        private int VisibleListRows
+        {
+            get
+            {
+                float h = 0f;
+                try { h = TaleWorlds.Engine.Screen.RealScreenResolutionHeight; } catch { }
+                if (h <= 100f) h = 1080f;
+                int n = (int)((h - 364f) / 48f);
+                return n < 4 ? 4 : n;
+            }
+        }
+
+        private static int TownCount()
+        {
+            try
+            {
+                var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                if (pk == null) return 0;
+                int n = 0;
+                foreach (var t in pk.Fiefs) if (t != null && t.IsTown && t.Settlement != null) n++;
+                return n;
+            }
+            catch { return 0; }
+        }
+
         internal void ScrollStep(int delta)
         {
             try
             {
-                if (_tab != 0) return;   // 只有商品表需要滚
-                int max = Math.Max(0, FeudalGoods.Main.Count - VisibleGoods);
+                int total = _tab == 0 ? FeudalGoods.Main.Count : TownCount();
+                int page = _tab == 0 ? VisibleGoods : VisibleListRows;
+                int max = Math.Max(0, total - page);
                 int next = Scroll + delta;
                 if (next < 0) next = 0;
                 if (next > max) next = max;
@@ -599,6 +626,10 @@ namespace FeudalInternalAffairs
                 Rows.Clear();
                 TradeRows.Clear();
                 FoodRows.Clear();
+                int maxScroll = _tab == 0 ? Math.Max(0, FeudalGoods.Main.Count - VisibleGoods)
+                    : Math.Max(0, TownCount() - VisibleListRows);
+                if (Scroll > maxScroll) Scroll = maxScroll;
+                if (Scroll < 0) Scroll = 0;
                 if (IsPickingCity) return;   // 等待选城: 列表留空(面板上有"请点击城市"提示)
                 if (_tab == 0) BuildGoods();
                 else if (_tab == 1) BuildTrade();
@@ -675,9 +706,12 @@ namespace FeudalInternalAffairs
         {
             var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
             if (pk == null) return;
+            int idx = 0;
             foreach (var t in pk.Fiefs)
             {
                 if (t == null || !t.IsTown || t.Settlement == null) continue;
+                if (idx++ < Scroll) continue;
+                if (TradeRows.Count >= VisibleListRows) break;
                 var sb = EconomyWorld.Find(t.Settlement.StringId);
                 int trade = 0, import = 0, queued = sb != null ? sb.QueuedCount : 0;
                 if (sb != null)
@@ -704,9 +738,12 @@ namespace FeudalInternalAffairs
         {
             var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
             if (pk == null) return;
+            int idx = 0;
             foreach (var t in pk.Fiefs)
             {
                 if (t == null || !t.IsTown || t.Settlement == null) continue;
+                if (idx++ < Scroll) continue;
+                if (FoodRows.Count >= VisibleListRows) break;
                 var roster = t.Settlement.ItemRoster;
                 var m = EconomyWorld.FindMarket(t.Settlement.StringId);
                 float stock = 0f, need = 0f, prod = 0f;

@@ -34,9 +34,23 @@ namespace FeudalInternalAffairs
         private string _warmob = "";         // v5.0-P25: 动员
         private string _elec = "";           // v5.0-P25: 选举
         private string _research = "";       // v5.0-P26: 研究
+        private string _tech = "";           // v6.0: 按国科技(文档 28.10, FIA_Tech)
         private string _inst = "";           // v5.0-P26: 机构/文化
         private string _bloc = "";           // v5.0-P27: 权力集团
         private string _interests = "";      // v5.0-P27: 利益宣示
+        private string _warplan = "";        // v4.149: 战争计划
+        private string _aiecon = "";         // v4.149: AI 经济工具状态
+        private string _reserve = "";        // v4.152: 战略储备
+        private string _rail = "";           // v4.162: 铁路线
+        private string _culture = "";        // v4.186: 文化法律(文档 24.13)
+        private string _chest = "";          // v4.187: 钱箱(文档 20.6)
+        private string _treaty = "";         // v4.188: 条约(文档 24.8)
+        private string _party = "";          // v4.195: 政党(文档 24.2)
+        private string _decree = "";         // v4.196: 法令(文档 24.5)
+        private string _event = "";          // v4.197: 随机事件
+        private string _lobby = "";          // v4.198: 游说
+        private string _battle = "";         // v4.201: 战报
+        private string _vet = "";            // v4.202: 军团老兵度
         private int _lastDay = -1;
         private const int StarterVer = 4;   // v4.66: 起步建筑版本(1=基础, 2=+炭窑, 3=+炼铁厂/工具坊/纺织厂, 4=+武器/盔甲作坊; 老档升级自动补新项)
         private int _starterVersion;        // 已补发到的版本(每档记录)
@@ -69,6 +83,8 @@ namespace FeudalInternalAffairs
             {
                 if (dataStore.IsSaving)
                 {
+                    // v4.245: 存档前把异步日结队列强制跑完, 免得把"半结算"的状态写进档
+                    try { DailyScheduler.Flush(); } catch { }
                     _buildings = EconomyWorld.SaveBuildings();
                     _markets = EconomyWorld.SaveMarkets();
                     _national = EconomyWorld.SaveNational();
@@ -92,9 +108,23 @@ namespace FeudalInternalAffairs
                     _warmob = WarMobilization.Save();
                     _elec = Elections.Save();
                     _research = Research.Save();
+                    _tech = Research.SaveNations();   // v6.0: FIA_Tech(按国)
                     _inst = Institutions.Save();
-                    _bloc = PowerBlocs.Save();
-                    _interests = Interests.Save();
+                _bloc = PowerBlocs.Save();
+                _interests = Interests.Save();
+                _warplan = WarPlans.Save();       // v4.149
+                _aiecon = AiEconomyDeep.Save();   // v4.149
+                _reserve = StrategicReserve.Save();   // v4.152
+                _rail = Railways.Save();          // v4.162
+                _culture = CultureSystem.Serialize();   // v4.186: 文化法律
+                _chest = CashChest.Save();              // v4.187: 钱箱
+                _treaty = Treaties.Save();              // v4.188: 条约
+                _party = Parties.Save();                // v4.195: 政党
+                _decree = Decrees.Save();               // v4.196: 法令
+                _event = Events.Save();                 // v4.197: 随机事件
+                _lobby = Lobbying.Save();               // v4.198: 游说
+                _battle = BattleSim.Save();             // v4.201: 战报
+                _vet = ArmyDoctrine.Save();             // v4.202: 军团老兵度
                     DLog.Force("存档: 经济数据 -> " + EconomyWorld.Describe());
                     DLog.Force("存档长度: bld=" + (_buildings ?? "").Length + " mkt=" + (_markets ?? "").Length
                         + " nat=" + (_national ?? "").Length + " pops=" + (_pops ?? "").Length
@@ -132,9 +162,23 @@ namespace FeudalInternalAffairs
                     SyncChunks.Save(dataStore, "FIA_WarMob", _warmob);
                     SyncChunks.Save(dataStore, "FIA_Elec", _elec);
                     SyncChunks.Save(dataStore, "FIA_Research", _research);
+                    SyncChunks.Save(dataStore, "FIA_Tech", _tech);   // v6.0: 按国科技(位图+进度)
                     SyncChunks.Save(dataStore, "FIA_Inst", _inst);
                     SyncChunks.Save(dataStore, "FIA_Bloc", _bloc);
                     SyncChunks.Save(dataStore, "FIA_Interests", _interests);
+                    SyncChunks.Save(dataStore, "FIA_WarPlan", _warplan);   // v4.149: 战争计划
+                    SyncChunks.Save(dataStore, "FIA_AiEcon", _aiecon);     // v4.149: AI 经济工具状态
+                    SyncChunks.Save(dataStore, "FIA_Reserve", _reserve);   // v4.152: 战略储备
+                    SyncChunks.Save(dataStore, "FIA_Rail", _rail);       // v4.162: 铁路
+                    SyncChunks.Save(dataStore, "FIA_Cult", _culture);    // v4.186: 文化法律
+                    SyncChunks.Save(dataStore, "FIA_Chest", _chest);     // v4.187: 钱箱
+                    SyncChunks.Save(dataStore, "FIA_Treaty", _treaty);   // v4.188: 条约
+                    SyncChunks.Save(dataStore, "FIA_Party", _party);     // v4.195: 政党
+                    SyncChunks.Save(dataStore, "FIA_Decree", _decree);   // v4.196: 法令
+                    SyncChunks.Save(dataStore, "FIA_Event", _event);     // v4.197: 随机事件
+                    SyncChunks.Save(dataStore, "FIA_Lobby", _lobby);     // v4.198: 游说
+                    SyncChunks.Save(dataStore, "FIA_Battle", _battle);   // v4.201: 战报
+                    SyncChunks.Save(dataStore, "FIA_Vet", _vet);         // v4.202: 军团老兵度
                     dataStore.SyncData("FIA_EcoDay", ref _lastDay);   // 上次结算日(读档补结算用)
                     dataStore.SyncData("FIA_StarterVer", ref _starterVersion);   // v4.64: 起步建筑补发版本
                 }
@@ -163,9 +207,23 @@ namespace FeudalInternalAffairs
                     _warmob = SyncChunks.Load(dataStore, "FIA_WarMob");
                     _elec = SyncChunks.Load(dataStore, "FIA_Elec");
                     _research = SyncChunks.Load(dataStore, "FIA_Research");
+                    _tech = SyncChunks.Load(dataStore, "FIA_Tech");   // v6.0: 按国科技
                     _inst = SyncChunks.Load(dataStore, "FIA_Inst");
                     _bloc = SyncChunks.Load(dataStore, "FIA_Bloc");
                     _interests = SyncChunks.Load(dataStore, "FIA_Interests");
+                    _warplan = SyncChunks.Load(dataStore, "FIA_WarPlan");
+                    _aiecon = SyncChunks.Load(dataStore, "FIA_AiEcon");
+                    _reserve = SyncChunks.Load(dataStore, "FIA_Reserve");
+                    _rail = SyncChunks.Load(dataStore, "FIA_Rail");
+                    _culture = SyncChunks.Load(dataStore, "FIA_Cult");   // v4.186: 文化法律
+                    _chest = SyncChunks.Load(dataStore, "FIA_Chest");    // v4.187: 钱箱
+                    _treaty = SyncChunks.Load(dataStore, "FIA_Treaty");  // v4.188: 条约
+                    _party = SyncChunks.Load(dataStore, "FIA_Party");    // v4.195: 政党
+                    _decree = SyncChunks.Load(dataStore, "FIA_Decree");  // v4.196: 法令
+                    _event = SyncChunks.Load(dataStore, "FIA_Event");    // v4.197: 随机事件
+                    _lobby = SyncChunks.Load(dataStore, "FIA_Lobby");    // v4.198: 游说
+                    _battle = SyncChunks.Load(dataStore, "FIA_Battle");  // v4.201: 战报
+                    _vet = SyncChunks.Load(dataStore, "FIA_Vet");        // v4.202: 军团老兵度
                     dataStore.SyncData("FIA_EcoDay", ref _lastDay);
                     dataStore.SyncData("FIA_StarterVer", ref _starterVersion);
                     EconomyWorld.LoadBuildings(_buildings);
@@ -190,10 +248,24 @@ namespace FeudalInternalAffairs
                     TradeRoutes.Load(_trade);       // v5.0-P24: 贸易路线
                     WarMobilization.Load(_warmob);  // v5.0-P25: 动员
                     Elections.Load(_elec);          // v5.0-P25: 选举
+                    Research.LoadNations(_tech);    // v6.0: 按国科技(FIA_Tech; 旧档缺段由 Load 迁移)
                     Research.Load(_research);       // v5.0-P26: 研究
                     Institutions.Load(_inst);       // v5.0-P26: 机构/文化
+                    CultureSystem.Deserialize(_culture);   // v4.186: 文化法律(晚于 Institutions, 兼容旧全局政策)
+                    CashChest.Load(_chest);                // v4.187: 钱箱
+                    Treaties.Load(_treaty);                // v4.188: 条约
+                    Parties.Load(_party);                  // v4.195: 政党
+                    Decrees.Load(_decree);                 // v4.196: 法令
+                    Events.Load(_event);                   // v4.197: 随机事件
+                    Lobbying.Load(_lobby);                 // v4.198: 游说
+                    BattleSim.Load(_battle);               // v4.201: 战报
+                    ArmyDoctrine.Load(_vet);               // v4.202: 军团老兵度
                     PowerBlocs.Load(_bloc);         // v5.0-P27: 权力集团
                     Interests.Load(_interests);     // v5.0-P27: 利益宣示
+                    WarPlans.Load(_warplan);        // v4.149: 战争计划
+                    AiEconomyDeep.Load(_aiecon);    // v4.149: AI 经济工具
+                    StrategicReserve.Load(_reserve);   // v4.152: 战略储备
+                    Railways.Load(_rail);              // v4.162: 铁路
                     DLog.Force("读档: 经济数据 -> " + EconomyWorld.Describe());
                 }
             }
@@ -211,6 +283,7 @@ namespace FeudalInternalAffairs
                 InitTreasury();
                 Pops.EnsureInit("新战役");
                 Politics.Reset();
+                RailSystem.Reset();   // v4.161: 铁路(下帧重新建网)
                 DLog.Force("经济: 新战役初始化 -> " + EconomyWorld.Describe());
             }
             catch (Exception ex) { DLog.Force("经济初始化异常: " + ex.Message); }
@@ -222,6 +295,7 @@ namespace FeudalInternalAffairs
             {
                 EconomyWorld.EnsureContainers();
                 Pops.EnsureInit("读档补齐");   // 旧存档无 FIA_Pops 时补建
+                RailSystem.Reset();   // v4.161: 铁路(下帧重新建网)
                 // 旧存档(本系统还没有数据) -> 自动初始化: 预置建筑 + 市场初值(11.2)
                 if (!EconomyWorld.HasAnyData)
                 {
@@ -354,6 +428,8 @@ namespace FeudalInternalAffairs
             {
                 int day = (int)CampaignTime.Now.ToDays;
                 if (day == _lastDay) return;
+                // v4.245: 上一天的异步日结还没跑完 -> 先收尾(保证每天结算完整、不丢步)
+                try { if (DailyScheduler.Running) DailyScheduler.Flush(); } catch { }
                 _lastDay = day;
                 TickDay(day);
             }
@@ -365,6 +441,7 @@ namespace FeudalInternalAffairs
         {
             try
             {
+                DailyScheduler.Tick();   // v4.245: 每帧推进异步日结队列(每帧最多 3ms, 不卡帧)
                 int day = (int)CampaignTime.Now.ToDays;
                 if (day == _lastDay) return;
                 OnDailyTick();
@@ -373,55 +450,91 @@ namespace FeudalInternalAffairs
         }
 
         // 每日结算时序(11.3): P1 只做数据维护与日志; P2 起接入产出/市场/建造/军需/财政
+        // v4.245: 改为"异步分帧结算" —— 全部步骤登记进 DailyScheduler, 每帧只跑 3ms, 跨几帧跑完,
+        //   顺序严格不变(语义与原来一口气跑完一致), 但跨日那一帧不再卡住(用户: 每日结算搞多线程异步结算)
         private void TickDay(int day)
         {
             try
             {
-                TryStarterFill("日结");   // v4.62: 读档时 pk 未就绪则在首次日结补发
-                var hero = Hero.MainHero;
-                EconomyWorld.Treasury.LastGold = EconomyWorld.Treasury.Gold;
-                EconomyWorld.Treasury.Gold = hero != null ? hero.Gold : 0;
-                // 关键顺序: 先记录"日初基线"(财政页"今日值"= 当前累计 - 日初基线), 再跑当日结算
-                Fiscal.DayRoll();
-                Fiscal.EndOfDayGold(EconomyWorld.Treasury.Gold);   // 国库日初基线(今日净额=实时国库-该基线)
-                InvestmentPool.DayReset();
+                DailyScheduler.Begin(day);
+                DailyScheduler.Add("开局补发", delegate { TryStarterFill("日结"); });
+                DailyScheduler.Add("国库基线", delegate
+                {
+                    var hero = Hero.MainHero;
+                    EconomyWorld.Treasury.LastGold = EconomyWorld.Treasury.Gold;
+                    EconomyWorld.Treasury.Gold = hero != null ? hero.Gold : 0;
+                    // 关键顺序: 先记录"日初基线"(财政页"今日值"= 当前累计 - 日初基线), 再跑当日结算
+                    Fiscal.DayRoll();
+                    Fiscal.EndOfDayGold(EconomyWorld.Treasury.Gold);   // 国库日初基线(今日净额=实时国库-该基线)
+                    InvestmentPool.DayReset();
+                });
                 // 建筑产出 / 消耗 -> 本地市场(11.3 步骤 2~3)
-                DailySettlement.Run();
+                DailyScheduler.Add("建筑产出", delegate { DailySettlement.Run(); });
                 // v4.2: 税制四税取代旧的单一"定居点税收"(文档 20.1 的"替换"); SettlementTax 类保留未启用
                 // v4.0: 税制四税 / 信贷利息 / 铸币权 / 经济统计(文档 20.1~20.3 / 20.9)
-                TaxPolicy.Daily();
-                Credit.Daily();
-                MintRight.Daily();
-                Stats.Capture();
-                LawSystem.TickDay(day);          // v5.0-P22: 立法推进(文档 24.3)
-                InterestGroups.TickDay(day);     // v5.0-P22: 政治运动激进度(文档 24.4)
-                Revolution.TickDay(day);         // v5.0-P23: 革命进度(文档 24.5)
-                TradeRoutes.Daily(day);          // v5.0-P24: 贸易路线结算(文档 24.7)
-                WarMobilization.Daily(day);      // v5.0-P25: 动员到期检查
-                Research.Daily(day);             // v5.0-P26: 研究点累积
-                Institutions.Daily(day);         // v5.0-P26: 机构/文化效果
-                Elections.Daily(day);            // v5.0-P25/P26: 竞选期与开票(V3 官方)
-                PowerBlocs.Weekly(day);          // v5.0-P27: 集团凝聚力/授权(V3 官方)
-                Politics.TickDay(day);
-                try { AiDevelopment.Daily(day); } catch { }   // v4.106: AI 国家自己建设(排队建筑/扣国库)
-                try { AiDevelopment.DailyDefense(day); } catch { }   // v4.111: AI 防守(解围/回防)
+                DailyScheduler.Add("税制", delegate { TaxPolicy.Daily(); });
+                DailyScheduler.Add("信贷", delegate { Credit.Daily(); });
+                DailyScheduler.Add("铸币", delegate { MintRight.Daily(); });
+                DailyScheduler.Add("统计快照", delegate { Stats.Capture(); });
+                DailyScheduler.Add("立法", delegate { LawSystem.TickDay(day); });          // v5.0-P22: 立法推进(文档 24.3)
+                DailyScheduler.Add("利益集团", delegate { InterestGroups.TickDay(day); });     // v5.0-P22: 政治运动激进度(文档 24.4)
+                DailyScheduler.Add("革命", delegate { Revolution.TickDay(day); });         // v5.0-P23: 革命进度(文档 24.5)
+                DailyScheduler.Add("贸易路线", delegate { TradeRoutes.Daily(day); });          // v5.0-P24: 贸易路线结算(文档 24.7)
+                DailyScheduler.Add("战略储备", delegate { StrategicReserve.Daily(day); });     // v4.152: 战略储备(战时消耗/饥荒自动释放)
+                DailyScheduler.Add("铁路", delegate { Railways.Daily(day); });             // v4.162: 铁路(工期推进/建成/中断)
+                DailyScheduler.Add("动员", delegate { WarMobilization.Daily(day); });      // v5.0-P25: 动员到期检查
+                DailyScheduler.Add("科技", delegate { Research.Daily(day); });             // v5.0-P26: 研究点累积
+                DailyScheduler.Add("机构", delegate { Institutions.Daily(day); });         // v5.0-P26: 机构/文化效果
+                DailyScheduler.Add("选举", delegate { Elections.Daily(day); });            // v5.0-P25/P26: 竞选期与开票(V3 官方)
+                DailyScheduler.Add("权力集团", delegate { PowerBlocs.Weekly(day); });          // v5.0-P27: 集团凝聚力/授权(V3 官方)
+                DailyScheduler.Add("政治", delegate { Politics.TickDay(day); });
+                DailyScheduler.Add("AI 建设", delegate { try { AiDevelopment.Daily(day); } catch { } });   // v4.106: AI 国家自己建设(排队建筑/扣国库)
+                DailyScheduler.Add("AI 战略缓存", delegate { try { foreach (var k in Kingdom.All) { if (k != null && !k.IsEliminated) AiDirector.Daily(k); } } catch { } });   // v5.0: AI 战略层日缓存(O(1))
+                DailyScheduler.Add("AI 防守", delegate { try { AiDevelopment.DailyDefense(day); } catch { } });   // v4.111: AI 防守(解围/回防)
+                DailyScheduler.Add("战争计划", delegate { try { WarPlans.DailyAll(day); } catch { } });   // v4.149: 战争计划评估(战况/阶段/撤退)
                 // 月度结算: 按游戏历法(骑砍 1 月 = 7 天, 1 年 = 12 月 = 84 天) -> 每月第一天触发一次
                 // (文档 19.15 原写"30 天"是误解, 见 v3.11 变更记录)
                 if (TaleWorlds.CampaignSystem.CampaignTime.Now.GetDayOfWeek == 0)
                 {
-                    try { InvestmentPool.Monthly(); Fiscal.Month(); Guilds.MonthlyFee(); TaxPolicy.Month(); InterestGroups.Monthly(day); Institutions.Monthly(); Politics.Month(day); } catch { }
-                    try { int trib = PowerBlocs.EmpireTribute(); if (trib > 0) { EconomyWorld.TreasuryAdd(trib); Fiscal.Export += trib; } } catch { }   // v5.0-P27: 附庸贡金
-                    try { AiDevelopment.Monthly(day); } catch { }   // v4.106: AI 国家自己扩军
-                    try { AiDevelopment.MonthlyArmy(day); } catch { }   // v4.110: AI 军团集结
-                    try { AiDevelopment.MonthlyOffensive(day); } catch { }   // v4.109: AI 主动进攻
-                    try { AiDevelopment.MonthlyPressure(day); } catch { }   // v4.112: AI 外交施压索贡
-                    try { AiDevelopment.MonthlyEconomy(day); } catch { }   // v4.113: AI 战略储备/饥荒自救
-                    try { AiDevelopment.MonthlySanctions(day); } catch { }   // v4.115: AI 对外制裁(可制裁玩家)
-                    try { AiDevelopment.MonthlyBalanceOfPower(day); } catch { }   // v4.117: 反霸权外交平衡
+                    DailyScheduler.Add("月结·财政政治", delegate
+                    {
+                        try { InvestmentPool.Monthly(); Fiscal.Month(); Guilds.MonthlyFee(); TaxPolicy.Month(); InterestGroups.Monthly(day); Institutions.Monthly(); Politics.Month(day); } catch { }
+                        try { int trib = PowerBlocs.EmpireTribute(); if (trib > 0) { EconomyWorld.TreasuryAdd(trib); Fiscal.Export += trib; } } catch { }   // v5.0-P27: 附庸贡金
+                    });
+                    DailyScheduler.Add("月结·AI 扩军", delegate { try { AiDevelopment.Monthly(day); } catch { } });   // v4.106: AI 国家自己扩军
+                    DailyScheduler.Add("月结·AI 军团", delegate { try { AiDevelopment.MonthlyArmy(day); } catch { } });   // v4.110: AI 军团集结
+                    DailyScheduler.Add("月结·AI 进攻", delegate { try { AiDevelopment.MonthlyOffensive(day); } catch { } });   // v4.109: AI 主动进攻
+                    DailyScheduler.Add("月结·AI 外交", delegate
+                    {
+                        try { AiDevelopment.MonthlyPressure(day); } catch { }   // v4.112: AI 外交施压索贡
+                        try { AiDevelopment.MonthlySanctions(day); } catch { }   // v4.115: AI 对外制裁(可制裁玩家)
+                        try { AiDevelopment.MonthlyBalanceOfPower(day); } catch { }   // v4.117: 反霸权外交平衡
+                    });
+                    DailyScheduler.Add("月结·AI 经济", delegate
+                    {
+                        try { AiDevelopment.MonthlyEconomy(day); } catch { }   // v4.113: AI 战略储备/饥荒自救
+                        try { AiEconomyDeep.Monthly(day); } catch { }
+                    });
+                    // v4.149: AI 深化(性格活体化 / 经济工具 / 机会主义反制 / 战争议会)
+                    DailyScheduler.Add("月结·AI 深化", delegate
+                    {
+                        try { AiPersonality.MonthlyWatch(day); } catch { }
+                        try { AiOpportunism.Monthly(day); } catch { }
+                        try { WarPlans.CouncilAll(day); } catch { }
+                    });
+                    DailyScheduler.Add("月结·铁路", delegate
+                    {
+                        try { Railways.AiMonthly(day); } catch { }   // v4.165: AI 建线
+                        try { Railways.AiTransportMonthly(day); } catch { }   // v4.166: AI 铁路运兵
+                    });
+                    DailyScheduler.Add("月结·AI 战略", delegate { try { foreach (var k in Kingdom.All) { if (k != null && !k.IsEliminated) AiDirector.Monthly(k); } } catch { } });   // v5.0: AI 战略层月结(目标/威胁/预算/战争意愿)
                 }
-                EconomyWorld.MarkDirty();
-                if (DLog.Flag("econ") && TaleWorlds.CampaignSystem.CampaignTime.Now.GetDayOfWeek == 0)
-                    DLog.Force("经济日结: 第 " + day + " 天 -> " + EconomyWorld.Describe());
+                DailyScheduler.Add("落盘标记", delegate
+                {
+                    EconomyWorld.MarkDirty();
+                    if (DLog.Flag("econ") && TaleWorlds.CampaignSystem.CampaignTime.Now.GetDayOfWeek == 0)
+                        DLog.Force("经济日结: 第 " + day + " 天 -> " + EconomyWorld.Describe());
+                });
             }
             catch (Exception ex) { DLog.Force("经济日结异常: " + ex.Message); }
         }

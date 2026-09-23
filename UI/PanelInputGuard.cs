@@ -33,6 +33,25 @@ namespace FeudalInternalAffairs
         private static int _popupShownMs;      // 本次弹窗显示时刻(防回调丢失卡死: 15 分钟兜底)
         private static int _lastAnyShownMs;    // 任意多选弹窗(含原版)最近显示时刻: 覆盖"点击打开弹窗那一下"的松开
 
+        // v27.x: 选国"开始游戏"后的点击抑制窗口(修: 确认点击被地图点击链/新面板热区吃到, 开局误开驻军页)
+        //   StartGame 时置窗, 窗口内所有地图点击(BlockMapClick/HandleLeftClickGround)与面板热区(PollSpots)统一忽略
+        private const int StartGameSuppressMs = 800;
+        private static int _clickSuppressAtMs;
+
+        internal static void SuppressClicksAfterStartGame()
+        {
+            try { _clickSuppressAtMs = Environment.TickCount; } catch { }
+        }
+
+        internal static bool ClicksSuppressed
+        {
+            get
+            {
+                try { return !Elapsed(_clickSuppressAtMs, StartGameSuppressMs); }
+                catch { return false; }
+            }
+        }
+
         private static bool Elapsed(int sinceMs, int ms)
         {
             return unchecked(Environment.TickCount - sinceMs) > ms;
@@ -135,10 +154,12 @@ namespace FeudalInternalAffairs
         }
 
         // v4.144: 地图点击总闸(原版点击链用): 弹窗期间 / 未松手抑制 / 鼠标在自建面板或最左导航栏竖条上 -> 一律不当地图点击
+        // v27.x: "开始游戏"确认后的抑制窗口内同样一律忽略(防误开驻军页)
         internal static bool BlockMapClick()
         {
             try
             {
+                if (ClicksSuppressed) return true;
                 if (SuppressAfterInquiry(TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton))) return true;
                 if (PanelScreen.IsMouseOnPanel()) return true;
                 if (TaleWorlds.InputSystem.Input.MousePositionPixel.X < PanelScreen.PanelX) return true;

@@ -5,39 +5,43 @@
     <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
       <Children>
 
-        <!-- 左侧导航栏(参照维多利亚3左侧图标栏); 点击由 NavRail.cs 轮询处理, 这里只管画 -->
-        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="56" SuggestedHeight="760"
+        <!-- 左侧导航栏(参照左侧图标栏); 点击由 NavRail.cs 轮询处理, 这里只管画 -->
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="56" SuggestedHeight="864"
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="4" MarginTop="146"
                 Sprite="BlankWhiteSquare" Color="#00000044" />
 
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
-                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="150" Sprite="fia_bld_townhall" />
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="150" Sprite="fia_settle_castle" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="204" Sprite="fia_cat_living" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
-                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="258" Sprite="fia_bld_builder" />
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="258" Sprite="fia_cat_industry" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
-                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="312" Sprite="fia_bld_market" />
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="312" Sprite="fia_cat_trade" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
-                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="366" Sprite="fia_cat_trade" />
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="366" Sprite="fia_settle_town" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
-                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="420" Sprite="fia_bld_university" />
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="420" Sprite="fia_cat_admin" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
-                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="474" Sprite="fia_bld_bank" />
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="474" Sprite="fia_mkt_living" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
-                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="528" Sprite="fia_bld_temple" />
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="528" Sprite="fia_settle_village" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
-                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="582" Sprite="fia_bld_tradepost" />
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="582" Sprite="fia_mkt_industrial" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
-                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="636" Sprite="fia_cat_logistics" />
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="636" Sprite="fia_mkt_raw" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
-                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="690" Sprite="fia_cat_admin" />
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="690" Sprite="fia_cat_resource" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
-                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="744" Sprite="fia_cat_military" />
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="744" Sprite="fia_mkt_military" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
-                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="798" Sprite="fia_bld_barracks" />
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="798" Sprite="fia_cat_military" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
-                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="852" Sprite="fia_cat_military" />
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="852" Sprite="fia_mode_iron" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="906" Sprite="fia_mode_stone" />
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="960" Sprite="fia_mode_wood" />
 
         <!-- v4.60: 常驻名称(小字半透明白 + 黑描边; 行高 54 与图标对齐, 悬停大提示框保留) -->
         <ListPanel DataSource="{Labels}" WidthSizePolicy="Fixed" SuggestedWidth="120" HeightSizePolicy="CoverChildren"

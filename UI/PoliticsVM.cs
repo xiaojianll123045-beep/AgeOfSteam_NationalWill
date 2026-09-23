@@ -62,7 +62,7 @@ namespace FeudalInternalAffairs
             _name = grp.Name;
             _leader = "领袖 " + (grp.Leader ?? "—");
             _icon = grp.Icon;
-            _rank = "#" + RankOf(g);
+            _rank = "";   // 用户要求: 内阁成员不显示序号
             _cloutText = "影响力 " + ((int)grp.Clout).ToString("N0") + " · " + (int)Math.Round(grp.Share * 100) + "%";
             _cloutBarW = (float)Math.Max(2.0, 170.0 * grp.Share);
             _cloutBarColor = grp.Share >= 0.25f ? "#C9A227FF" : (grp.Share >= 0.12f ? "#A89F82FF" : "#6A6355FF");
@@ -103,6 +103,9 @@ namespace FeudalInternalAffairs
         [DataSourceProperty] public string NameColor { get { return _nameColor; } }
         [DataSourceProperty] public string LeaderText { get { return _leader; } }
         [DataSourceProperty] public string Icon { get { return _icon; } }
+        // v4.195: 意识形态图标(IG 主导意识形态)
+        [DataSourceProperty] public string IdeoIcon { get { try { return Parties.IdeologyIconOf(GroupIndex); } catch { return "fia_ideo_loyalist"; } } }
+        [DataSourceProperty] public string IdeoName { get { try { return Parties.IdeologyNameOf(GroupIndex); } catch { return ""; } } }
         [DataSourceProperty] public string CloutText { get { return _cloutText; } }
         [DataSourceProperty] public float CloutBarW { get { return _cloutBarW; } }
         [DataSourceProperty] public string CloutBarColor { get { return _cloutBarColor; } }
@@ -154,6 +157,21 @@ namespace FeudalInternalAffairs
         [DataSourceProperty] public bool IsLaw { get { return !_header; } }
         [DataSourceProperty] public bool IsSelected { get { return _selected; } }
         [DataSourceProperty] public bool IsBill { get { return _isBill; } }
+        // v4.191: 法律图标(圆角方形新标准 fia_law_<id>)
+        [DataSourceProperty]
+        public string Icon
+        {
+            get
+            {
+                try
+                {
+                    if (_header || Law < 0) return "";
+                    var d = LawSystem.Def(Law);
+                    return d != null ? ("fia_law_" + d.Id) : "";
+                }
+                catch { return ""; }
+            }
+        }
     }
 
     // ===================== 法律档位块(4 档条) =====================
@@ -205,6 +223,34 @@ namespace FeudalInternalAffairs
     }
 
     // ===================== 运动卡(文档 24.4) =====================
+    // v4.195: 政党席位行(图标 fia_party_*, 支持度 = 对齐 IG 的政治力量占比)
+    public class PartyRowVM : ViewModel
+    {
+        internal readonly string PartyId;
+        private readonly string _icon, _name, _seats, _share, _badge, _badgeColor, _plate;
+        private readonly float _barW;
+        internal PartyRowVM(PartyDef p, bool ruling)
+        {
+            PartyId = p.Id;
+            _icon = p.Icon; _name = p.Name;
+            int seats = Parties.SeatsOf(p.Id);
+            _seats = seats + " 席";
+            _share = (Parties.SupportOf(p.Id) * 100f).ToString("F0") + "%";
+            _badge = ruling ? "执政" : "在野";
+            _badgeColor = ruling ? "#E8C33AFF" : "#8A8070FF";
+            _plate = ruling ? "#C9A2272A" : "#FFFFFF0C";
+            _barW = 140f * Parties.SupportOf(p.Id);
+        }
+        [DataSourceProperty] public string Icon { get { return _icon; } }
+        [DataSourceProperty] public string Name { get { return _name; } }
+        [DataSourceProperty] public string Seats { get { return _seats; } }
+        [DataSourceProperty] public string Share { get { return _share; } }
+        [DataSourceProperty] public string Badge { get { return _badge; } }
+        [DataSourceProperty] public string BadgeColor { get { return _badgeColor; } }
+        [DataSourceProperty] public string Plate { get { return _plate; } }
+        [DataSourceProperty] public float BarW { get { return _barW; } }
+    }
+
     public class MovementVM : ViewModel
     {
         internal readonly int Index;
@@ -273,6 +319,7 @@ namespace FeudalInternalAffairs
             LawItems = new MBBindingList<LawItemVM>();
             LawTiers = new MBBindingList<LawTierVM>();
             MovementRows = new MBBindingList<MovementVM>();
+        PartyRows = new MBBindingList<PartyRowVM>();
             Refresh();
         }
 
@@ -283,6 +330,8 @@ namespace FeudalInternalAffairs
         public MBBindingList<LawItemVM> LawItems { get; private set; }
         public MBBindingList<LawTierVM> LawTiers { get; private set; }
         public MBBindingList<MovementVM> MovementRows { get; private set; }
+        public MBBindingList<PartyRowVM> PartyRows { get; private set; }        // v4.195: 政党席位
+        [DataSourceProperty] public string PartyTitle { get { return _partyTitle; } }
 
         // ---- 全屏布局(v5.0-P22b) ----
         [DataSourceProperty]
@@ -384,6 +433,7 @@ namespace FeudalInternalAffairs
             catch { }
         }
 
+        private string _partyTitle = "政党席位";
         [DataSourceProperty] public bool ShowGroup { get { return _tab == 0; } }
         [DataSourceProperty] public bool ShowLaw { get { return _tab == 1; } }
         [DataSourceProperty] public bool ShowMove { get { return _tab == 2; } }
@@ -559,6 +609,7 @@ namespace FeudalInternalAffairs
                 RefreshGroups();
                 RefreshLaw();
                 RefreshMovements();
+        RefreshParties();   // v4.195
                 RefreshFaction();
 
                 OnPropertyChangedWithValue(_status, "StatusText");
@@ -671,6 +722,7 @@ namespace FeudalInternalAffairs
                 string lastCat = null;
                 for (int i = 0; i < LawSystem.LawCount; i++)
                 {
+                    if (!LawSystem.IsAvailable(i)) continue;   // v4.186: 特有法律只在对应国家显示
                     string cat = LawSystem.CatOf(i);
                     if (cat != lastCat)
                     {
@@ -686,7 +738,7 @@ namespace FeudalInternalAffairs
                 if (!_lawSelectedAny)
                 {
                     _lawName = "选择一部法律";
-                    _lawCatNow = "左侧按类别列出 11 部法律; 点击查看其档位与形势";
+                    _lawCatNow = "左侧按类别列出 " + LawSystem.LawCount + " 部法律; 点击查看其档位与形势";
                     _lawEffect = "";
                     _lawSupportText = ""; _lawOpposeText = "";
                     _lawSupportW = 2f; _lawOpposeW = 2f;
@@ -698,7 +750,7 @@ namespace FeudalInternalAffairs
                     _lawMaxedVisible = false;
                     _lawMaxedHint = "";
                     LawTiers.Clear();
-                    _lawHint = Wrap("V3 形式: 左侧选组, 右侧点法律卡选择要更换成的法律 → [立案] → 每 14 天检查点判定(成功推进/稳步推进/僵局/辩论) → 进度满 100 更换法律; 支持率高于反对率成功率高, 反之僵局多", 40);
+                    _lawHint = Wrap("左侧选组, 右侧点法律卡选择要更换成的法律 → [立案] → 每 14 天检查点判定(成功推进/稳步推进/僵局/辩论) → 进度满 100 更换法律; 支持率高于反对率成功率高, 反之僵局多", 40);
                 }
                 else
                 {
@@ -764,7 +816,7 @@ namespace FeudalInternalAffairs
                         _lawBtnMain = (target != lv ? ("立案 → " + LawSystem.TierName(i, target)) : "立案"); _lawBtnMainColor = "#39FF14FF";
                         _lawBtnForce = "强推";
                     }
-                    _lawHint = Wrap("V3 形式: 点下方法律卡选择要更换成的法律(可任意档, 含倒退), [立案]后每 14 天一个检查点(成功推进/稳步推进/僵局/辩论) · 费用 = 40 + 距离×30 权威(强推 ×1.5, 进度 +25, 合法性 -3) · 合法性 <25 时需集团运动推动", 40);
+                    _lawHint = Wrap("点下方法律卡选择要更换成的法律(可任意档, 含倒退), [立案]后每 14 天一个检查点(成功推进/稳步推进/僵局/辩论) · 费用 = 40 + 距离×30 权威(强推 ×1.5, 进度 +25, 合法性 -3) · 合法性 <25 时需集团运动推动", 40);
                 }
                 OnPropertyChangedWithValue(_lawName, "LawName");
                 OnPropertyChangedWithValue(_lawCatNow, "LawCatNow");
@@ -826,6 +878,40 @@ namespace FeudalInternalAffairs
                 if (line >= n) { sb.Append('\n'); line = 0; }
             }
             return sb.ToString();
+        }
+
+        // v4.195: 政党席位(按支持度排序取前 8)
+        private void RefreshParties()
+        {
+            try
+            {
+                PartyRows.Clear();
+                var list = new List<PartyDef>(Parties.All);
+                list.Sort(delegate (PartyDef a, PartyDef b) { return Parties.SupportOf(b.Id).CompareTo(Parties.SupportOf(a.Id)); });
+                int n = 0;
+                for (int i = 0; i < list.Count && n < 8; i++)
+                {
+                    if (Parties.SupportOf(list[i].Id) <= 0.001f) continue;
+                    PartyRows.Add(new PartyRowVM(list[i], list[i].Id == Parties.RulingId));
+                    n++;
+                }
+                _partyTitle = "政党席位 · 执政: " + Parties.RulingName;
+                OnPropertyChangedWithValue(_partyTitle, "PartyTitle");
+            }
+            catch (Exception ex) { DLog.Force("政党列表刷新失败: " + ex.Message); }
+        }
+
+        internal void PartyClick(int idx)
+        {
+            try
+            {
+                if (idx < 0 || idx >= PartyRows.Count) return;
+                string msg = Parties.SetRuling(PartyRows[idx].PartyId);
+                try { MapSelection.Message(msg); } catch { }
+                DLog.Force("政党: " + msg);
+                Refresh();
+            }
+            catch (Exception ex) { DLog.Force("组阁失败: " + ex.Message); }
         }
 
         private void RefreshMovements()

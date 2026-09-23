@@ -1,0 +1,78 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+        <!-- v4.245: 窗口做小(800x580 -> 660x470), 但按钮保持大(112x46/字20);
+             右边留到 756 < 消息流避让位(760), 所以消息列表滑开后正好不被它盖住 -->
+        <Widget IsVisible="@IsVisible" WidthSizePolicy="Fixed" SuggestedWidth="660" SuggestedHeight="470"
+                HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="96" MarginBottom="190"
+                Sprite="fia_ui2_frame_modal">
+          <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    MarginLeft="10" MarginRight="10" MarginTop="10" MarginBottom="10"
+                    Sprite="fia_ui2_tex_wood" />
+            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                        MarginLeft="24" MarginRight="24" MarginTop="24"
+                        TextHorizontalAlignment="Center"
+                        Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#F2D97EFF" Text="@Title" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="608" SuggestedHeight="10"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="72" Sprite="fia_ui2_divider_ornate" />
+
+            <!-- 28.6: 部队管理选项(非军团我方部队; 军团只留[管理]); 按钮行 y=84, 112x46, 间距 12 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="46"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="84"
+                    Sprite="ButtonBrush2" IsVisible="@ShowActions">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8C33AFF" Text="管理" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="46"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="150" MarginTop="84"
+                    Sprite="ButtonBrush2" IsVisible="@ShowEditActions">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8756AFF" Text="解散" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="46"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="274" MarginTop="84"
+                    Sprite="ButtonBrush2" IsVisible="@ShowEditActions">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#7FBF6AFF" Text="扩容" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="46"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="398" MarginTop="84"
+                    Sprite="ButtonBrush2" IsVisible="@ShowEditActions">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8A33AFF" Text="分裂" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="46"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="522" MarginTop="84"
+                    Sprite="ButtonBrush2" IsVisible="@ShowEditActions">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#8FD8E8FF" Text="合并" />
+              </Children>
+            </Widget>
+
+            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                        MarginLeft="26" MarginRight="26" MarginTop="140"
+                        Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#F0E4C2FF" Text="@Body" />
+            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                        MarginLeft="26" MarginRight="26" MarginBottom="10"
+                        TextHorizontalAlignment="Center" IsVisible="@ShowRailStatus"
+                        Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#F0E4C2FF" Text="@RailStatus" />
+          </Children>
+        </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

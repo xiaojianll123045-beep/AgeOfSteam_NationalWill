@@ -177,6 +177,7 @@ namespace FeudalInternalAffairs
                 p.Ai.SetDoNotMakeNewDecisions(false);
                 DefArmy.EnsureNavigation(p);   // v4.91: 确保 native 陆地导航可用
                 CommandTimeout.Touch(p);   // 10 秒内没新命令就放它自由
+                DefArmy.MarkPlayerOrder(p);   // v4.245: 玩家意志优先(军事总监/AI 不许再改道)
             }
             catch (Exception ex) { DLog.Force("接管部队失败: " + ex.Message); }
         }

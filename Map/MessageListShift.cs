@@ -21,11 +21,12 @@ namespace FeudalInternalAffairs
             try
             {
                 // v4.104: 两档避让 —— 默认(Default=70)已让开导航栏; 侧边栏打开时切 Offset(760) 让开面板
-                bool want = PanelScreen.AnyOpen && NationalWillOrders.IsActive;
+                // v4.245: 左下角部队小窗显示时也要避让(小窗右边 756 < 760, 滑开后正好不被盖住)
+                bool want = (PanelScreen.AnyOpen && NationalWillOrders.IsActive) || PartyInfoHud.IsShown;
                 if (want != _lastState)
                 {
                     _lastState = want;
-                    DLog.Force("消息流避让: " + (want ? "右移让开侧边栏" : "滑回复位"));
+                    DLog.Force("消息流避让: " + (want ? "右移让开面板/小窗" : "滑回复位"));
                 }
                 if (want) __result = true;
             }

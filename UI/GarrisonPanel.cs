@@ -69,6 +69,7 @@ namespace FeudalInternalAffairs
                 PanelScreen.AddSpot(26f, sh - 26f - 42f, 122f, 42f, _vm.ExecuteClose);       // 关闭
                 PanelScreen.AddSpot(160f, sh - 26f - 42f, 150f, 42f, _vm.ExecuteCallOut);    // 唤出军团
                 PanelScreen.AddSpot(322f, sh - 26f - 42f, 130f, 42f, _vm.ExecuteOpenDrawer); // 查看建筑
+                PanelScreen.AddSpot(26f, sh - 26f - 42f - 50f, 150f, 42f, delegate { RailwaysUi.TransportMenu(_vm.Current); });   // v4.164: 铁路运输
                 for (int i = 0; i < _vm.Rows.Count; i++)
                 {
                     int idx = i;

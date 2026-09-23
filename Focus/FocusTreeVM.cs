@@ -5,10 +5,11 @@ using TaleWorlds.Library;
 
 namespace FeudalInternalAffairs
 {
-    // 一条连接线(细长矩形)
+    // 一条连接线(细长矩形; v4.168 支持 Rotation 旋转 = 真斜线)
     public class FocusLineVM : ViewModel
     {
         private float _x, _y, _w, _h;
+        private float _rot;
         private string _color = "#FFFFFF66";
 
         internal FocusLineVM(float x, float y, float w, float h, bool done)
@@ -30,21 +31,28 @@ namespace FeudalInternalAffairs
         public float H { get { return _h; } set { if (Math.Abs(_h - value) > 0.5f) { _h = value; OnPropertyChangedWithValue(value, "H"); } } }
 
         [DataSourceProperty]
+        public float Rotation { get { return _rot; } set { if (Math.Abs(_rot - value) > 0.01f) { _rot = value; OnPropertyChangedWithValue(value, "Rotation"); } } }
+
+        [DataSourceProperty]
         public string Color { get { return _color; } set { if (_color != value) { _color = value; OnPropertyChangedWithValue(value, "Color"); } } }
     }
 
-    // 单个国策节点
+    // 国策节点卡(v4.182 照科技页: 横卡 —— 左圆徽章 + 名称/效果两行 + 状态角标 + 底部进度条)
     public class FocusItemVM : ViewModel
     {
         private readonly FocusDefinition _def;
-        private string _status = "";
-        private bool _available = true;
-        private bool _visible = true;
-        private float _x, _y, _w, _h;
-        private int _fontSize = 19;
-        private float _iconSize = 44f;
-        private float _iconMargin = 8f;
-        private float _textMargin = 60f;
+        private float _x, _y, _w, _h, _s = 1f;
+        private int _fontSize = 17, _effectSize = 12, _numSize = 12, _badgeSize = 18;
+        private string _stateText = "";
+        private float _barPct;
+        private string _barColor = "#C9A227FF";
+        private string _iconColor = "#FFFFFFFF";
+        private string _plateColor = "#241B12E6";
+        private string _nameColor = "#D9C08AFF";
+        private string _effectColor = "#A08F6CFF";
+        private string _frameColor = "#C9A22766";
+        private string _badgeText = "";
+        private string _badgeColor = "#E8C33AFF";
 
         internal FocusItemVM(FocusDefinition def, Action<FocusItemVM> onSelect)
         {
@@ -55,56 +63,106 @@ namespace FeudalInternalAffairs
         internal FocusDefinition Definition { get { return _def; } }
         internal Action<FocusItemVM> OnSelect { get; private set; }
 
+        [DataSourceProperty] public string Name { get { return _def.Name; } }
+        [DataSourceProperty] public string EffectText { get { return _def.Effects; } }
+        // v4.192: 国策图标映射到已产出的新标准图标(圆角方形); 未映射的回退占位徽章
         [DataSourceProperty]
-        public string Name { get { return _def.Name; } }
-
-        [DataSourceProperty]
-        public string Icon { get { return _def.Icon; } }
-
-        [DataSourceProperty]
-        public float PosX { get { return _x; } set { if (Math.Abs(_x - value) > 0.5f) { _x = value; OnPropertyChangedWithValue(value, "PosX"); } } }
-
-        [DataSourceProperty]
-        public float PosY { get { return _y; } set { if (Math.Abs(_y - value) > 0.5f) { _y = value; OnPropertyChangedWithValue(value, "PosY"); } } }
-
-        [DataSourceProperty]
-        public float Width { get { return _w; } set { if (Math.Abs(_w - value) > 0.5f) { _w = value; OnPropertyChangedWithValue(value, "Width"); } } }
-
-        [DataSourceProperty]
-        public float Height { get { return _h; } set { if (Math.Abs(_h - value) > 0.5f) { _h = value; OnPropertyChangedWithValue(value, "Height"); } } }
-
-        // 字体/图标也跟着缩放(否则节点框变大了字还是原大小)
-        // 注意: Brush.FontSize 的数据类型是 Int32, 这里必须是 int, 否则 prefab 加载会抛转换异常
-        [DataSourceProperty]
-        public int FontSize { get { return _fontSize; } set { if (_fontSize != value) { _fontSize = value; OnPropertyChangedWithValue(value, "FontSize"); } } }
-
-        [DataSourceProperty]
-        public float IconSize { get { return _iconSize; } set { if (Math.Abs(_iconSize - value) > 0.1f) { _iconSize = value; OnPropertyChangedWithValue(value, "IconSize"); } } }
-
-        [DataSourceProperty]
-        public float IconMargin { get { return _iconMargin; } set { if (Math.Abs(_iconMargin - value) > 0.1f) { _iconMargin = value; OnPropertyChangedWithValue(value, "IconMargin"); } } }
-
-        [DataSourceProperty]
-        public float TextMargin { get { return _textMargin; } set { if (Math.Abs(_textMargin - value) > 0.1f) { _textMargin = value; OnPropertyChangedWithValue(value, "TextMargin"); } } }
-
-        [DataSourceProperty]
-        public string Status { get { return _status; } set { if (_status != value) { _status = value; OnPropertyChangedWithValue(value, "Status"); } } }
-
-        // 图标亮度: 已解锁=正常, 未解锁=变暗(不再用文字写"未解锁")
-        private string _iconColor = "#55FFFFFF";
-
-        [DataSourceProperty]
-        public string IconColor
+        public string Icon
         {
-            get { return _iconColor; }
-            set { if (_iconColor != value) { _iconColor = value; OnPropertyChangedWithValue(value, "IconColor"); } }
+            get
+            {
+                switch (_def.Id)
+                {
+                    case "f_root": return "fia_ig_crown";
+                    case "f_econ": return "fia_bld_farm";
+                    case "f_army": return MilIcons.IconOf("line_infantry");
+                    case "f_diplo": return "fia_dip_improve_relations";
+                    case "f_farm": return "fia_goods_grain";
+                    case "f_trade": return "fia_goods_groceries";
+                    case "f_drill": return MilIcons.IconOf("light_infantry");
+                    case "f_fort": return "fia_bld_walls";
+                    case "f_marry": return "fia_dip_alliance";
+                    case "f_granary": return "fia_bld_granary";
+                    case "f_market": return "fia_bld_market";
+                    case "f_veteran": return "fia_unit_hussar";
+                    case "f_wall": return "fia_bld_watchtower";
+                    case "f_envoy": return "fia_dip_amicable";
+                    case "f_prosper": return "fia_bld_urban_center";
+                    case "f_empire": return "fia_ig_army";
+                    case "f_hegemony": return "fia_dip_great_power";
+                }
+                return "fia_tech_ph";
+            }
         }
-
+        [DataSourceProperty] public string DaysText { get { return _def.Days + " 日"; } }
+        [DataSourceProperty] public float PosX { get { return _x; } set { if (Math.Abs(_x - value) > 0.5f) { _x = value; OnPropertyChangedWithValue(value, "PosX"); } } }
+        [DataSourceProperty] public float PosY { get { return _y; } set { if (Math.Abs(_y - value) > 0.5f) { _y = value; OnPropertyChangedWithValue(value, "PosY"); } } }
         [DataSourceProperty]
-        public bool IsAvailable { get { return _available; } set { if (_available != value) { _available = value; OnPropertyChangedWithValue(value, "IsAvailable"); } } }
+        public float Width
+        {
+            get { return _w; }
+            set
+            {
+                if (Math.Abs(_w - value) > 0.5f)
+                {
+                    _w = value;
+                    OnPropertyChangedWithValue(value, "Width");
+                    OnPropertyChangedWithValue(BarW, "BarW");
+                }
+            }
+        }
+        [DataSourceProperty] public float Height { get { return _h; } set { if (Math.Abs(_h - value) > 0.5f) { _h = value; OnPropertyChangedWithValue(value, "Height"); } } }
+        [DataSourceProperty] public int FontSize { get { return _fontSize; } set { if (_fontSize != value) { _fontSize = value; OnPropertyChangedWithValue(value, "FontSize"); } } }
+        [DataSourceProperty] public int EffectSize { get { return _effectSize; } set { if (_effectSize != value) { _effectSize = value; OnPropertyChangedWithValue(value, "EffectSize"); } } }
+        [DataSourceProperty] public int NumFontSize { get { return _numSize; } set { if (_numSize != value) { _numSize = value; OnPropertyChangedWithValue(value, "NumFontSize"); } } }
+        [DataSourceProperty] public int BadgeSize { get { return _badgeSize; } set { if (_badgeSize != value) { _badgeSize = value; OnPropertyChangedWithValue(value, "BadgeSize"); } } }
+        [DataSourceProperty] public string StateText { get { return _stateText; } set { if (_stateText != value) { _stateText = value; OnPropertyChangedWithValue(value, "StateText"); } } }
+        [DataSourceProperty] public float BarW { get { return Math.Max(0f, (_w - BarSide - 10f * _s)) * _barPct; } }
+        [DataSourceProperty] public string BarColor { get { return _barColor; } set { if (_barColor != value) { _barColor = value; OnPropertyChangedWithValue(value, "BarColor"); } } }
+        [DataSourceProperty] public string IconColor { get { return _iconColor; } set { if (_iconColor != value) { _iconColor = value; OnPropertyChangedWithValue(value, "IconColor"); } } }
+        [DataSourceProperty] public string PlateColor { get { return _plateColor; } set { if (_plateColor != value) { _plateColor = value; OnPropertyChangedWithValue(value, "PlateColor"); } } }
+        [DataSourceProperty] public string NameColor { get { return _nameColor; } set { if (_nameColor != value) { _nameColor = value; OnPropertyChangedWithValue(value, "NameColor"); } } }
+        [DataSourceProperty] public string EffectColor { get { return _effectColor; } set { if (_effectColor != value) { _effectColor = value; OnPropertyChangedWithValue(value, "EffectColor"); } } }
+        [DataSourceProperty] public string FrameColor { get { return _frameColor; } set { if (_frameColor != value) { _frameColor = value; OnPropertyChangedWithValue(value, "FrameColor"); } } }
+        [DataSourceProperty] public string BadgeText { get { return _badgeText; } set { if (_badgeText != value) { _badgeText = value; OnPropertyChangedWithValue(value, "BadgeText"); } } }
+        [DataSourceProperty] public string BadgeColor { get { return _badgeColor; } set { if (_badgeColor != value) { _badgeColor = value; OnPropertyChangedWithValue(value, "BadgeColor"); } } }
 
-        [DataSourceProperty]
-        public bool IsVisible { get { return _visible; } set { if (_visible != value) { _visible = value; OnPropertyChangedWithValue(value, "IsVisible"); } } }
+        // 内部尺寸(设计值 × _s)
+        [DataSourceProperty] public float IconSize { get { return 52f * _s; } }
+        [DataSourceProperty] public float MedLeft { get { return 6f * _s; } }
+        [DataSourceProperty] public float MedTop { get { return 6f * _s; } }
+        [DataSourceProperty] public float NumLeft { get { return 12f * _s; } }
+        [DataSourceProperty] public float NumTop { get { return 44f * _s; } }
+        [DataSourceProperty] public float NameLeft { get { return 66f * _s; } }
+        [DataSourceProperty] public float NameTop { get { return 8f * _s; } }
+        [DataSourceProperty] public float EffectLeft { get { return 66f * _s; } }
+        [DataSourceProperty] public float EffectTop { get { return 30f * _s; } }
+        [DataSourceProperty] public float BadgeRight { get { return 10f * _s; } }
+        [DataSourceProperty] public float BadgeTop { get { return 20f * _s; } }
+        [DataSourceProperty] public float BarSide { get { return 66f * _s; } }
+        [DataSourceProperty] public float BarBottom { get { return 1f * _s; } }
+        [DataSourceProperty] public float StateTop { get { return 45f * _s; } }
+
+        internal void SetScale(float s)
+        {
+            if (Math.Abs(_s - s) < 0.002f) return;
+            _s = s;
+            OnPropertyChangedWithValue(IconSize, "IconSize");
+            OnPropertyChangedWithValue(MedLeft, "MedLeft");
+            OnPropertyChangedWithValue(MedTop, "MedTop");
+            OnPropertyChangedWithValue(NumLeft, "NumLeft");
+            OnPropertyChangedWithValue(NumTop, "NumTop");
+            OnPropertyChangedWithValue(NameLeft, "NameLeft");
+            OnPropertyChangedWithValue(NameTop, "NameTop");
+            OnPropertyChangedWithValue(EffectLeft, "EffectLeft");
+            OnPropertyChangedWithValue(EffectTop, "EffectTop");
+            OnPropertyChangedWithValue(BadgeRight, "BadgeRight");
+            OnPropertyChangedWithValue(BadgeTop, "BadgeTop");
+            OnPropertyChangedWithValue(BarSide, "BarSide");
+            OnPropertyChangedWithValue(BarBottom, "BarBottom");
+            OnPropertyChangedWithValue(StateTop, "StateTop");
+            OnPropertyChangedWithValue(BarW, "BarW");
+        }
 
         public void ExecuteSelect()
         {
@@ -112,257 +170,337 @@ namespace FeudalInternalAffairs
             catch (Exception ex) { DLog.Force("国策点击异常: " + ex.Message); }
         }
 
-        internal void Refresh()
+        internal void RefreshState()
         {
-            if (FocusTreeData.IsCompleted(_def.Id)) { Status = "已完成"; IsAvailable = true; IconColor = "#FFD6A24A"; }
-            else if (FocusTreeData.IsInProgress(_def.Id)) { Status = "进行中"; IsAvailable = true; IconColor = "#FFFFFFFF"; }
-            else if (FocusTreeData.PrerequisitesMet(_def)) { Status = "可开始"; IsAvailable = true; IconColor = "#FFFFFFFF"; }
-            else { Status = "未解锁"; IsAvailable = false; IconColor = "#55FFFFFF"; }
+            try
+            {
+                if (FocusTreeData.IsCompleted(_def.Id))
+                {
+                    // 已完成 = 橄榄褐牌 + 金框 + ✓
+                    StateText = "已完成";
+                    PlateColor = "#2B2717E6"; NameColor = "#E8D9A0FF"; EffectColor = "#A89A70FF";
+                    FrameColor = "#C9A22788"; BadgeText = "✓"; BadgeColor = "#C9A227FF";
+                    _barPct = 1f; BarColor = "#C9A227FF"; IconColor = "#FFFFFFFF";
+                }
+                else if (FocusTreeData.IsInProgress(_def.Id))
+                {
+                    // 推进中 = 青蓝高亮牌 + 进度
+                    int left = 0;
+                    try { FocusTreeData.InProgress.TryGetValue(_def.Id, out left); } catch { }
+                    int total = Math.Max(1, _def.Days);
+                    StateText = "推进中 剩 " + left + " 日";
+                    PlateColor = "#12414DE6"; NameColor = "#D8F6FFFF"; EffectColor = "#8FD8E8FF";
+                    FrameColor = "#4FD8E8AA"; BadgeText = "◉"; BadgeColor = "#6FE8F8FF";
+                    _barPct = Math.Min(1f, Math.Max(0f, 1f - left / (float)total));
+                    BarColor = "#5FE0F0FF"; IconColor = "#FFFFFFFF";
+                }
+                else if (FocusTreeData.PrerequisitesMet(_def))
+                {
+                    // 可开始 = 深色牌 + 金框 + "+"
+                    StateText = "可开始 (" + _def.Days + " 日)";
+                    PlateColor = "#1E1912E6"; NameColor = "#E4D3A8FF"; EffectColor = "#A08F6CFF";
+                    FrameColor = "#C9A22766"; BadgeText = "+"; BadgeColor = "#E8C33AFF";
+                    _barPct = 0f; BarColor = "#C9A227FF"; IconColor = "#FFFFFFFF";
+                }
+                else
+                {
+                    StateText = "前置未完成";
+                    PlateColor = "#141210D9"; NameColor = "#7A7264FF"; EffectColor = "#5E574BFF";
+                    FrameColor = "#FFFFFF14"; BadgeText = ""; BadgeColor = "#FFFFFF00";
+                    _barPct = 0f; IconColor = "#FFFFFF40";
+                }
+                OnPropertyChangedWithValue(BarW, "BarW");
+            }
+            catch { }
         }
     }
 
-    // 国策树屏幕的VM
-    public class FocusTreeVM : ViewModel
+    // 国策页 VM(v4.182 照科技页重做: 横卡节点 / 粗棕曲线 + 当前路径青色高亮 / 顶栏三栏状态)
+    public class FocusTreeVM : PanelVMBase
     {
-        private string _title = "国策树";
-        private string _subtitle = "";
-        private string _counter = "0/0";
-        private string _searchText = "";
-        private float _scale = 0.8f;
-        private float _offsetX;
-        private float _offsetY;
+        private readonly Action _onClose;
+        private float _scale = 1f;
+        private float _offsetX = 18f, _offsetY = 2f;
+        private bool _fit;
+        private static bool _logged;
+        private float _contentW = 1400f, _contentH = 800f, _treeW = 1400f, _treeH = 800f;
+        internal const float TreeTopY = 210f;      // 与 FeudalFocusTree.xml 树区域 MarginTop 一致
 
-        // ===== 平移/缩放(滚轮 / WASD / 鼠标拖动) =====
-        public void Pan(float dx, float dy)
+        // 布局常量(设计像素; 乘 _scale) —— 与科技页同一套横卡
+        private const float NodeW = 204f, NodeH = 64f;
+
+        // 顶栏三栏状态
+        private string _curIcon = "fia_tech_ph", _curName = "未选择国策", _curProg = "", _curEta = "";
+        private float _curBarW;
+        private string _curBarColor = "#5FE0F0FF";
+        private string _midLine1 = "未选择国策", _midLine2 = "(点击节点开始推进, 同时只推进一项)";
+        private string _doneText = "0 / 0", _progText = "进行中: 0 项";
+        private string _tip = "左键点节点开始国策 · 滚轮缩放 · 右键/中键拖动";
+
+        public FocusTreeVM(Action onClose)
+        {
+            _onClose = onClose;
+            Items = new MBBindingList<FocusItemVM>();
+            Lines = new MBBindingList<FocusLineVM>();
+            foreach (var def in FocusTreeData.All)
+                if (def != null) Items.Add(new FocusItemVM(def, OnItemSelected));
+            Refresh();
+        }
+
+        public MBBindingList<FocusItemVM> Items { get; private set; }
+        public MBBindingList<FocusLineVM> Lines { get; private set; }
+
+        [DataSourceProperty]
+        public float PanelWidth
+        {
+            get { try { return PanelScreen.FullWidth(); } catch { return 1856f; } }
+        }
+        [DataSourceProperty]
+        public float ContentPad
+        {
+            get { try { return Math.Max(0f, (PanelScreen.FullWidth() - 1700f) / 2f); } catch { return 0f; } }
+        }
+        [DataSourceProperty] public float TreeWidth { get { return _treeW; } }
+        [DataSourceProperty] public float TreeHeight { get { return _treeH; } }
+
+        // 顶栏三栏
+        [DataSourceProperty] public string CurIcon { get { return _curIcon; } }
+        [DataSourceProperty] public string CurName { get { return _curName; } }
+        [DataSourceProperty] public string CurProg { get { return _curProg; } }
+        [DataSourceProperty] public string CurEta { get { return _curEta; } }
+        [DataSourceProperty] public float CurBarW { get { return _curBarW; } }
+        [DataSourceProperty] public string CurBarColor { get { return _curBarColor; } }
+        [DataSourceProperty] public string MidLine1 { get { return _midLine1; } }
+        [DataSourceProperty] public string MidLine2 { get { return _midLine2; } }
+        [DataSourceProperty] public string DoneText { get { return _doneText; } }
+        [DataSourceProperty] public string ProgText { get { return _progText; } }
+        [DataSourceProperty] public string TipText { get { return _tip; } }
+
+        public void ExecuteClose() { if (_onClose != null) _onClose(); }
+
+        public void ExecuteZoomIn() { ZoomBy(0.1f); }
+        public void ExecuteZoomOut() { ZoomBy(-0.1f); }
+
+        internal void Pan(float dx, float dy)
         {
             try
             {
                 if (Math.Abs(dx) < 0.01f && Math.Abs(dy) < 0.01f) return;
-                _offsetX += dx;
-                _offsetY += dy;
+                _offsetX += dx; _offsetY += dy;
                 Layout();
             }
             catch { }
         }
 
-        public void ZoomBy(float delta)
-        {
-            SetScale(_scale + delta);
-        }
+        internal void ZoomBy(float delta) { SetScale(_scale + delta); }
 
-        public FocusTreeVM()
+        private void SetScale(float v)
         {
             try
             {
-                var b = NationalWillOrders.Behavior;
-                var k = b != null ? b.NationKingdom : null;
-                if (k != null && k.Name != null) _title = k.Name + " 国策树";
+                v = Math.Max(0.8f, Math.Min(1.6f, v));
+                if (Math.Abs(v - _scale) < 0.001f) return;
+                _scale = v;
+                Layout();
             }
             catch { }
-
-            Items = new MBBindingList<FocusItemVM>();
-            Lines = new MBBindingList<FocusLineVM>();
-            foreach (var def in FocusTreeData.All)
-                Items.Add(new FocusItemVM(def, OnItemSelected));
-            AddEconSelfTest();
-
-            Layout();
-            Refresh();
         }
 
-        // 临时(P1 验收用): 在国策树底部显示 4 个新建商品的运行时名称/价格
-        // flags 里加 econ 才出现; 验收通过后删除本方法
-        private void AddEconSelfTest()
+        internal void Refresh()
         {
             try
             {
-                if (!DLog.Flag("econ")) return;
-                float y = 700f;
-                int i = 0;
-                foreach (var g in FeudalGoods.Main)
+                for (int i = 0; i < Items.Count; i++) Items[i].RefreshState();
+                int total = Items.Count;
+                int done = 0, prog = 0;
+                string curId = null;
+                for (int i = 0; i < Items.Count; i++)
                 {
-                    if (!g.IsNew) continue;
-                    var item = FeudalGoods.Item(g.Id);
-                    var def = new FocusDefinition
-                    {
-                        Id = "econ_test_" + g.Id,
-                        Name = (item != null ? item.Name.ToString() : "!!取不到物品") + " [" + g.Id + "]",
-                        Icon = g.Sprite,
-                        Description = "基础价 " + g.BasePrice,
-                        Effects = item != null
-                            ? ("Value=" + item.Value + " 类别=" + (item.ItemCategory != null ? item.ItemCategory.StringId : "?")
-                               + " 网格=" + item.MultiMeshName)
-                            : "ItemObject 为空(注册失败)",
-                        PosX = 40f + i * 240f,
-                        PosY = y,
-                        Requires = null,
-                        Days = 1
-                    };
-                    Items.Add(new FocusItemVM(def, OnItemSelected));
-                    i++;
+                    var id = Items[i].Definition.Id;
+                    if (FocusTreeData.IsCompleted(id)) done++;
+                    else if (FocusTreeData.IsInProgress(id)) { prog++; if (curId == null) curId = id; }
                 }
-                DLog.Force("经济自检: 国策树已附加 " + i + " 个新商品节点");
-            }
-            catch (Exception ex) { DLog.Force("经济自检异常: " + ex.Message); }
-        }
+                _doneText = done + " / " + total;
+                _progText = "进行中: " + prog + " 项";
 
-        [DataSourceProperty]
-        public MBBindingList<FocusItemVM> Items { get; private set; }
+                var cur = curId != null ? FocusTreeData.Get(curId) : null;
+                if (cur != null)
+                {
+                    int left = 0;
+                    try { FocusTreeData.InProgress.TryGetValue(curId, out left); } catch { }
+                    int days = Math.Max(1, cur.Days);
+                    _curIcon = "fia_tech_ph";
+                    _curName = cur.Name;
+                    _curProg = (days - left) + " / " + days + " 日";
+                    _curEta = "剩余 " + left + " 日";
+                    _curBarW = 540f * Math.Min(1f, Math.Max(0f, 1f - left / (float)days));
+                    _curBarColor = "#5FE0F0FF";
+                    _midLine1 = "正在推进: " + cur.Name;
+                    _midLine2 = "国策同时只推进一项, 完成后自动结算效果";
+                }
+                else
+                {
+                    _curIcon = "fia_tech_ph";
+                    _curName = "未选择国策";
+                    _curProg = "";
+                    _curEta = "";
+                    _curBarW = 0f;
+                    _curBarColor = "#5FE0F0FF";
+                    _midLine1 = "未选择国策";
+                    _midLine2 = "(点击节点开始推进, 同时只推进一项)";
+                }
 
-        [DataSourceProperty]
-        public MBBindingList<FocusLineVM> Lines { get; private set; }
+                OnPropertyChangedWithValue(_curIcon, "CurIcon");
+                OnPropertyChangedWithValue(_curName, "CurName");
+                OnPropertyChangedWithValue(_curProg, "CurProg");
+                OnPropertyChangedWithValue(_curEta, "CurEta");
+                OnPropertyChangedWithValue(_curBarW, "CurBarW");
+                OnPropertyChangedWithValue(_curBarColor, "CurBarColor");
+                OnPropertyChangedWithValue(_midLine1, "MidLine1");
+                OnPropertyChangedWithValue(_midLine2, "MidLine2");
+                OnPropertyChangedWithValue(_doneText, "DoneText");
+                OnPropertyChangedWithValue(_progText, "ProgText");
+                OnPropertyChangedWithValue(_tip, "TipText");
 
-        [DataSourceProperty]
-        public string Title
-        {
-            get { return _title; }
-            set { if (_title != value) { _title = value; OnPropertyChangedWithValue(value, "Title"); } }
-        }
-
-        [DataSourceProperty]
-        public string Subtitle
-        {
-            get { return _subtitle; }
-            set { if (_subtitle != value) { _subtitle = value; OnPropertyChangedWithValue(value, "Subtitle"); } }
-        }
-
-        [DataSourceProperty]
-        public string Counter
-        {
-            get { return _counter; }
-            set { if (_counter != value) { _counter = value; OnPropertyChangedWithValue(value, "Counter"); } }
-        }
-
-        // 搜索框: 输入后只显示匹配的节点
-        [DataSourceProperty]
-        public string SearchText
-        {
-            get { return _searchText; }
-            set
-            {
-                if (_searchText == value) return;
-                _searchText = value;
-                OnPropertyChangedWithValue(value, "SearchText");
-                ApplyFilter();
-            }
-        }
-
-        // ===== 缩放 =====
-        public void ExecuteZoomIn() { SetScale(_scale + 0.1f); }
-        public void ExecuteZoomOut() { SetScale(_scale - 0.1f); }
-
-        private void SetScale(float value)
-        {
-            try
-            {
-                value = Math.Max(0.5f, Math.Min(1.4f, value));
-                if (Math.Abs(value - _scale) < 0.001f) return;
-                _scale = value;
-                OnPropertyChangedWithValue(value, "Scale");
                 Layout();
+                if (!_logged)
+                {
+                    _logged = true;
+                    DLog.Force("国策页(照科技页重做): 共 " + total + " 项, 已完成 " + done);
+                }
             }
-            catch (Exception ex) { DLog.Force("缩放异常: " + ex.Message); }
+            catch (Exception ex) { DLog.Force("国策页刷新失败: " + ex.Message); }
         }
 
-        [DataSourceProperty]
-        public float Scale
-        {
-            get { return _scale; }
-        }
-
-        // ===== 右侧面板: 正在解锁的国策与剩余天数 =====
-        private string _currentName = "";
-        private string _currentDays = "";
-        private bool _hasCurrent;
-
-        [DataSourceProperty]
-        public string CurrentName
-        {
-            get { return _currentName; }
-            set { if (_currentName != value) { _currentName = value; OnPropertyChangedWithValue(value, "CurrentName"); } }
-        }
-
-        [DataSourceProperty]
-        public string CurrentDays
-        {
-            get { return _currentDays; }
-            set { if (_currentDays != value) { _currentDays = value; OnPropertyChangedWithValue(value, "CurrentDays"); } }
-        }
-
-        [DataSourceProperty]
-        public bool HasCurrent
-        {
-            get { return _hasCurrent; }
-            set { if (_hasCurrent != value) { _hasCurrent = value; OnPropertyChangedWithValue(value, "HasCurrent"); } }
-        }
-
-        public void ExecuteClose()
-        {
-            try { FocusTreeScreen.Close(); }
-            catch (Exception ex) { DLog.Force("关闭国策树失败: " + ex.Message); }
-        }
-
-        // ===== 布局: 节点位置/大小 + 连接线 =====
+        // ===== 布局: 节点位置/大小 + 连接线(沿用国策表里的手工坐标) =====
         private void Layout()
         {
             try
             {
-                float nw = FocusTreeData.NodeWidth * _scale;
-                float nh = FocusTreeData.NodeHeight * _scale;
-                foreach (var it in Items)
+                if (!_fit)
                 {
-                    it.PosX = it.Definition.PosX * _scale + _offsetX;
-                    it.PosY = it.Definition.PosY * _scale + _offsetY;
-                    it.Width = nw;
-                    it.Height = nh;
-                    it.FontSize = (int)Math.Round(19f * _scale);
-                    it.IconSize = 44f * _scale;
-                    it.IconMargin = 8f * _scale;
-                    it.TextMargin = 60f * _scale;
+                    _fit = true;
+                    _scale = 1f;
+                    _offsetX = 18f;
+                    _offsetY = 2f;
                 }
 
-                Lines.Clear();
-                foreach (var f in FocusTreeData.All)
+                float maxX = 0f, maxY = 0f;
+                for (int i = 0; i < Items.Count; i++)
                 {
-                    if (f.Requires == null) continue;
-                    foreach (var rid in f.Requires)
+                    var n = Items[i];
+                    n.PosX = n.Definition.PosX * _scale + _offsetX;
+                    n.PosY = n.Definition.PosY * _scale + _offsetY;
+                    n.Width = NodeW * _scale;
+                    n.Height = NodeH * _scale;
+                    n.FontSize = Math.Max(12, (int)Math.Round(17f * _scale));
+                    n.EffectSize = Math.Max(10, (int)Math.Round(12f * _scale));
+                    n.NumFontSize = Math.Max(9, (int)Math.Round(12f * _scale));
+                    n.BadgeSize = Math.Max(12, (int)Math.Round(18f * _scale));
+                    n.SetScale(_scale);
+                    float rx = n.Definition.PosX + 200f, ry = n.Definition.PosY + 58f;
+                    if (rx > maxX) maxX = rx;
+                    if (ry > maxY) maxY = ry;
+                }
+                _contentW = (maxX + 40f) * _scale;
+                _contentH = (maxY + 40f) * _scale;
+                _treeW = _contentW + _offsetX;
+                _treeH = _contentH + _offsetY;
+                OnPropertyChangedWithValue(_treeW, "TreeWidth");
+                OnPropertyChangedWithValue(_treeH, "TreeHeight");
+
+                // 高亮链: 正在推进的国策 + 其全部前置祖先(青色高亮路径)
+                var hi = new HashSet<string>();
+                try
+                {
+                    string cid = null;
+                    foreach (var kv in FocusTreeData.InProgress) { cid = kv.Key; break; }
+                    if (!string.IsNullOrEmpty(cid))
                     {
-                        var p = FocusTreeData.Get(rid);
+                        var stack = new Stack<string>();
+                        stack.Push(cid);
+                        for (int guard = 0; guard < 512 && stack.Count > 0; guard++)
+                        {
+                            string id = stack.Pop();
+                            if (!hi.Add(id)) continue;
+                            var d = FocusTreeData.Get(id);
+                            if (d == null || d.Requires == null) continue;
+                            for (int r = 0; r < d.Requires.Length; r++) stack.Push(d.Requires[r]);
+                        }
+                    }
+                }
+                catch { }
+
+                Lines.Clear();
+                for (int i = 0; i < Items.Count; i++)
+                {
+                    var n = Items[i];
+                    var reqs = n.Definition.Requires;
+                    if (reqs == null) continue;
+                    for (int j = 0; j < reqs.Length; j++)
+                    {
+                        var pd = FocusTreeData.Get(reqs[j]);
+                        if (pd == null) continue;
+                        FocusItemVM p = null;
+                        for (int k = 0; k < Items.Count; k++)
+                            if (Items[k].Definition.Id == pd.Id) { p = Items[k]; break; }
                         if (p == null) continue;
-                        float x1 = (p.PosX + FocusTreeData.NodeWidth / 2f) * _scale + _offsetX;
-                        float y1 = (p.PosY + FocusTreeData.NodeHeight) * _scale + _offsetY;
-                        float x2 = (f.PosX + FocusTreeData.NodeWidth / 2f) * _scale + _offsetX;
-                        float y2 = f.PosY * _scale + _offsetY;
-                        bool done = FocusTreeData.IsCompleted(rid) && FocusTreeData.IsCompleted(f.Id);
-                        float midY = (y1 + y2) / 2f;
-                        if (Math.Abs(x1 - x2) < 1f)
-                        {
-                            Lines.Add(new FocusLineVM(x1 - 1f, y1, 2f, Math.Max(0f, y2 - y1), done));
-                        }
-                        else
-                        {
-                            Lines.Add(new FocusLineVM(x1 - 1f, y1, 2f, Math.Max(0f, midY - y1), done));
-                            Lines.Add(new FocusLineVM(Math.Min(x1, x2), midY - 1f, Math.Abs(x2 - x1), 2f, done));
-                            Lines.Add(new FocusLineVM(x2 - 1f, midY, 2f, Math.Max(0f, y2 - midY), done));
-                        }
+                        bool hl = hi.Contains(n.Definition.Id) && hi.Contains(p.Definition.Id);
+                        AddLink(p, n, hl);
                     }
                 }
             }
             catch (Exception ex) { DLog.Force("国策布局异常: " + ex.Message); }
         }
 
-        private void ApplyFilter()
+        // 连线(照科技页): 粗棕曲线(3px) + 当前路径青色高亮(8px 半透明)
+        private void AddLink(FocusItemVM p, FocusItemVM n, bool highlight)
         {
             try
             {
-                string key = _searchText != null ? _searchText.Trim() : "";
-                foreach (var it in Items)
+                float x1 = p.PosX + p.IconSize * 0.5f + p.MedLeft, y1 = p.PosY + p.Height;
+                float x2 = n.PosX + n.IconSize * 0.5f + n.MedLeft, y2 = n.PosY;
+                if (y2 - y1 < 2f && Math.Abs(x2 - x1) < 2f) return;
+                bool done = FocusTreeData.IsCompleted(p.Definition.Id) && FocusTreeData.IsCompleted(n.Definition.Id);
+                string color = highlight ? "#4FD8E8AA" : (done ? "#C9A227AA" : "#9A7A4A88");
+                float w = highlight ? 8f * _scale : 3f * _scale;
+
+                float dy = y2 - y1;
+                float c1x = x1, c1y = y1 + dy * 0.45f;
+                float c2x = x2, c2y = y2 - dy * 0.45f;
+                float chord = (float)Math.Sqrt((x2 - x1) * (x2 - x1) + dy * dy);
+                int N = Math.Max(8, Math.Min(24, (int)(chord / 10f) + 2));
+                float px = x1, py = y1;
+                for (int i = 1; i <= N; i++)
                 {
-                    bool show = key.Length == 0 || (it.Name != null && it.Name.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0);
-                    it.IsVisible = show;
+                    float t = i / (float)N, mt = 1f - t;
+                    float bx = mt * mt * mt * x1 + 3f * mt * mt * t * c1x + 3f * mt * t * t * c2x + t * t * t * x2;
+                    float by = mt * mt * mt * y1 + 3f * mt * mt * t * c1y + 3f * mt * t * t * c2y + t * t * t * y2;
+                    float dx = bx - px, dyy = by - py;
+                    float len = (float)Math.Sqrt(dx * dx + dyy * dyy);
+                    if (len > 0.6f)
+                    {
+                        float ang = (float)(Math.Atan2(dyy, dx) * 180.0 / Math.PI);
+                        var seg = new FocusLineVM((px + bx) / 2f - len / 2f, (py + by) / 2f - w / 2f, len, w, done);
+                        seg.Rotation = ang;
+                        seg.Color = color;
+                        Lines.Add(seg);
+                    }
+                    px = bx; py = by;
                 }
             }
             catch { }
+        }
+
+        // 点击节点: 详情 + 开始
+        internal void NodeAction(int idx)
+        {
+            try
+            {
+                if (idx < 0 || idx >= Items.Count) return;
+                OnItemSelected(Items[idx]);
+            }
+            catch (Exception ex) { DLog.Force("国策节点点击失败: " + ex.Message); }
         }
 
         private void OnItemSelected(FocusItemVM item)
@@ -371,59 +509,18 @@ namespace FeudalInternalAffairs
             {
                 if (item == null || item.Definition == null) return;
                 var def = item.Definition;
-
-                // 临时(P1 验收用): 自检节点只弹信息, 不进入国策流程
-                if (def.Id != null && def.Id.StartsWith("econ_test_", StringComparison.Ordinal))
+                if (FocusTreeData.IsCompleted(def.Id)) { FocusTreeScreen.ShowInfo(def, "该政策已经完成。"); return; }
+                if (FocusTreeData.IsInProgress(def.Id))
                 {
-                    FocusTreeScreen.ShowInfo(def, "经济自检: " + def.Effects);
+                    int left = 0;
+                    try { FocusTreeData.InProgress.TryGetValue(def.Id, out left); } catch { }
+                    FocusTreeScreen.ShowInfo(def, "该政策正在推进中, 剩余 " + left + " 天。");
                     return;
                 }
-
-                if (FocusTreeData.IsCompleted(def.Id)) { FocusTreeScreen.ShowInfo(def, "该政策已经完成。"); return; }
-                if (FocusTreeData.IsInProgress(def.Id)) { FocusTreeScreen.ShowInfo(def, "该政策正在进行中, 剩余 " + FocusTreeData.InProgress[def.Id] + " 天。"); return; }
                 if (!FocusTreeData.PrerequisitesMet(def)) { FocusTreeScreen.ShowInfo(def, "前置国策尚未完成, 无法开始。"); return; }
-
                 FocusTreeScreen.ShowStartConfirm(def, Refresh);
             }
             catch (Exception ex) { DLog.Force("国策选择异常: " + ex.Message); }
         }
-
-        internal void Refresh()
-        {
-            try
-            {
-                foreach (var it in Items) it.Refresh();
-                int inProg = FocusTreeData.InProgress.Count;
-                Counter = FocusTreeData.Completed.Count + "/" + Items.Count;
-                Subtitle = "已完成 " + FocusTreeData.Completed.Count + " / " + Items.Count
-                           + (inProg > 0 ? "   ·   " + inProg + " 项进行中" : "");
-                Layout();   // 完成状态会影响连线颜色
-                // 右侧面板: 正在解锁的国策
-                string curId = null;
-                foreach (var kv in FocusTreeData.InProgress) { curId = kv.Key; break; }
-                if (curId != null)
-                {
-                    var def = FocusTreeData.Get(curId);
-                    HasCurrent = true;
-                    CurrentName = def != null ? def.Name : curId;
-                    CurrentDays = "剩余 " + FocusTreeData.InProgress[curId] + " 天";
-                }
-                else
-                {
-                    HasCurrent = false;
-                    CurrentName = "";
-                    CurrentDays = "";
-                }
-                if (!_logged)
-                {
-                    _logged = true;
-                    DLog.Force("国策树刷新: 共 " + Items.Count + " 项, 首项状态=" + (Items.Count > 0 ? Items[0].Status : "?")
-                        + ", 可开始=" + (Items.Count > 0 && Items[0].IsAvailable));
-                }
-            }
-            catch { }
-        }
-
-        private static bool _logged;
     }
 }

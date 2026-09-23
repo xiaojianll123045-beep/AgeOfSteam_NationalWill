@@ -22,14 +22,14 @@ namespace FeudalInternalAffairs
                     opts.Add(new InquiryElement(2, "创建主权帝国(5000 第纳尔)", null, true, PowerBlocs.IdentityDesc[2]));
                     opts.Add(new InquiryElement("int", "利益宣示: " + Interests.StatusText(), null, true, "对远方国家宣示利益(500 第纳尔/国)后才能介入其战争与博弈"));
                     PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
-                        "权力集团", "创建集团花费 5000 第纳尔(V3 官方为 500 影响力, 本 mod 国家意志无影响力概念 -> 走国库); 成员共享集团效果",
+                        "权力集团", "创建集团花费 5000 第纳尔(经典为 500 影响力, 本 mod 国家意志无影响力概念 -> 走国库); 成员共享集团效果",
                         opts, true, 1, 1, "创建", "关闭", OnPick, null, null, false));
                     return;
                 }
-                opts.Add(new InquiryElement("invite", "邀请成员国...", null, PowerBlocs.IsLeader(), "邀请花 1000 第纳尔; AI 按关系与实力决定是否接受(V3 Leverage 简化)"));
-                opts.Add(new InquiryElement("kick", "开除成员国...", null, PowerBlocs.IsLeader() && PowerBlocs.Members.Count > 1, "开除: 凝聚力 -10, 关系恶化(V3 官方)"));
-                opts.Add(new InquiryElement("princ", "提升原则: " + PowerBlocs.PrincipleText(), null, true, "原则共 3 档, 每档消耗对应数量授权(V3 官方)"));
-                opts.Add(new InquiryElement("ident", "更换集团身份(1 授权)", null, PowerBlocs.Mandates >= 1, "身份决定集团的核心效果(V3 官方: 六身份骑砍化 3 种)"));
+                opts.Add(new InquiryElement("invite", "邀请成员国...", null, PowerBlocs.IsLeader(), "邀请花 1000 第纳尔; AI 按关系与实力决定是否接受(Leverage 简化)"));
+                opts.Add(new InquiryElement("kick", "开除成员国...", null, PowerBlocs.IsLeader() && PowerBlocs.Members.Count > 1, "开除: 凝聚力 -10, 关系恶化(经典)"));
+                opts.Add(new InquiryElement("princ", "提升原则: " + PowerBlocs.PrincipleText(), null, true, "原则共 3 档, 每档消耗对应数量授权(经典)"));
+                opts.Add(new InquiryElement("ident", "更换集团身份(1 授权)", null, PowerBlocs.Mandates >= 1, "身份决定集团的核心效果(经典: 六身份骑砍化 3 种)"));
                 opts.Add(new InquiryElement("int", "利益宣示: " + Interests.StatusText(), null, true, "对远方国家宣示利益(500 第纳尔/国)后才能介入其战争与博弈"));
                 string desc = PowerBlocs.IdentityDesc[PowerBlocs.Identity] + "\n凝聚力 " + (int)PowerBlocs.Cohesion
                     + "(" + PowerBlocs.CohesionLevel() + ", 倍数 ×" + PowerBlocs.CohesionMult().ToString("F2") + ")"
@@ -75,7 +75,7 @@ namespace FeudalInternalAffairs
                         null, i != PowerBlocs.Identity, PowerBlocs.IdentityDesc[i]));
                 }
                 PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
-                    "更换集团身份", "花费 1 授权(V3 官方: 更换原则/身份需授权)", opts, true, 1, 1, "确认", "返回",
+                    "更换集团身份", "花费 1 授权(经典: 更换原则/身份需授权)", opts, true, 1, 1, "确认", "返回",
                     delegate (List<InquiryElement> s2)
                     {
                         try { if (s2 != null && s2.Count > 0) MapSelection.Message(PowerBlocs.SetIdentity((int)s2[0].Identifier)); }
@@ -102,7 +102,7 @@ namespace FeudalInternalAffairs
                 }
                 if (opts.Count == 0) { MapSelection.Message("没有可邀请的王国"); return; }
                 PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
-                    "邀请成员国", "V3 官方: 邀请需杠杆优势 200; 我们简化为关系 + 实力比判定", opts, true, 1, 1, "邀请", "返回",
+                    "邀请成员国", "经典: 邀请需杠杆优势 200; 我们简化为关系 + 实力比判定", opts, true, 1, 1, "邀请", "返回",
                     delegate (List<InquiryElement> s2)
                     {
                         try
@@ -128,11 +128,11 @@ namespace FeudalInternalAffairs
                     var m = PowerBlocs.Members[i];
                     if (m.KingdomId == PowerBlocs.LeaderId) continue;
                     int idx = i;
-                    opts.Add(new InquiryElement(idx, m.Name, null, true, "开除: 凝聚力 -10(V3 官方)"));
+                    opts.Add(new InquiryElement(idx, m.Name, null, true, "开除: 凝聚力 -10(经典)"));
                 }
                 if (opts.Count == 0) { MapSelection.Message("没有可开除的成员"); return; }
                 PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
-                    "开除成员国", "V3 官方: 开除降低凝聚力并恶化关系", opts, true, 1, 1, "开除", "返回",
+                    "开除成员国", "经典: 开除降低凝聚力并恶化关系", opts, true, 1, 1, "开除", "返回",
                     delegate (List<InquiryElement> s2)
                     {
                         try { if (s2 != null && s2.Count > 0) MapSelection.Message(PowerBlocs.Kick((int)s2[0].Identifier)); }
@@ -158,7 +158,7 @@ namespace FeudalInternalAffairs
                         + (can ? "  [下一档 " + (cur + 1) + " 授权]" : "  [满级]"), null, can, "下一档效果: " + eff));
                 }
                 PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
-                    "集团原则", "V3 官方: 原则 3 档, 每档花费等于档位的授权数; 授权由成员数与集团排名累积(2000 进度 = 1 授权)",
+                    "集团原则", "经典: 原则 3 档, 每档花费等于档位的授权数; 授权由成员数与集团排名累积(2000 进度 = 1 授权)",
                     opts, true, 1, 1, "提升", "返回",
                     delegate (List<InquiryElement> s2)
                     {
@@ -186,7 +186,7 @@ namespace FeudalInternalAffairs
                 }
                 if (opts.Count == 0) { MapSelection.Message("没有可选国家"); return; }
                 PanelInputGuard.ShowPopup(new MultiSelectionInquiryData(
-                    "利益宣示", Interests.StatusText() + "\nV3 官方: 无利益区域不能介入战争与外交博弈", opts, true, 1, 1, "宣示", "返回",
+                    "利益宣示", Interests.StatusText() + "\n经典: 无利益区域不能介入战争与外交博弈", opts, true, 1, 1, "宣示", "返回",
                     delegate (List<InquiryElement> s2)
                     {
                         try

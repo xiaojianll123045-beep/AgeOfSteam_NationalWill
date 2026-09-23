@@ -87,6 +87,8 @@ namespace FeudalInternalAffairs
                 Spot(ox, 1616f, 37f, 64f, 56f, _vm.ExecuteClose);
                 Spot(ox, 30f, sh - 30f - 56f, 160f, 56f, _vm.ExecuteClose);
                 Spot(ox, 210f, sh - 30f - 56f, 200f, 56f, ContractsPanel.Open);   // v4.126/v4.141: 封建契约(独立侧栏)
+                Spot(ox, 430f, sh - 30f - 56f, 160f, 56f, DecreePanel.Open);
+                Spot(ox, 610f, sh - 30f - 56f, 160f, 56f, delegate { ActionPage.Open("lobby"); });
 
                 // 页签
                 Spot(ox, 0f, 280f, 400f, 68f, W(delegate { _vm.SetTab(0); }));
@@ -94,7 +96,17 @@ namespace FeudalInternalAffairs
                 Spot(ox, 816f, 280f, 400f, 68f, W(delegate { _vm.SetTab(2); }));
                 Spot(ox, 1224f, 280f, 400f, 68f, W(delegate { _vm.SetTab(3); }));
 
-                switch (_vm.Tab)
+                if (_vm.Tab == 3)
+        {
+            // v4.195: 政党席位行(点击组阁)
+            int pn = _vm.PartyRows.Count;
+            for (int i = 0; i < pn && i < 8; i++)
+            {
+                int pi = i;
+                Spot(ox, 1330f, 646f + i * 30f, 360f, 30f, W(delegate { _vm.PartyClick(pi); }));
+            }
+        }
+        switch (_vm.Tab)
                 {
                     case 0:
                         // 集团: 内阁(左列) / 在野(右列) 竖排列表; 行距 70, 起点 420; 按钮 (600,10,130,44)

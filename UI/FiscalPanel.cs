@@ -62,7 +62,10 @@ namespace FeudalInternalAffairs
                 PanelScreen.AddSpot(Width - 60f, 20f, 60f, 58f, _vm.ExecuteClose);       // X
                 PanelScreen.AddSpot(30f, sh - 26f - 42f, 122f, 42f, _vm.ExecuteClose); // 关闭
                 PanelScreen.AddSpot(160f, sh - 26f - 42f, 150f, 42f, _vm.ExecuteReserve); // v4.114: 战略储备
-                PanelScreen.AddSpot(320f, sh - 26f - 42f, 150f, 42f, TradeUi.Show);      // v5.0-P24: 贸易路线
+                PanelScreen.AddSpot(320f, sh - 26f - 42f, 150f, 42f, TradeUi.Open);      // v5.0-P24/v4.152: 贸易路线
+                PanelScreen.AddSpot(480f, sh - 26f - 42f, 150f, 42f, RailwaysUi.Open);   // v4.162: 铁路管理
+        PanelScreen.AddSpot(30f, sh - 78f - 42f, 150f, 42f, delegate { ActionPage.Open("chest"); });     // v4.211: 钱箱(自建页)
+        PanelScreen.AddSpot(200f, sh - 78f - 42f, 150f, 42f, delegate { ActionPage.Open("parly"); }); // v4.211: 议会表决(自建页)
                 // 重构版: 税制四行(点格选档 / 整行循环) 右栏 x=360 起; 行位 250 + i*34
                 for (int i = 0; i < 4; i++)
                 {

@@ -86,14 +86,14 @@ namespace FeudalInternalAffairs
 
         private static void Build()
         {
-            G[0] = new InterestGroup { Index = 0, Id = "crown", Name = "王室", Icon = "fia_cat_admin", Desc = "王室与宫廷: 国家意志的化身" };
-            G[1] = new InterestGroup { Index = 1, Id = "magnates", Name = "大贵族", Icon = "fia_settle_castle", Desc = "拥有城堡与城镇的大领主" };
-            G[2] = new InterestGroup { Index = 2, Id = "gentry", Name = "地方贵族", Icon = "fia_bld_pasture", Desc = "乡绅、小领主与退役军官" };
-            G[3] = new InterestGroup { Index = 3, Id = "church", Name = "教会", Icon = "fia_bld_temple", Desc = "神职与教产" };
-            G[4] = new InterestGroup { Index = 4, Id = "merchants", Name = "商帮", Icon = "fia_bld_tradepost", Desc = "富商、店主与资本家" };
-            G[5] = new InterestGroup { Index = 5, Id = "guilds", Name = "行会", Icon = "fia_bld_toolshop", Desc = "工匠、劳工与作坊主" };
-            G[6] = new InterestGroup { Index = 6, Id = "peasants", Name = "农民", Icon = "fia_goods_grain", Desc = "占人口绝大多数的耕作者" };
-            G[7] = new InterestGroup { Index = 7, Id = "army", Name = "军队", Icon = "fia_cat_military", Desc = "军官团与国防军" };
+            G[0] = new InterestGroup { Index = 0, Id = "crown", Name = "王室", Icon = "fia_ig_crown", Desc = "王室与宫廷: 国家意志的化身" };
+            G[1] = new InterestGroup { Index = 1, Id = "magnates", Name = "大贵族", Icon = "fia_ig_magnates", Desc = "拥有城堡与城镇的大领主" };
+            G[2] = new InterestGroup { Index = 2, Id = "gentry", Name = "地方贵族", Icon = "fia_ig_gentry", Desc = "乡绅、小领主与退役军官" };
+            G[3] = new InterestGroup { Index = 3, Id = "church", Name = "教会", Icon = "fia_ig_church", Desc = "神职与教产" };
+            G[4] = new InterestGroup { Index = 4, Id = "merchants", Name = "商帮", Icon = "fia_ig_merchants", Desc = "富商、店主与资本家" };
+            G[5] = new InterestGroup { Index = 5, Id = "guilds", Name = "行会", Icon = "fia_ig_guilds", Desc = "工匠、劳工与作坊主" };
+            G[6] = new InterestGroup { Index = 6, Id = "peasants", Name = "农民", Icon = "fia_ig_peasants", Desc = "占人口绝大多数的耕作者" };
+            G[7] = new InterestGroup { Index = 7, Id = "army", Name = "军队", Icon = "fia_ig_army", Desc = "军官团与国防军" };
         }
 
         internal static string NameOf(int g) { return (g >= 0 && g < GroupCount && G[g] != null) ? G[g].Name : "?"; }
@@ -949,6 +949,8 @@ namespace FeudalInternalAffairs
                 float rad = MonthlyRadicalDelta();
                 if (Math.Abs(rad) > 0.0001f) Pops.ShiftRadicals(rad);
                 LawSystem.Monthly();   // v4.133: 法律月结(识字增长/福利支出)
+            try { Treaties.Monthly(); } catch { }   // v4.188: 条约月结(收益/到期)
+            try { Parties.Monthly(); } catch { }    // v4.195: 执政党效果 + 选举同步
                 Revolution.Monthly();  // v4.134: 高激进度运动 -> 支持者激进化(V3)
                 DLog.Force("集团月结: 执政=" + CabinetText() + " 基础合法性=" + (int)CabinetBase()
                     + " 运动=" + Movements.Count + " 满意度=" + SatLine());

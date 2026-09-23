@@ -86,14 +86,20 @@ namespace FeudalInternalAffairs
                         spend += spent;
                         shortfall += unmet;
                         WealthStep(pop, income, needCost, needCost > 0.0001f ? unmet / needCost : 0f);
-                        // 税负激进(文档 20.1) + 政治激进(第 21 章: 法令/镇压/内战)
+                        // v4.147 V3 官方: 低于预期生活水平 -> 随时间积累激进(高于则缓慢忠诚)
+                        float expSol = Pops.ExpectedSolOf(pop);
+                        if (pop.WealthLevel < expSol - 2f) Pops.ShiftStance(pop, -0.0005f);
+                        else if (pop.WealthLevel > expSol + 2f) Pops.ShiftStance(pop, 0.0002f);
+                        // 税负激进(文档 20.1) + 政治激进(第 21 章: 法令/镇压/内战) + 民族精神(v4.150)
                         float radPerDay = TaxPolicy.RadicalPressure + Politics.RadicalDaily();
-                        if (radPerDay > 0.00001f || radPerDay < -0.00001f)
+                        try
                         {
-                            pop.Radicalism += radPerDay;
-                            if (pop.Radicalism > 1f) pop.Radicalism = 1f;
-                            if (pop.Radicalism < 0f) pop.Radicalism = 0f;
+                            var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                            if (pk != null) radPerDay += NationalSpirits.RadicalDelta(pk);
                         }
+                        catch { }
+                        if (radPerDay > 0.00001f || radPerDay < -0.00001f)
+                            Pops.ShiftStance(pop, -radPerDay);
                     }
 
                     // 繁荣度(文档 19.10.3 v3.0): 由人口生活水平驱动, 不再是商品的直接函数
@@ -142,6 +148,8 @@ namespace FeudalInternalAffairs
                 mig = Migration();
                 LastMigration = mig;
                 Growth();
+                Pops.EducationWeekly();     // v4.147 V3: 识字率向教育机会靠拢
+                Pops.AssimilateWeekly();    // v4.147 V3: 同化(基础 0.2%/月)
                 Aggregate();
             }
             catch (Exception ex) { DLog.Force("人口周结异常: " + ex.Message); }
@@ -153,6 +161,26 @@ namespace FeudalInternalAffairs
             float num = 0f, den = 0f;
             for (int i = 0; i < l.Count; i++) { var p = l[i]; if (p == null) continue; num += p.WealthLevel * p.Size; den += p.Size; }
             return den > 0f ? num / den : 5f;
+        }
+
+        // v4.186: 当地主体文化(人口最多) —— 文化法律按主体文化作用于该聚落
+        private static string DominantCulture(List<PopRecord> l)
+        {
+            try
+            {
+                string dom = null; float best = 0f;
+                if (l == null) return null;
+                for (int i = 0; i < l.Count; i++)
+                {
+                    var p = l[i];
+                    if (p == null || p.Size <= 0f) continue;
+                    float s = 0f;
+                    for (int j = 0; j < l.Count; j++) { var q = l[j]; if (q != null && q.Culture == p.Culture) s += q.Size; }
+                    if (s > best) { best = s; dom = p.Culture; }
+                }
+                return dom;
+            }
+            catch { return null; }
         }
 
         private static float Attraction(Settlement s)
@@ -167,7 +195,12 @@ namespace FeudalInternalAffairs
                 loy = den > 0f ? loy / den : 0.5f;
                 float food = 0.8f;
                 if (s.Town != null) food = Math.Min(1.5f, s.Town.FoodStocks / 100f);
-                return (30f + sol * 2f + loy * 10f + food * 20f) * TaxPolicy.AttractMult;   // 文档 19.10.1 基础项 + 20.1 税负
+                float infra = 0f;
+                try { infra = Infrastructure.BaseOf(s.StringId) * 0.5f; } catch { }   // v4.165: 基建提升迁移吸引力(V3)
+                // v4.186: 文化法律的迁移吸引(文档 24.13)
+                float cul = 0f;
+                try { cul = CultureSystem.AttractOf(DominantCulture(l)); } catch { }
+                return (30f + sol * 2f + loy * 10f + food * 20f + infra + cul) * TaxPolicy.AttractMult;   // 文档 19.10.1 基础项 + 20.1 税负
             }
             catch { return 0f; }
         }
@@ -202,6 +235,13 @@ namespace FeudalInternalAffairs
                     }
                     if (src == null || worst <= 0.5f || src == dst) continue;
                     float amount = 5f * Math.Min(diff, worst);   // V3: 5 × 吸引力差(文档 19.10.1)
+                    // v4.165 V3 官方: 每州每周迁移上限 = 500 + 5 × 基建(铁路驱动)
+                    try
+                    {
+                        float cap = 500f + 5f * Infrastructure.BaseOf(dst.StringId);
+                        if (amount > cap) amount = cap;
+                    }
+                    catch { }
                     moved += MovePeople(src, dst, amount);
                 }
             }
@@ -239,15 +279,24 @@ namespace FeudalInternalAffairs
             catch { return 0; }
         }
 
-        // 人口增长(文档 19.10.2 锚点)
+        // 人口增长(文档 19.10.2 锚点; v4.147 按 V3 官方补: 卫生机构/妇女权利/人口稀少)
         private static void Growth()
         {
+            int health = 0; try { health = Institutions.Level[1]; } catch { }
+            float womenMult = 1f;
+            try { womenMult = 1f - LawSystem.WorkforceBonus() * 2f; } catch { }   // V3: 妇女权利法降低出生率
+            if (womenMult < 0.5f) womenMult = 0.5f;
             foreach (var kv in Pops.BySettlement)
             {
                 var l = kv.Value;
                 if (l == null || l.Count == 0) continue;
                 float avg = AvgSol(l);
-                float rate = BirthRate(avg) - DeathRate(avg);
+                float total = 0f;
+                for (int i = 0; i < l.Count; i++) { var q = l[i]; if (q != null) total += q.Size; }
+                float birth = BirthRate(avg) * womenMult;
+                if (total < 5000f) birth *= 1.5f;                       // V3 官方: 人口稀少(<5000) 出生率 +50%
+                float death = DeathRate(avg) * (1f - 0.02f * health);   // V3 官方: 卫生系统降低死亡率
+                float rate = birth - death;
                 if (rate > 0.006f) rate = 0.006f;
                 if (rate < -0.006f) rate = -0.006f;
                 float f = 1f + rate;
@@ -289,8 +338,7 @@ namespace FeudalInternalAffairs
                 for (int i = 0; i < l.Count; i++)
                 {
                     var p = l[i];
-                    var d = PopDefs.Get(p.Profession);
-                    float w = p.Size * d.Political;
+                    float w = p.Size * Pops.PoliticalStrengthOf(p);   // v4.147 V3: 政治力量主要基于财富
                     num += p.Radicalism * w; den += w;
                 }
                 if (den <= 0f) continue;
@@ -298,6 +346,21 @@ namespace FeudalInternalAffairs
                 var t = TownOf(kv.Key);
                 if (t == null || t.Settlement == null) continue;
                 float delta = -rad * 0.5f + (1f - rad) * 0.2f;
+                // v4.186: 文化法律满意度 -> 忠诚(每 +10 满意度 = +0.1/日, 按人口加权; 国教对异文化扣分)
+                try
+                {
+                    string dom2 = DominantCulture(l);
+                    float sat = 0f, wsum = 0f;
+                    for (int i2 = 0; i2 < l.Count; i2++)
+                    {
+                        var p2 = l[i2];
+                        if (p2 == null || p2.Size <= 0f) continue;
+                        sat += CultureSystem.SatisFor(dom2, p2.Culture) * p2.Size;
+                        wsum += p2.Size;
+                    }
+                    if (wsum > 0f) delta += (sat / wsum) * 0.01f;
+                }
+                catch { }
                 t.Loyalty += delta;
                 if (t.Loyalty > 100f) t.Loyalty = 100f;
                 if (t.Loyalty < 0f) t.Loyalty = 0f;
@@ -325,6 +388,7 @@ namespace FeudalInternalAffairs
         {
             if (shortfallRatio > 1f) shortfallRatio = 1f;   // 未满足比例钳制(避免出现 -56% 的"负满足度")
             if (shortfallRatio < 0f) shortfallRatio = 0f;
+            float before = pop.Wealth;                       // v4.147: 记录财富变化 -> 驱动忠诚/激进
             float wk = income * 7f;
             int lvl = pop.WealthLevel;
             float cur = CostOf(pop, lvl);
@@ -336,18 +400,19 @@ namespace FeudalInternalAffairs
             if (pop.Wealth < 1f) pop.Wealth = 1f;
             if (pop.Wealth > 99f) pop.Wealth = 99f;
             pop.NeedShortfall = shortfallRatio;
-            if (shortfallRatio > 0.001f) { pop.Radicalism += 0.02f * Math.Min(1f, shortfallRatio * 3f); pop.Loyalty -= 0.01f; }
-            else { pop.Radicalism -= 0.01f; pop.Loyalty += 0.01f; }
-            if (pop.Radicalism < 0f) pop.Radicalism = 0f;
-            if (pop.Radicalism > 1f) pop.Radicalism = 1f;
-            if (pop.Loyalty < 0f) pop.Loyalty = 0f;
-            if (pop.Loyalty > 1f) pop.Loyalty = 1f;
+            // v4.147 V3 官方: SoL 上升 -> 忠诚, 下降 -> 激进(立场一次一步, 互斥); 需求未满足额外转激进
+            float dW = pop.Wealth - before;
+            if (dW > 0.0001f) Pops.ShiftStance(pop, 0.01f);
+            else if (dW < -0.0001f) Pops.ShiftStance(pop, -0.01f);
+            if (shortfallRatio > 0.001f) Pops.ShiftStance(pop, -0.02f * Math.Min(1f, shortfallRatio * 3f));
         }
 
         private static float CostOf(PopRecord pop, int level)
         {
             float t = 0f;
             for (int i = 0; i < PopNeeds.All.Count; i++) t += PopNeeds.ValueFor(PopNeeds.All[i], level, pop.Culture);
+            // v4.149: AI 铸币通胀 -> 该国人口消费成本上升(财富与立场恶化)
+            try { t *= AiEconomyDeep.InflationForSettlement(pop.SettlementId); } catch { }
             return t * pop.NeedUnitsScale;
         }
 

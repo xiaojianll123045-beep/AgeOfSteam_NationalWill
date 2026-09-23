@@ -9,41 +9,40 @@
         <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="680" HeightSizePolicy="StretchToParent"
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
           <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_frame" />
 
             <!-- 不透明底板(防地图元素透出; 留边保留边框) -->
-            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                    MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6"
-                    Sprite="BlankWhiteSquare" Color="#100C08EE" />
 
             <!-- 标题栏 -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" VerticalAlignment="Top"
-                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000055">
+                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="fia_ui_banner_red">
               <Children>
                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="29" Brush.FontColor="#C9A227FF" Text="财政" />
+                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="29" Brush.FontColor="#E9CD74FF" Text="财政" />
                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="38"
-                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="ButtonBrush1"
+                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="Fia.Button"
                               Command.Click="ExecuteClose" UpdateChildrenStates="true">
                   <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="24" Text="X" />
                   </Children>
                 </ButtonWidget>
               </Children>
             </Widget>
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
-                    MarginTop="82" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF59" />
+                    MarginTop="82" MarginLeft="22" MarginRight="22" Sprite="fia_ui_divider" />
 
             <!-- 顶部概览条 -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="100" VerticalAlignment="Top"
                     MarginTop="100" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000044" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="30" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="国库余额" />
+                        MarginLeft="30" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#D8C9A0FF" Text="国库余额" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="30" MarginTop="128" Brush="MapTextBrushGal" Brush.FontSize="34" Brush.FontColor="#F0E4C8FF" Text="@Treasury" />
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="320" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="30" MarginTop="168" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF" Text="@CreditText" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top"
-                        MarginRight="30" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="今日净额" />
+                        MarginRight="30" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#D8C9A0FF" Text="今日净额" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top"
                         MarginRight="30" MarginTop="126" Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="@NetColor" Text="@NetText" />
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="290" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top"
@@ -55,7 +54,7 @@
 
             <!-- ============ 左栏: 收支 ============ -->
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="26" MarginTop="214" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#C9A227FF" Text="国家收入" />
+                        MarginLeft="26" MarginTop="214" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#E9CD74FF" Text="国家收入" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="250" MarginTop="214" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#39FF14FF" Text="@IncomeSum" />
             <ListPanel DataSource="{IncomeRows}" WidthSizePolicy="Fixed" SuggestedWidth="290" HeightSizePolicy="CoverChildren"
@@ -65,7 +64,7 @@
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="32">
                   <Children>
                     <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="200" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="@Name" />
+                                Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#D8C9A0FF" Text="@Name" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
                                 MarginLeft="200" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@Color" Text="@Value" />
                   </Children>
@@ -74,7 +73,7 @@
             </ListPanel>
 
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="26" MarginTop="440" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#C9A227FF" Text="国家支出" />
+                        MarginLeft="26" MarginTop="440" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#E9CD74FF" Text="国家支出" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="250" MarginTop="440" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#D96A5AFF" Text="@ExpenseSum" />
             <ListPanel DataSource="{ExpenseRows}" WidthSizePolicy="Fixed" SuggestedWidth="290" HeightSizePolicy="CoverChildren"
@@ -84,7 +83,7 @@
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="32">
                   <Children>
                     <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="200" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="@Name" />
+                                Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#D8C9A0FF" Text="@Name" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
                                 MarginLeft="200" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@Color" Text="@Value" />
                   </Children>
@@ -92,9 +91,15 @@
               </ItemTemplate>
             </ListPanel>
 
+            <!-- 研究机构维护费(官僚负荷×20/月; 与支出行同款式) -->
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="200" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="672" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#D8C9A0FF" Text="研究机构维护费" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="226" MarginTop="672" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#D96A5AFF" Text="@ResearchCost" />
+
             <!-- ============ 右栏: 税制 / 铸币权 / 投资池 ============ -->
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="360" MarginTop="214" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#C9A227FF" Text="税制" />
+                        MarginLeft="360" MarginTop="214" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#E9CD74FF" Text="税制" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="540" MarginTop="216" Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#7A7060FF" Text="点格选档" />
 
@@ -151,11 +156,11 @@
                         MarginLeft="360" MarginTop="386" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF" Text="@TaxEffect" />
 
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="360" MarginTop="440" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#C9A227FF" Text="铸币权" />
+                        MarginLeft="360" MarginTop="440" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#E9CD74FF" Text="铸币权" />
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="240" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="360" MarginTop="472" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#39FF14FF" Text="@MintText" />
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="240" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="360" MarginTop="494" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#C8B98FFF" Text="@MintSubText" />
+                        MarginLeft="360" MarginTop="494" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#D8C9A0FF" Text="@MintSubText" />
             <ListPanel DataSource="{PipsM}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="600" MarginTop="474"
                        StackLayout.LayoutMethod="HorizontalLeftToRight">
@@ -166,7 +171,7 @@
             </ListPanel>
 
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="360" MarginTop="540" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#C9A227FF" Text="投资池" />
+                        MarginLeft="360" MarginTop="540" Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#E9CD74FF" Text="投资池" />
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="360" MarginTop="570" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#F0E4C8FF" Text="@PoolText" />
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="300" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
@@ -183,21 +188,39 @@
                         Text="说明: 收入=税/铸币/分红/出口 · 支出=关税/铸币销毁/利息/年金" />
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="620" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="30" MarginTop="764" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF"
-                        Text="铸币销毁按本国市场 20% 承担 · 工资/材料由建筑账目与领主承担(文档 19.9.3) · 今日净额=国库实际变动(含宴会/赏赐/外交赔款等)" />
+                        Text="铸币销毁按本国市场 20% 承担 · 工资/材料由建筑账目与领主承担(文&#10;档 19.9.3) · 今日净额=国库实际变动(含宴会/赏赐/外交赔款等)" />
 
             <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                           SuggestedWidth="122" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                          MarginLeft="30" MarginBottom="26" Brush="ButtonBrush2" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+                          MarginLeft="30" MarginBottom="26" Brush="Fia.Button" Command.Click="ExecuteClose" UpdateChildrenStates="true">
               <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Text="关闭" />
+              </Children>
+            </ButtonWidget>
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="150" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="30" MarginBottom="78" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="钱箱" />
+              </Children>
+            </ButtonWidget>
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="150" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="200" MarginBottom="78" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="议会表决" />
               </Children>
             </ButtonWidget>
 
             <!-- v4.114: 国家战略储备(用国库买粮到 30 天) -->
             <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                           SuggestedWidth="150" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                          MarginLeft="160" MarginBottom="26" Brush="ButtonBrush2" UpdateChildrenStates="true">
+                          MarginLeft="160" MarginBottom="26" Brush="Fia.Button" UpdateChildrenStates="true">
               <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8C33AFF" Text="战略储备" />
               </Children>
             </ButtonWidget>
@@ -205,9 +228,20 @@
             <!-- v5.0-P24: 贸易路线 -->
             <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                           SuggestedWidth="150" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                          MarginLeft="320" MarginBottom="26" Brush="ButtonBrush2" UpdateChildrenStates="true">
+                          MarginLeft="320" MarginBottom="26" Brush="Fia.Button" UpdateChildrenStates="true">
               <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#6AB0FFFF" Text="贸易路线" />
+              </Children>
+            </ButtonWidget>
+
+            <!-- v4.162: 铁路管理 -->
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="150" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="480" MarginBottom="26" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#8FA8C8FF" Text="铁路管理" />
               </Children>
             </ButtonWidget>
 

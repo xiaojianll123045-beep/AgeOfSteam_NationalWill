@@ -1,0 +1,215 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+        <!-- ===== 建军设计器页: 14 兵种编制 + 军械库实际可用预览 ===== -->
+        <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="980" HeightSizePolicy="StretchToParent"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
+          <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_frame" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6"
+                    Sprite="BlankWhiteSquare" Color="#0D0A07F7" />
+
+            <!-- 标题栏 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" VerticalAlignment="Top"
+                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000066" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="18" Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="#E9CD74FF" Text="建军设计器" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Right" VerticalAlignment="Top"
+                        MarginRight="80" MarginTop="34" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#8A8070FF"
+                        Text="兵种编制 / 军械库可用" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="922" MarginTop="16" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="24" Text="X" />
+              </Children>
+            </Widget>
+
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="660" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="68" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8C33AFF" Text="@SubText" />
+            <!-- 国库余额(头部状态行, 与费用预览同色逻辑: 够=绿 / 不够=红) -->
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="240" HeightSizePolicy="Fixed" SuggestedHeight="28"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="30" MarginTop="66" TextHorizontalAlignment="Right"
+                        Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@TreasuryColor" Text="@TreasuryText" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="690" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="102" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E8DCC0FF" Text="@TotalText" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="690" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="126" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C8B98FCC" Text="@CapText" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="690" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="30" MarginTop="150" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@CostColor" Text="@CostText" />
+
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
+                    MarginTop="178" MarginLeft="22" MarginRight="22" Sprite="fia_ui_divider" />
+
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="690" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="186" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#8A8070FF"
+                        Text="滚轮滚动列表 · 拖动条/±(10) 选人数 · 行内第三行 = 需求/现用/满足率" />
+
+            <!-- 全项上限为 0 时的明确原因行(军械库无武器/守备营无兵/国库不足) -->
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="26" MarginTop="208" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@ReasonColor"
+                        Text="@ReasonText" IsVisible="@HasReason" />
+
+            <!-- 左栏: 兵种行(88x88 图标 / 名 20 + 已选上限 / 240x16 轨道 + 28 滑块 + 36x36 ± / 摘要最多 3 行) 行高 184 -->
+            <ListPanel DataSource="{Rows}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="232"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" SuggestedWidth="460" HeightSizePolicy="Fixed" SuggestedHeight="184"
+                        Sprite="BlankWhiteSquare" Color="@RowColor">
+                  <Children>
+                    <!-- 图标 88x88(原图 128, 不裁剪) -->
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="88" SuggestedHeight="88"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="4" MarginTop="4" Sprite="@Icon" />
+                    <!-- 第一行: 兵种名 + 已选/上限 -->
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="200" HeightSizePolicy="Fixed" SuggestedHeight="28"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="100" MarginTop="12"
+                                Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@NameColor" Text="@Name" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="146" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="308" MarginTop="14" TextHorizontalAlignment="Right"
+                                Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@SelColor" Text="@SelText" />
+                    <!-- 第二行: 拖动条(轨道 240x16, 滑块 28x28) -->
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="240" SuggestedHeight="28"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="100" MarginTop="48">
+                      <Children>
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="240" SuggestedHeight="16"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="6"
+                                Sprite="BlankWhiteSquare" Color="@TrackColor" />
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@FillWidth" SuggestedHeight="16"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="6"
+                                Sprite="BlankWhiteSquare" Color="@BarColor" />
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="28" SuggestedHeight="28"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@HandleX"
+                                Sprite="ButtonBrush2" />
+                      </Children>
+                    </Widget>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="36" SuggestedHeight="36"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="336" MarginTop="46" Sprite="ButtonBrush2">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                    Brush="MapTextBrushGal" Brush.FontSize="22" Text="-" />
+                      </Children>
+                    </Widget>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="36" SuggestedHeight="36"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="376" MarginTop="46" Sprite="ButtonBrush2">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                    Brush="MapTextBrushGal" Brush.FontSize="22" Text="+" />
+                      </Children>
+                    </Widget>
+                    <!-- 第三行起: 需求/现用/满足率摘要(定宽 + VM 主动断行, 最多 3 行) -->
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="444" HeightSizePolicy="Fixed" SuggestedHeight="80"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="8" MarginTop="100"
+                                Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@ReqColor" Text="@ReqText" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- 右栏: 实时预览 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="452" SuggestedHeight="330"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="496" MarginTop="210"
+                    Sprite="BlankWhiteSquare" Color="#FFFFFF10" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="330"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="496" MarginTop="210"
+                    Sprite="BlankWhiteSquare" Color="#C9A22780" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="428" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="508" MarginTop="218"
+                        Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#E8C33AFF" Text="实时预览" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="428" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="508" MarginTop="250"
+                        Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@PreviewColor" Text="@PreviewBody" />
+
+            <!-- 右栏: 装备清单(仅列有库存型号; 缺装用满足率 % 表达); 有/需/满足率每列 96 宽, 字号 20, 单行 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="452" SuggestedHeight="424"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="496" MarginTop="556"
+                    Sprite="BlankWhiteSquare" Color="#FFFFFF10" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="424"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="496" MarginTop="556"
+                    Sprite="BlankWhiteSquare" Color="#C9A22780" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="428" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="508" MarginTop="564"
+                        Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#E8C33AFF" Text="装备与满足率" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="508" MarginTop="594" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#8A8070FF" Text="仅列有库存型号 · 满足率 = 有/需" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="140" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="508" MarginTop="620" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#8A8070FF" Text="型号" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="96" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="648" MarginTop="620" TextHorizontalAlignment="Right" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#8A8070FF" Text="有" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="96" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="744" MarginTop="620" TextHorizontalAlignment="Right" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#8A8070FF" Text="需" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="96" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                        MarginLeft="840" MarginTop="620" TextHorizontalAlignment="Right" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#8A8070FF" Text="满足率" />
+            <ListPanel DataSource="{GapRows}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="508" MarginTop="648"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" SuggestedWidth="428" HeightSizePolicy="Fixed" SuggestedHeight="32">
+                  <Children>
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="140" HeightSizePolicy="Fixed" SuggestedHeight="32"
+                                HorizontalAlignment="Left" VerticalAlignment="Top"
+                                Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8DCC0FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="96" HeightSizePolicy="Fixed" SuggestedHeight="32"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="140" TextHorizontalAlignment="Right"
+                                Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#D8C9A0FF" Text="@Have" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="96" HeightSizePolicy="Fixed" SuggestedHeight="32"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="236" TextHorizontalAlignment="Right"
+                                Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#D8C9A0FF" Text="@Need" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="96" HeightSizePolicy="Fixed" SuggestedHeight="32"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="332" TextHorizontalAlignment="Right"
+                                Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@FillColor" Text="@Fill" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- 状态行(底部锚定, 在操作栏上方) -->
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="690" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="26" MarginBottom="74"
+                        Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@StatusColor" Text="@StatusText" />
+
+            <!-- 底部操作栏: 成立军团(领装/花费) / 支援(工具·医院·电报) / 关闭 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="420" SuggestedHeight="42"
+                    HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="26" MarginBottom="26" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@ConfirmColor" Text="@ConfirmText" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="86" SuggestedHeight="42"
+                    HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="458" MarginBottom="26" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@Sup0Color" Text="工具" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="86" SuggestedHeight="42"
+                    HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="550" MarginBottom="26" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@Sup1Color" Text="医院" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="86" SuggestedHeight="42"
+                    HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="642" MarginBottom="26" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@Sup2Color" Text="电报" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="90" SuggestedHeight="42"
+                    HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="740" MarginBottom="26" Sprite="ButtonBrush2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8DCC0FF" Text="关闭" />
+              </Children>
+            </Widget>
+          </Children>
+        </BrushWidget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

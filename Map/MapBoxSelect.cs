@@ -24,6 +24,8 @@ namespace FeudalInternalAffairs
         private static Vec2 _lastPanPixel;
         private static bool _panning;
         private static bool _rightDown;
+        private static bool _rightStartedOnPanel;   // v4.213: 本次右键手势起点在面板上 -> 整个手势作废
+        private static bool _leftStartedOnPanel;    // v4.240: 本次左键手势起点在面板上 -> 整个手势作废
         private static bool _panLogged;
         private static bool _downLogged;
         private static bool _relLogged;
@@ -65,6 +67,9 @@ namespace FeudalInternalAffairs
 
         // 每帧兜底: 若不在框选拖动中而相机输入被关过, 立刻恢复
         // (原版 "ProcessCameraInput==false 会跳过 ProcessTravel" -> 会吞掉左键指挥移动)
+        // v4.213: 面板打开时也照常恢复 —— v4.181 在这里把相机输入按住不放, 导致开页后
+        //         ProcessCameraInput 永久为 false, WASD 镜头失灵(关页才恢复);
+        //         页内鼠标不穿透改由 MapClickPatches.OnBeforeTick 清零 + Handle* 的 IsMouseOnPanel 判断保证。
         internal static void EnsureCameraInputOn()
         {
             if (_camInputOn) return;
@@ -88,6 +93,30 @@ namespace FeudalInternalAffairs
         {
             try
             {
+                // v4.240: 按下点落在自建页面上 -> 整个手势作废(不当地图单击/框选/指挥), 直到松手
+                //   (原来只判"有面板打开就早退", 单击标记 LastReleaseWasClick 会保留开面板前的旧值:
+                //    在页面里按下、拖到地图上松开 -> 被当成一次地图单击, 选中部队会被指挥走)
+                if (pressed && (PanelScreen.IsMouseOnPanel() || PanelScreen.AnyOpen))
+                {
+                    _leftStartedOnPanel = true;
+                    ClearClickFlag();
+                    _dragging = false; _leftDown = false; _panning = false;
+                    return false;
+                }
+                if (_leftStartedOnPanel)
+                {
+                    if (released) _leftStartedOnPanel = false;
+                    ClearClickFlag();
+                    return true;   // 当作拖动: 调用方据此跳过地面单击
+                }
+                // 面板打开时地图左键不吃鼠标(右键见 HandleRightButton v4.213)
+                if (PanelScreen.AnyOpen)
+                {
+                    _dragging = false; _leftDown = false; _panning = false; _rightDown = false;
+                    _middleRotating = false; _middleDragging = false;
+                    ClearClickFlag();
+                    return false;
+                }
                 if (pressed)
                 {
                     _startPixel = mouse;
@@ -263,6 +292,13 @@ namespace FeudalInternalAffairs
         {
             try
             {
+                // v4.180: 面板打开时地图中键不吃鼠标
+                if (PanelScreen.AnyOpen)
+                {
+                    _dragging = false; _leftDown = false; _panning = false; _rightDown = false;
+                    _middleRotating = false; _middleDragging = false;
+                    return;
+                }
                 var view = NationalWillCamera.View;
                 if (view == null) return;
                 if (pressed)
@@ -300,6 +336,23 @@ namespace FeudalInternalAffairs
         {
             try
             {
+                // v4.213: 只有"鼠标落在自建页面上"才吃右键; 起点在页面上 -> 整个手势作废(不穿透)
+                if (pressed && PanelScreen.IsMouseOnPanel())
+                {
+                    _rightStartedOnPanel = true;
+                    _panning = false;
+                    _rightDown = false;
+                    _dragging = false; _leftDown = false;
+                    _middleRotating = false; _middleDragging = false;
+                    return false;
+                }
+                if (_rightStartedOnPanel)
+                {
+                    _panning = false;
+                    _rightDown = false;
+                    if (released) _rightStartedOnPanel = false;
+                    return true;   // 当作拖动: 调用方据此跳过右键菜单
+                }
                 if (pressed)
                 {
                     _startPixel = mouse;

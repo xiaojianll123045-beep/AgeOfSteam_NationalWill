@@ -1,0 +1,68 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+        <!-- ===== 战报页(v4.209 自建页, 取代系统弹窗) ===== -->
+        <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="680" HeightSizePolicy="StretchToParent"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
+          <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_frame" />
+
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" VerticalAlignment="Top"
+                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="fia_ui_banner_red" />
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="60" SuggestedHeight="58" HorizontalAlignment="Left" VerticalAlignment="Top"
+                          MarginLeft="620" MarginTop="20" Brush="Fia.Button" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="×" />
+              </Children>
+            </ButtonWidget>
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="30" MarginTop="28"
+                        Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="#E8C33AFF" Text="法令" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="620" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="30" MarginTop="88"
+                        Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#C8B98FCC" Text="@Summary" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="10" VerticalAlignment="Top"
+                    MarginTop="118" MarginLeft="22" MarginRight="22" Sprite="fia_ui_divider" />
+
+            <ListPanel DataSource="{Cards}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="136"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" SuggestedWidth="628" HeightSizePolicy="CoverChildren" MarginBottom="10"
+                        Sprite="BlankWhiteSquare" Color="@PlateColor">
+                  <Children>
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30" VerticalAlignment="Top"
+                            Sprite="fia_ui2_subheader" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="600" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="14" MarginTop="5"
+                                Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@NameColor" Text="@Name" />
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="14" MarginTop="7"
+                                Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8FD8E8CC" Text="@Cost" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="600" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="14" MarginTop="38"
+                                Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#D8C9A0FF" Text="@Body" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="122" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="30" MarginBottom="26" Brush="Fia.Button" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Text="关闭" />
+              </Children>
+            </ButtonWidget>
+          </Children>
+        </BrushWidget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

@@ -105,6 +105,41 @@ namespace FeudalInternalAffairs
         internal const string Silver = "silver";
         internal const string Spice = "spice";
 
+        // ---- v4.167: V3 化商品扩展(第 25 章, 33 种; 短名 Id, 物品 fia_ 前缀) ----
+        internal const string Lead = "lead";
+        internal const string Sulfur = "sulfur";
+        internal const string Oil = "oil";
+        internal const string Gold = "gold";
+        internal const string Coffee = "coffee";
+        internal const string Sugar = "sugar";
+        internal const string Tea = "tea";
+        internal const string Tobacco = "tobacco";
+        internal const string Opium = "opium";
+        internal const string Silk = "silk";
+        internal const string Rubber = "rubber";
+        internal const string Dye = "dye";
+        internal const string Clothes = "clothes";
+        internal const string Furniture = "furniture";
+        internal const string Groceries = "groceries";
+        internal const string Paper = "paper";
+        internal const string Steel = "steel";
+        internal const string Glass = "glass";
+        internal const string Fertilizer = "fertilizer";
+        internal const string Explosives = "explosives";
+        internal const string Engines = "engines";
+        internal const string Clippers = "clippers";
+        internal const string Steamers = "steamers";
+        internal const string MerchantMarine = "merchant_marine";
+        internal const string Ammunition = "ammunition";
+        internal const string Artillery = "artillery";
+        internal const string Electricity = "electricity";
+        internal const string Transportation = "transportation";
+        internal const string Radios = "radios";
+        internal const string Telephones = "telephones";
+        internal const string Automobiles = "automobiles";
+        internal const string Tanks = "tanks";
+        internal const string Aeroplanes = "aeroplanes";
+
         // ---- 主商品(19) ----
         internal static readonly List<GoodDef> Main = new List<GoodDef>
         {
@@ -128,7 +163,7 @@ namespace FeudalInternalAffairs
             new GoodDef { Id = Pottery,   ItemId = Pottery,   Name = "陶器", BasePrice = 210, Sprite = "fia_goods_pottery",   IsLiving = true },
             new GoodDef { Id = Herbs,     ItemId = Herbs,     Name = "草药", BasePrice = 45,  Sprite = "fia_goods_herbs",     IsNew = true },
             // v3.0 新增(文档 19.3 / 19.4): 葡萄酒(酿酒坊 葡萄2→1)、马匹(牧场副产)、服务(集市/神庙/大学/酒馆产出, 当日即销)
-            new GoodDef { Id = Wine,      ItemId = Wine,      Name = "葡萄酒", BasePrice = 50,  Sprite = "fia_goods_grape",    Category = "加工品" },
+            new GoodDef { Id = Wine,      ItemId = Wine,      Name = "葡萄酒", BasePrice = 50,  Sprite = "fia_goods_wine",    Category = "加工品" },
             new GoodDef { Id = Horse,     ItemId = Horse,     Name = "马匹",   BasePrice = 150, Sprite = "fia_bld_pasture",    Category = "原料" },
             new GoodDef { Id = Service,   ItemId = Service,   Name = "服务",   BasePrice = 30,  Sprite = "fia_cat_admin",      Category = "生活用品" }
         };
@@ -143,7 +178,48 @@ namespace FeudalInternalAffairs
             new GoodDef { Id = Flax,      ItemId = Flax,      Name = "亚麻", BasePrice = 15,  Sprite = "fia_goods_wool",  IsSpecialty = true },
             new GoodDef { Id = Salt,      ItemId = Salt,      Name = "盐",   BasePrice = 40,  Sprite = "fia_goods_clay",  IsSpecialty = true },
             new GoodDef { Id = Silver,    ItemId = Silver,    Name = "银",   BasePrice = 100, Sprite = "fia_goods_iron",  IsSpecialty = true },
-            new GoodDef { Id = Spice,     ItemId = Spice,     Name = "香料", BasePrice = 300, Sprite = "fia_goods_herbs", IsSpecialty = true }
+            new GoodDef { Id = Spice,     ItemId = Spice,     Name = "香料", BasePrice = 300, Sprite = "fia_goods_herbs", IsSpecialty = true },
+            // ================= v4.167: V3 化商品扩展(第 25 章, 33 种; 图标暂用近似 sprite, 美术后补) =================
+            // 工业原料
+            new GoodDef { Id = Lead,      ItemId = "fia_lead",      Name = "铅",   BasePrice = 40,  Sprite = "fia_goods_iron",     IsNew = true },
+            new GoodDef { Id = Sulfur,    ItemId = "fia_sulfur",    Name = "硫磺", BasePrice = 50,  Sprite = "fia_goods_stone",    IsNew = true },
+            new GoodDef { Id = Oil,       ItemId = "fia_oil",       Name = "石油", BasePrice = 40,  Sprite = "fia_goods_charcoal", IsNew = true },
+            new GoodDef { Id = Rubber,    ItemId = "fia_rubber",    Name = "橡胶", BasePrice = 40,  Sprite = "fia_goods_charcoal", IsNew = true },
+            new GoodDef { Id = Dye,       ItemId = "fia_dye",       Name = "染料", BasePrice = 40,  Sprite = "fia_goods_herbs",    IsNew = true },
+            new GoodDef { Id = Silk,      ItemId = "fia_silk",      Name = "丝绸", BasePrice = 40,  Sprite = "fia_goods_linen",    IsNew = true },
+            // 加工品
+            new GoodDef { Id = Steel,     ItemId = "fia_steel",     Name = "钢",   BasePrice = 50,  Sprite = "fia_goods_iron",     IsNew = true },
+            new GoodDef { Id = Glass,     ItemId = "fia_glass",     Name = "玻璃", BasePrice = 40,  Sprite = "fia_goods_stone",    IsNew = true },
+            new GoodDef { Id = Paper,     ItemId = "fia_paper",     Name = "纸",   BasePrice = 30,  Sprite = "fia_goods_linen",    IsNew = true },
+            new GoodDef { Id = Furniture, ItemId = "fia_furniture", Name = "家具", BasePrice = 30,  Sprite = "fia_goods_hardwood", IsNew = true },
+            new GoodDef { Id = Clothes,   ItemId = "fia_clothes",   Name = "衣服", BasePrice = 30,  Sprite = "fia_goods_linen",    IsNew = true },
+            new GoodDef { Id = Groceries, ItemId = "fia_groceries", Name = "食品杂货", BasePrice = 30, Sprite = "fia_goods_grain", IsNew = true },
+            new GoodDef { Id = Fertilizer, ItemId = "fia_fertilizer", Name = "肥料", BasePrice = 30, Sprite = "fia_goods_stone", IsNew = true },
+            new GoodDef { Id = Explosives, ItemId = "fia_explosives", Name = "炸药", BasePrice = 50, Sprite = "fia_goods_stone", IsNew = true },
+            new GoodDef { Id = Engines,   ItemId = "fia_engines",   Name = "发动机", BasePrice = 60, Sprite = "fia_goods_iron",   IsNew = true },
+            // 船舶
+            new GoodDef { Id = Clippers,  ItemId = "fia_clippers",  Name = "帆船", BasePrice = 60,  Sprite = "fia_goods_iron",     IsNew = true },
+            new GoodDef { Id = Steamers,  ItemId = "fia_steamers",  Name = "蒸汽船", BasePrice = 70, Sprite = "fia_goods_iron",    IsNew = true },
+            new GoodDef { Id = MerchantMarine, ItemId = "fia_merchant_marine", Name = "商船", BasePrice = 50, Sprite = "fia_goods_iron", IsNew = true },
+            // 种植园奢侈
+            new GoodDef { Id = Coffee,    ItemId = "fia_coffee",    Name = "咖啡", BasePrice = 50,  Sprite = "fia_goods_herbs",    IsNew = true },
+            new GoodDef { Id = Sugar,     ItemId = "fia_sugar",     Name = "糖",   BasePrice = 30,  Sprite = "fia_goods_stone",    IsNew = true },
+            new GoodDef { Id = Tea,       ItemId = "fia_tea",       Name = "茶",   BasePrice = 50,  Sprite = "fia_goods_herbs",    IsNew = true },
+            new GoodDef { Id = Tobacco,   ItemId = "fia_tobacco",   Name = "烟草", BasePrice = 40,  Sprite = "fia_goods_herbs",    IsNew = true },
+            new GoodDef { Id = Opium,     ItemId = "fia_opium",     Name = "鸦片", BasePrice = 50,  Sprite = "fia_goods_herbs",    IsNew = true },
+            new GoodDef { Id = Gold,      ItemId = "fia_gold",      Name = "黄金", BasePrice = 100, Sprite = "fia_goods_iron",     IsNew = true },
+            // 后期
+            new GoodDef { Id = Radios,    ItemId = "fia_radios",    Name = "收音机", BasePrice = 80, Sprite = "fia_goods_iron",    IsNew = true },
+            new GoodDef { Id = Telephones, ItemId = "fia_telephones", Name = "电话", BasePrice = 70, Sprite = "fia_goods_iron",   IsNew = true },
+            new GoodDef { Id = Automobiles, ItemId = "fia_automobiles", Name = "汽车", BasePrice = 100, Sprite = "fia_goods_iron", IsNew = true },
+            // 军用
+            new GoodDef { Id = Ammunition, ItemId = "fia_ammunition", Name = "弹药", BasePrice = 50, Sprite = "fia_goods_iron",   IsNew = true, IsMilitary = true },
+            new GoodDef { Id = Artillery, ItemId = "fia_artillery", Name = "火炮", BasePrice = 70,  Sprite = "fia_goods_iron",     IsNew = true, IsMilitary = true },
+            new GoodDef { Id = Tanks,     ItemId = "fia_tanks",     Name = "坦克", BasePrice = 80,  Sprite = "fia_goods_iron",     IsNew = true, IsMilitary = true },
+            new GoodDef { Id = Aeroplanes, ItemId = "fia_aeroplanes", Name = "飞机", BasePrice = 80, Sprite = "fia_goods_iron",    IsNew = true, IsMilitary = true },
+            // 本地(不可贸易)
+            new GoodDef { Id = Electricity, ItemId = "fia_electricity", Name = "电力", BasePrice = 30, Sprite = "fia_goods_stone", IsNew = true },
+            new GoodDef { Id = Transportation, ItemId = "fia_transportation", Name = "运输", BasePrice = 30, Sprite = "fia_goods_stone", IsNew = true }
         };
 
         internal static readonly List<GoodDef> All = BuildAll();

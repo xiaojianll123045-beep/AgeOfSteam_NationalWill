@@ -18,7 +18,8 @@ namespace FeudalInternalAffairs
         FoodTotal = 8,              // 粮食总数
         ItemPick = 9,               // 自选物品
         Radicals = 10,              // 激进人口(越少越绿)
-        Weariness = 11              // 厌战度(v4.74: 取该国最高的一条战线)
+        Weariness = 11,             // 厌战度(v4.74: 取该国最高的一条战线)
+        Rail = 12                   // 铁路(0=无铁路, 1=运营 1 条, 2=运营 2 条以上, 3=全部中断)
     }
 
     // 地图数据模式: 数据模式统一用"白色 -> 深绿色"渐变(越高越绿), 定居点名板上方显示数值
@@ -29,6 +30,12 @@ namespace FeudalInternalAffairs
         internal static string PickItemId = "grain";
 
         private static int _ver;
+
+        // 铁路名牌缓存: Railways.All 轻量 checksum 不变 -> 直接查字典, 不再对每个定居点 new List
+        private struct RailCount { public int Run; public int Broken; public int TierSum; }   // TierSum=运营线路等级和(算均级用)
+        private static readonly Dictionary<string, RailCount> _railCounts = new Dictionary<string, RailCount>();
+        private static int _railKey;
+        private static bool _railCached;
 
         internal static int Version { get { return _ver + (int)Current * 1000; } }
 
@@ -46,11 +53,13 @@ namespace FeudalInternalAffairs
         {
             try
             {
+                bool leaveRail = Current == MapData.Rail && m != MapData.Rail;
                 Current = m;
                 if (!string.IsNullOrEmpty(pickB)) PickBuildingId = pickB;
                 if (!string.IsNullOrEmpty(pickI)) PickItemId = pickI;
                 MarkDirty();
                 TerritoryColorMode.MarkDirty();
+                if (leaveRail) RailSystem.ClearPreview();
             }
             catch { }
         }
@@ -70,6 +79,7 @@ namespace FeudalInternalAffairs
                 case MapData.ItemPick: return "自选物品地图";
                 case MapData.Radicals: return "激进人口地图";
                 case MapData.Weariness: return "厌战度地图";
+                case MapData.Rail: return "铁路地图";
                 default: return "有条件政治地图";
             }
         }
@@ -89,6 +99,7 @@ namespace FeudalInternalAffairs
                 case MapData.ItemPick: return "先选一种物品, 越绿库存越多";
                 case MapData.Radicals: return "显示激进人口; 越绿社会越安定";
                 case MapData.Weariness: return "越绿厌战越高(取该国最高的一条战线; 高厌战会削弱军队并倾向和谈)";
+                case MapData.Rail: return "灰=无铁路, 浅绿=1 条, 深绿=2 条以上, 红色=全部中断; 铁路线: 红=中断, 琥珀=在建";
                 default: return "拉远地图时显示各国领土色(默认)";
             }
         }
@@ -226,10 +237,76 @@ namespace FeudalInternalAffairs
                             text = "厌战 " + w;
                             return w;
                         }
+                    case MapData.Rail:
+                        {
+                            int run = 0, brk = 0, tierSum = 0;
+                            try
+                            {
+                                RailCount rc;
+                                if (RailCounts().TryGetValue(s.StringId ?? "", out rc))
+                                {
+                                    run = rc.Run;
+                                    brk = rc.Broken;
+                                    tierSum = rc.TierSum;
+                                }
+                            }
+                            catch { }
+                            // 口径与基建/运力一致: 只计运营中线路, 中断单独附注
+                            if (run <= 0 && brk <= 0) text = "无铁路";
+                            else if (run <= 0) text = "0 条线路（" + brk + " 中断）";
+                            else
+                            {
+                                int avg = (tierSum + run / 2) / run;   // 运营线平均等级(四舍五入取整)
+                                text = run + " 条线路 · 均级 " + avg + (brk > 0 ? "（" + brk + " 中断）" : "");
+                            }
+                            // 颜色分档: 0=灰(无铁路) 1=浅绿(1 条) 2=深绿(2 条以上) 3=红(全部中断)
+                            if (run <= 0) return brk > 0 ? 3 : 0;
+                            return run == 1 ? 1 : 2;
+                        }
                 }
             }
             catch { }
             return -1;
+        }
+
+        // 轻量版本号: 遍历 Railways.All 算 checksum(零分配, 含等级/所有权); 变化才重算 "定居点 -> 运营/中断/等级和" 缓存
+        private static Dictionary<string, RailCount> RailCounts()
+        {
+            var all = Railways.All;
+            int key = 17 + all.Count * 31;
+            for (int i = 0; i < all.Count; i++)
+            {
+                var l = all[i];
+                if (l == null) { key = key * 31 + 7; continue; }
+                int flags = (l.Built ? 1 : 0) | (l.Broken ? 2 : 0);
+                int h = (l.FromId != null ? l.FromId.GetHashCode() : 0) * 7
+                      + (l.ToId != null ? l.ToId.GetHashCode() : 0);
+                key = key * 31 + h + flags * 131 + (int)(l.Progress * 997f)
+                      + Railways.ClampTier(l.Tier) * 17 + (l.StateOwned ? 1 : 0) * 4093;
+            }
+            if (_railCached && key == _railKey) return _railCounts;
+            _railCached = true;
+            _railKey = key;
+            _railCounts.Clear();
+            for (int i = 0; i < all.Count; i++)
+            {
+                var l = all[i];
+                if (l == null || !l.Built) continue;
+                int tier = Railways.ClampTier(l.Tier);
+                AddRailCount(l.FromId, l.Broken, tier);
+                AddRailCount(l.ToId, l.Broken, tier);
+            }
+            return _railCounts;
+        }
+
+        private static void AddRailCount(string sid, bool broken, int tier)
+        {
+            if (string.IsNullOrEmpty(sid)) return;
+            RailCount rc;
+            if (!_railCounts.TryGetValue(sid, out rc)) rc = new RailCount();
+            if (broken) rc.Broken++;
+            else { rc.Run++; rc.TierSum += tier; }
+            _railCounts[sid] = rc;
         }
 
         private static int FoodStock(Settlement s)
@@ -254,6 +331,7 @@ namespace FeudalInternalAffairs
         // 全局最大值(归一化用)
         internal static float MaxValue()
         {
+            if (Current == MapData.Rail) return 3f;   // 铁路: 分档值 0/1/2/3 固定按 3 归一化(顺带免去全图遍历)
             int mx = 1;
             try
             {
@@ -281,6 +359,13 @@ namespace FeudalInternalAffairs
         {
             if (t < 0f) t = 0f;
             if (t > 1f) t = 1f;
+            if (Current == MapData.Rail)
+            {
+                // 铁路分档(ValueOf 返回 0/1/2/3, MaxValue 固定 3): 0=灰, 1=浅绿, 2=深绿, 3=红(全部中断)
+                if (t >= 0.99f) { r = 255; g = 59; b = 48; return; }      // 红(与 RailSystem 中断线同色)
+                if (t <= 0.01f) { r = 128; g = 128; b = 128; return; }    // 灰=无铁路
+                t = t < 0.5f ? 0.5f : 1f;                                 // 浅绿 / 深绿(沿用原渐变两端)
+            }
             r = (byte)Math.Round(255f - (255f - 18f) * t);
             g = (byte)Math.Round(255f - (255f - 95f) * t);
             b = (byte)Math.Round(255f - (255f - 18f) * t);

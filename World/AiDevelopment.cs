@@ -27,8 +27,14 @@ namespace FeudalInternalAffairs
                     int wars0 = 0;
                     try { foreach (var x in Kingdom.All) { if (x == null || x.IsEliminated) continue; if (k.IsAtWarWith(x)) wars0++; } } catch { }
                     float warMult = wars0 > 0 ? 0.45f : 1.2f;
-                    // 每国每日概率 ≈ 建设/100 × 0.5 × 战和系数
-                    if (MBRandom.RandomFloat > AiPersonality.DevelopmentOf(k) / 100f * 0.5f * warMult) continue;
+                    // v4.22x: 统一大脑 Goal 再调建设节奏(经济/整合加速; 军事/生存放缓)
+                    AiDirector.Goal goal = AiBrain.GoalOf(k);
+                    float goalMult = 1f;
+                    if (goal == AiDirector.Goal.Economy || goal == AiDirector.Goal.Consolidation) goalMult = 1.25f;
+                    else if (goal == AiDirector.Goal.Military) goalMult = 0.6f;
+                    else if (goal == AiDirector.Goal.Survival) goalMult = 0.35f;
+                    // 每国每日概率 ≈ 建设/100 × 0.5 × 战和系数 × 目标系数
+                    if (MBRandom.RandomFloat > AiPersonality.DevelopmentOf(k) / 100f * 0.5f * warMult * goalMult) continue;
                     TryQueueOneBuild(k, day);
                 }
             }
@@ -36,6 +42,8 @@ namespace FeudalInternalAffairs
         }
 
         // v4.107: 建设评分(行政/粮食优先, 军事看鹰派, 贸易看商贸, 其余看建设)
+        // v4.149: 改为利润导向 —— 产出按全国价格 - 投入 - 维护 + 市场缺口 + 战争需求 + 失业压力,
+        //         性格/类别只作系数与修正, 随机扰动缩小(行为更稳定、更像"算过账")
         private static float ScoreBuild(BuildDef def, Kingdom k)
         {
             float sc = 1f;
@@ -44,41 +52,153 @@ namespace FeudalInternalAffairs
                 int agg = AiPersonality.AggressionOf(k);
                 int dev = AiPersonality.DevelopmentOf(k);
                 int com = AiPersonality.CommerceOf(k);
+                // 基础类别权重(保证行政部门这类"不直接产钱"的建筑也优先)
                 if (def.Cat == BuildCat.Admin) sc += 4.5f;                                   // 行政部门: 建造点来源, 最优先
                 else if (def.Cat == BuildCat.Military) sc += agg / 35f;                      // 军事: 鹰派爱军备
                 else if (def.Cat == BuildCat.Resource || def.Cat == BuildCat.Living) sc += 1.6f;  // 资源/民生: 粮食基础
                 else if (def.Cat == BuildCat.Trade) sc += com / 45f;                         // 贸易: 重商
                 else if (def.Cat == BuildCat.Logistics) sc += 0.8f + dev / 200f;             // 后勤
                 else sc += dev / 90f;                                                        // 加工等
+                // v4.21x: 铁路建筑(需 railways 科技, AllowedAt 已把关) —— 战时后勤/商贸需求加权, 避免被利润评分压掉
+                // v4.22x: 再按 AiDirector 的 rail 预算与 Goal 调整(军事/预算足 -> 更优先; 生存 -> 让位)
+                if (def.Id == "railway")
+                {
+                    bool atWar2 = false;
+                    try { foreach (var x in Kingdom.All) { if (x == null || x.IsEliminated || ReferenceEquals(x, k)) continue; if (k.IsAtWarWith(x)) { atWar2 = true; break; } } } catch { }
+                    sc += 2.5f + (atWar2 ? 1.5f : 0f) + com / 100f + dev / 120f;
+                    float railBudget = AiBrain.BudgetFor(k, "rail", WarEconomy.GoldOfPublic(k));
+                    if (railBudget > 0f) sc += Math.Min(3f, railBudget / 4000f);
+                    AiDirector.Goal goal = AiBrain.GoalOf(k);
+                    if (goal == AiDirector.Goal.Military) sc += 1.2f;
+                    else if (goal == AiDirector.Goal.Survival) sc *= 0.5f;
+                }
+                // v4.149: 利润项(核心): 能赚钱的建筑显著加权
+                float profit = AiEconomyDeep.BuildProfitScore(def, k);
+                if (profit > 0f) sc += Math.Min(6f, profit * 0.02f);
+                else if (profit < 0f) sc *= 0.55f;                                            // 亏钱建筑降低优先级
+                // v4.22x: 市场缺口/产业链 —— 缺粮/缺燃料/缺引擎时优先对应产出链(读全国买卖单)
+                sc += Math.Min(3f, ScarcityBoost(def));
             }
             catch { }
-            sc += MBRandom.RandomFloat * 0.9f;   // 随机扰动(避免各国一模一样)
+            sc += MBRandom.RandomFloat * 0.35f;   // 随机扰动(缩小, 避免行为不稳定)
             return sc;
         }
 
-        private static void TryQueueOneBuild(Kingdom k, int day)
+        // v4.22x: 战略缺口 -> 上游投入品集合(懒建一次; 静态建筑表, 不变)
+        private static Dictionary<string, HashSet<string>> _chainInputs;
+
+        private static void EnsureChainInputs()
+        {
+            if (_chainInputs != null) return;
+            var map = new Dictionary<string, HashSet<string>>();
+            string[] strategic = { FeudalGoods.Grain, FeudalGoods.Meat, FeudalGoods.Fish, FeudalGoods.Charcoal, FeudalGoods.Oil, FeudalGoods.Engines };
+            for (int i = 0; i < strategic.Length; i++) map[strategic[i]] = new HashSet<string>();
+            try
+            {
+                for (int i = 0; i < BuildDefs.All.Count; i++)
+                {
+                    var d = BuildDefs.All[i];
+                    if (d == null || d.Outputs == null || d.Inputs == null) continue;
+                    for (int j = 0; j < d.Outputs.Count; j++)
+                    {
+                        var o = d.Outputs[j];
+                        if (o == null || string.IsNullOrEmpty(o.Good)) continue;
+                        HashSet<string> set;
+                        if (!map.TryGetValue(o.Good, out set)) continue;
+                        for (int x = 0; x < d.Inputs.Count; x++)
+                        {
+                            var inp = d.Inputs[x];
+                            if (inp == null || string.IsNullOrEmpty(inp.Good) || inp.Good.StartsWith("@")) continue;
+                            if (inp.Good.IndexOf('|') >= 0) continue;   // "任意一种" 不展开
+                            set.Add(inp.Good);
+                        }
+                    }
+                }
+            }
+            catch { }
+            _chainInputs = map;
+        }
+
+        // v4.22x: 商品缺口加权 —— 产出商品越紧俏(全国买单/卖单比越高)越优先;
+        //   粮食/燃料(煤/石油)/引擎属战略缺口, 额外加权, 其上游投入品也补链(缺啥补啥产业链)
+        private static float ScarcityBoost(BuildDef def)
+        {
+            float boost = 0f;
+            try
+            {
+                if (def == null || def.Outputs == null) return 0f;
+                var nat = EconomyWorld.National;
+                if (nat == null) return 0f;
+                EnsureChainInputs();
+                for (int i = 0; i < def.Outputs.Count; i++)
+                {
+                    var o = def.Outputs[i];
+                    if (o == null || string.IsNullOrEmpty(o.Good) || o.Good.StartsWith("@")) continue;
+                    float ratio = BuySellRatio(nat, o.Good);
+                    if (ratio > 1.2f) boost += Math.Min(2f, ratio - 1f);
+                    bool strategic = o.Good == FeudalGoods.Grain || o.Good == FeudalGoods.Meat || o.Good == FeudalGoods.Fish
+                        || o.Good == FeudalGoods.Charcoal || o.Good == FeudalGoods.Oil || o.Good == FeudalGoods.Engines;
+                    if (strategic && ratio > 1.05f) boost += 1.2f;
+                    if (_chainInputs != null)
+                    {
+                        foreach (var kv in _chainInputs)
+                        {
+                            if (kv.Value.Count == 0 || !kv.Value.Contains(o.Good)) continue;
+                            if (BuySellRatio(nat, kv.Key) > 1.05f) { boost += 0.8f; break; }   // 缺口战略品的上游
+                        }
+                    }
+                }
+            }
+            catch { }
+            return boost;
+        }
+
+        private static float BuySellRatio(NationalMarket nat, string good)
         {
             try
             {
-                var list = new List<Settlement>();
+                if (nat == null || string.IsNullOrEmpty(good)) return 1f;
+                float b = 0f, s = 0f;
+                nat.BuyVolume.TryGetValue(good, out b);
+                nat.SellVolume.TryGetValue(good, out s);
+                return b / Math.Max(1f, s);
+            }
+            catch { return 1f; }
+        }
+
+        // v4.22x: 月结规划缓存(排序/遍历全放月结; 日结只消费缓存, 不做评分扫描)
+        private class BuildPlan
+        {
+            internal string SettlementId;
+            internal string DefId;
+            internal BuildMode Mode;
+            internal float Score;
+        }
+        private static readonly Dictionary<string, List<BuildPlan>> _plans = new Dictionary<string, List<BuildPlan>>();
+
+        // 月结: 按"市场缺口 + 利润 + 战略链 + 铁路预算/Goal"给每国选前 3 个最优建造项(每城一个)
+        private static void PlanOne(Kingdom k)
+        {
+            try
+            {
+                if (k == null) return;
+                float gold = WarEconomy.GoldOfPublic(k);
+                int dev = AiPersonality.DevelopmentOf(k);
+                BuildMode mode = BuildMode.Wood;
+                if (gold > 8000f && dev >= 75) mode = BuildMode.Iron;
+                else if (gold > 4000f && dev >= 60) mode = BuildMode.Stone;
+
+                var perSettlement = new List<BuildPlan>();
                 foreach (var s in k.Settlements)
-                    if (s != null && (s.IsTown || s.IsCastle || s.IsVillage)) list.Add(s);
-                if (list.Count == 0) return;
-                int start = (int)(((uint)(k.StringId != null ? k.StringId.GetHashCode() : 0)) + (uint)day) % list.Count;
-                for (int i = 0; i < list.Count && i < 8; i++)
                 {
-                    var s = list[(start + i) % list.Count];
+                    if (s == null) continue;
                     var sb = EconomyWorld.Of(s.StringId);
                     if (sb == null) continue;
-                    if (sb.Queue.Count >= 2) continue;
                     int limit = BuildingRules.SlotLimit(s.IsTown, s.IsCastle,
                         s.Town != null ? (int)s.Town.Prosperity : 0,
                         s.Village != null ? (int)s.Village.Hearth : 0);
                     if (sb.UsedSlots >= limit) continue;
-
-                    // v4.107: 评分选最优可建项
-                    BuildDef bestDef = null;
-                    float bestScore = -1f;
+                    BuildPlan bestHere = null;
                     foreach (var def in BuildDefs.All)
                     {
                         if (def == null) continue;
@@ -88,25 +208,53 @@ namespace FeudalInternalAffairs
                         foreach (var q in sb.Queue) if (q != null && q.DefId == def.Id) { dup = true; break; }
                         if (dup) continue;
                         float sc = ScoreBuild(def, k);
-                        if (sc > bestScore) { bestScore = sc; bestDef = def; }
+                        if (bestHere == null || sc > bestHere.Score)
+                            bestHere = new BuildPlan { SettlementId = s.StringId, DefId = def.Id, Mode = mode, Score = sc };
                     }
-                    if (bestDef == null) continue;
-
-                    // v4.108: 档位按国库与建设性格选择(木/石/铁, 越高档造价与加成越高)
-                    float gold0 = WarEconomy.GoldOfPublic(k);
-                    int dev0 = AiPersonality.DevelopmentOf(k);
-                    BuildMode mode = BuildMode.Wood;
-                    if (gold0 > 8000f && dev0 >= 75) mode = BuildMode.Iron;
-                    else if (gold0 > 4000f && dev0 >= 60) mode = BuildMode.Stone;
-                    int work = BuildDefs.WorkHours(bestDef, mode);
-                    float cost = work * 0.08f;
-                    float gold = WarEconomy.GoldOfPublic(k);
-                    if (gold < 600f + cost) return;   // 国库太薄先不建(留着军费)
-                    WarEconomy.SpendPublic(k, cost);
-                    sb.Queue.Add(new QueuedBuild(bestDef.Id, work, mode));
-                    DLog.Info("AI 建设: " + k.Name + " 在 " + s.Name + " 开建 " + bestDef.Name + "[" + BuildDefs.ModeName(mode) + "](费 " + (int)cost + ")");
-                    return;
+                    if (bestHere != null) perSettlement.Add(bestHere);
                 }
+                perSettlement.Sort(delegate (BuildPlan x, BuildPlan y) { return y.Score.CompareTo(x.Score); });
+                var top = new List<BuildPlan>();
+                for (int i = 0; i < perSettlement.Count && i < 3; i++) top.Add(perSettlement[i]);
+                if (top.Count > 0) _plans[k.StringId] = top;
+                else _plans.Remove(k.StringId);
+            }
+            catch { }
+        }
+
+        // 日结: 消费月结计划(校验槽位/国库后排队; 排队成功即报告统一月志)
+        private static void TryQueueOneBuild(Kingdom k, int day)
+        {
+            try
+            {
+                List<BuildPlan> list;
+                if (!_plans.TryGetValue(k.StringId, out list) || list == null || list.Count == 0) return;
+                var plan = list[0];
+                Settlement s = null;
+                foreach (var x in k.Settlements)
+                    if (x != null && x.StringId == plan.SettlementId) { s = x; break; }
+                if (s == null) { list.RemoveAt(0); return; }
+                var sb = EconomyWorld.Of(s.StringId);
+                if (sb == null) { list.RemoveAt(0); return; }
+                if (sb.Queue.Count >= 2) return;
+                int limit = BuildingRules.SlotLimit(s.IsTown, s.IsCastle,
+                    s.Town != null ? (int)s.Town.Prosperity : 0,
+                    s.Village != null ? (int)s.Village.Hearth : 0);
+                if (sb.UsedSlots >= limit) { list.RemoveAt(0); return; }
+                var def = BuildDefs.Get(plan.DefId);
+                if (def == null || !BuildDefs.AllowedAt(def, s.IsVillage, s.IsCastle, s.IsTown)) { list.RemoveAt(0); return; }
+                if (sb.Find(def.Id) != null) { list.RemoveAt(0); return; }
+                foreach (var q in sb.Queue) if (q != null && q.DefId == def.Id) return;
+
+                int work = BuildDefs.WorkHours(def, plan.Mode);
+                float cost = work * 0.08f;
+                float gold = WarEconomy.GoldOfPublic(k);
+                if (gold < 600f + cost) return;   // 国库太薄先不建(留着军费)
+                WarEconomy.SpendPublic(k, cost);
+                sb.Queue.Add(new QueuedBuild(def.Id, work, plan.Mode));
+                AiEconomyLog.Add(k, "建楼=" + def.Name + "@" + (s.Name != null ? s.Name.ToString() : s.StringId));
+                list.RemoveAt(0);
+                if (list.Count == 0) _plans.Remove(k.StringId);
             }
             catch { }
         }
@@ -155,6 +303,8 @@ namespace FeudalInternalAffairs
                         LastTerritory[k.StringId] = cur;
                     }
                     catch { }
+                    // v4.22x: 月结规划建设(评分/遍历全在月结; 日结只消费缓存; 危机国清空计划)
+                    try { if (WarEconomy.IsCrisis(k)) _plans.Remove(k.StringId); else PlanOne(k); } catch { }
                     if (WarEconomy.IsCrisis(k)) continue;   // 危机国不扩军
                     if (k.Culture == null) continue;
                     MobileParty best;
@@ -173,18 +323,14 @@ namespace FeudalInternalAffairs
                     if (MBRandom.RandomFloat > agg / 100f * 0.7f * mult) continue;
                     int n = (int)((5 + agg / 10) * (wars > 0 ? 1.5f : 1f));   // 战时补得更多
                     float gold = WarEconomy.GoldOfPublic(k);
-                    // v4.116/4.117: 富国 + 重视建设 -> 补精锐(T3; 国库很厚则 T4), 花费翻倍/三倍
-                    int wantTier = 0;
-                    if (gold > 12000f && AiPersonality.DevelopmentOf(k) >= 70) wantTier = 4;
-                    else if (gold > 5000f && AiPersonality.DevelopmentOf(k) >= 60) wantTier = 3;
-                    float cost = n * (wantTier >= 4 ? 60f : (wantTier == 3 ? 40f : 20f));
+                    float cost = n * 20f;
                     if (gold < 1000f + cost) continue;
                     WarEconomy.SpendPublic(k, cost);
-                    if (wantTier > 0) DefArmy.AddEliteCompositionPublic(best.MemberRoster, k.Culture, n, wantTier);
-                    else DefArmy.AddCompositionPublic(best.MemberRoster, k.Culture, n);
+                    DefArmy.AddCompositionPublic(best.MemberRoster, k.Culture, n);
                     DLog.Force("AI 扩军: " + k.Name + " 为 " + MapSelection.NameOf(best) + " 补充 " + n
-                        + (wantTier >= 4 ? " 顶级精锐" : (wantTier == 3 ? " 精锐" : " 兵")) + "(费 " + (int)cost + ")");
+                        + " 兵(费 " + (int)cost + ")");
                 }
+                try { DefArmyAi.RailTransportAi.Sweep(day); } catch { }   // v4.21x: 和平/停战 -> 关闭 AI 铁路运输
             }
             catch (Exception ex) { DLog.Force("AI 扩军月结异常: " + ex.Message); }
         }
@@ -247,74 +393,114 @@ namespace FeudalInternalAffairs
                     if (pk != null && ReferenceEquals(pk, k)) continue;
                     if (WarEconomy.IsCrisis(k)) continue;
                     int wars = 0;
-                    float enemyStr = 0f;
-                    try
-                    {
-                        foreach (var x in Kingdom.All)
-                        {
-                            if (x == null || x.IsEliminated || ReferenceEquals(x, k)) continue;
-                            bool war = false;
-                            try { war = k.IsAtWarWith(x); } catch { }
-                            if (!war) continue;
-                            wars++;
-                            enemyStr += StrengthOfKingdom(x);
-                        }
-                    }
-                    catch { }
+                    try { foreach (var x in Kingdom.All) { if (x == null || x.IsEliminated) continue; if (k.IsAtWarWith(x)) wars++; } } catch { }
                     if (wars == 0) continue;
-                    int agg = AiPersonality.AggressionOf(k);
-                    if (MBRandom.RandomFloat > agg / 100f * 0.6f) continue;
 
                     var troops = FrontierPartyOf(k);
                     if (troops == null) continue;
-                    bool strong = StrengthOfParty(troops) >= enemyStr / Math.Max(1, wars) * 1.15f;
 
+                    // v4.149: 战争计划驱动(目标/角色/撤退), 取代即时散装评分
+                    var plan = WarPlans.MainOf(k, day);
+                    if (plan == null) continue;
+
+                    // 撤退止损: 不打无谓仗, 回防本土关键城
+                    if (plan.Retreating)
+                    {
+                        try { DefArmyAi.RailTransportAi.Disable(troops); } catch { }   // v4.21x: 撤退/回防关铁路运输
+                        if (WarPlans.TryRetreat(k, troops, day)) continue;
+                    }
+
+                    int agg = AiPersonality.AggressionOf(k);
+                    if (MBRandom.RandomFloat > agg / 100f * 0.6f + 0.2f) continue;   // 计划驱动: 有目标的国更主动
+
+                    // 角色决定目标
                     Settlement target = null;
                     bool isVillage = false;
-                    float bd = float.MaxValue;
-                    var pos = troops.Position.ToVec2();
-                    foreach (var env in Kingdom.All)
+                    switch (plan.Role)
                     {
-                        if (env == null || env.IsEliminated || ReferenceEquals(env, k)) continue;
-                        bool war = false;
-                        try { war = k.IsAtWarWith(env); } catch { }
-                        if (!war) continue;
-                        foreach (var s in env.Settlements)
-                        {
-                            if (s == null) continue;
-                            bool village = s.IsVillage;
-                            if (!strong && !village) continue;   // 军力不占优则只打村庄
-                            float dx = s.Position.X - pos.X, dy = s.Position.Y - pos.Y;
-                            float dist = (float)Math.Sqrt(dx * dx + dy * dy);
-                            float value = 1f;
-                            int def = 0;
-                            try
+                        case 2:   // 掠夺: 打村庄断敌补给
+                            target = WarPlans.Find(plan.RaidIds.Count > 0 ? plan.RaidIds[0] : null);
+                            isVillage = target != null;
+                            break;
+                        case 3:   // 防守: 回防关键城(不进攻)
+                            try { DefArmyAi.RailTransportAi.Disable(troops); } catch { }   // v4.21x
+                            if (WarPlans.TryRetreat(k, troops, day)) continue;
+                            break;
+                        case 4:   // 支援: 跟随主攻国最强部队
                             {
-                                if (s.Town != null && s.Town.GarrisonParty != null)
+                                var leader = FindAllyMainForce(k, plan);
+                                if (leader != null)
                                 {
-                                    def = s.Town.GarrisonParty.MemberRoster.TotalManCount;
-                                    value += s.Town.Prosperity / 100f;
+                                    try { troops.SetMoveEscortParty(leader, MobileParty.NavigationType.Default, false); } catch { }
+                                    try { DefArmyAi.RailTransportAi.EnableForMarch(troops, leader.Position.ToVec2()); } catch { }   // v4.21x
+                                    continue;
                                 }
-                                if (village) value += 0.3f;
                             }
-                            catch { }
-                            // v4.112: 战略目标评分 = 价值高 / 防守弱 / 距离近 优先
-                            float score = (dist + 1f) / (1f + def / 150f) / value;
-                            if (score < bd) { bd = score; target = s; isVillage = village; }
-                        }
+                            break;
+                        default:  // 0 主攻 / 1 助攻: 打攻城目标
+                            {
+                                string tid = null;
+                                if (plan.TargetIds.Count > 0)
+                                    tid = plan.Role == 1 && plan.TargetIds.Count > 1 ? plan.TargetIds[1] : plan.TargetIds[0];
+                                if (tid == null && plan.RaidIds.Count > 0) { tid = plan.RaidIds[0]; isVillage = true; }
+                                target = WarPlans.Find(tid);
+                            }
+                            break;
                     }
                     if (target == null) continue;
+
+                    // 兵力校验: 打城需要接近所需兵力(不足则改打村庄/等集结)
+                    if (!isVillage)
+                    {
+                        float have = StrengthOfParty(troops);
+                        if (have < plan.NeededTroops * 0.7f)
+                        {
+                            // 兵力不足: 合流等待
+                            if (WarPlans.TryRegroup(k, troops, day)) continue;
+                            // 合流无果 -> 只打村庄
+                            var raid = WarPlans.Find(plan.RaidIds.Count > 0 ? plan.RaidIds[0] : null);
+                            if (raid == null) continue;
+                            target = raid; isVillage = true;
+                        }
+                    }
                     try
                     {
                         if (isVillage) troops.SetMoveRaidSettlement(target, MobileParty.NavigationType.Default, false);
                         else troops.SetMoveBesiegeSettlement(target, MobileParty.NavigationType.Default);
-                        DLog.Force("AI 进攻: " + k.Name + " 的 " + MapSelection.NameOf(troops)
+                        try { DefArmyAi.RailTransportAi.EnableForMarch(troops, target.Position.ToVec2()); } catch { }   // v4.21x: 战时长途行军自动开铁路运输
+                        DLog.Force("AI 进攻: " + k.Name + "[" + WarPlans.RoleName(plan.Role) + "] 的 " + MapSelection.NameOf(troops)
                             + (isVillage ? " 前往掠夺 " : " 前往围攻 ") + (target.Name != null ? target.Name.ToString() : target.StringId));
                     }
                     catch (Exception ex) { DLog.Info("AI 进攻指令失败: " + ex.Message); }
                 }
             }
             catch (Exception ex) { DLog.Force("AI 进攻月结异常: " + ex.Message); }
+        }
+
+        // 支援角色: 找盟友阵营里最强的主攻部队
+        private static MobileParty FindAllyMainForce(Kingdom k, WarPlan plan)
+        {
+            try
+            {
+                MobileParty best = null;
+                float bestStr = 0f;
+                foreach (var p in MobileParty.All)
+                {
+                    if (p == null || !p.IsActive) continue;
+                    if (p.IsGarrison || p.IsMilitia || p.IsCaravan) continue;
+                    if (p.LeaderHero == null || DefArmy.IsDefArmyParty(p)) continue;
+                    if (ReferenceEquals(p.MapFaction, k)) continue;
+                    bool ally = false;
+                    try { ally = Diplomacy.IsAlly(k, p.MapFaction as Kingdom); } catch { }
+                    if (!ally) continue;
+                    bool sameEnemy = false;
+                    try { sameEnemy = p.MapFaction.IsAtWarWith(WarPlans.Find(plan.MainTargetId) != null ? WarPlans.Find(plan.MainTargetId).MapFaction : null); } catch { }
+                    float s = p.MemberRoster.TotalManCount;
+                    if (s > bestStr) { bestStr = s; best = p; }
+                }
+                return best;
+            }
+            catch { return null; }
         }
 
         private static float StrengthOfParty(MobileParty p)
@@ -385,6 +571,7 @@ namespace FeudalInternalAffairs
                     {
                         try { joiners[i].Army = army; n++; } catch { }
                     }
+                    if (target != null) { try { DefArmyAi.RailTransportAi.EnableForMarch(leader, target.Position.ToVec2()); } catch { } }   // v4.21x
                     DLog.Force("AI 集结军团: " + k.Name + " " + MapSelection.NameOf(leader) + " 为帅, " + n + " 支部队加入"
                         + (target != null && target.Name != null ? (", 目标 " + target.Name.ToString()) : ""));
                 }
@@ -418,14 +605,31 @@ namespace FeudalInternalAffairs
                     catch { }
                     if (besieged != null)
                     {
-                        var defenders = NearestParties(k, besieged, 2, 220f);
+                        // v4.149: 解围兵力评估 —— 援军不足优势就不送(避免被逐个击破), 改为集结更多部队
+                        var defenders = NearestParties(k, besieged, 4, 260f);
+                        float relief = 0f;
+                        for (int i = 0; i < defenders.Count; i++) relief += StrengthOfParty(defenders[i]);
+                        if (WarPlans.ShouldHoldInstead(k, besieged, relief))
+                        {
+                            // 劣势: 只派 1 支去牵制(不硬冲), 其余原地待命
+                            if (defenders.Count > 0)
+                            {
+                                try { if (!DefArmy.CanAutoMove(defenders[0])) continue; } catch { }   // v4.245: 玩家接管的军团不参与 AI 自动解围
+                                try { defenders[0].SetMoveGoToSettlement(besieged, MobileParty.NavigationType.Default, false); } catch { }
+                                DLog.Info("AI 解围(劣势牵制): " + k.Name + " 仅派 1 支(援军 " + (int)relief + " 不足)");
+                            }
+                            continue;
+                        }
                         for (int i = 0; i < defenders.Count; i++)
                         {
+                            // v4.245: 玩家接管的国防军军团不参与 AI 自动解围
+                            try { if (!DefArmy.CanAutoMove(defenders[i])) continue; } catch { }
                             try { defenders[i].SetMoveGoToSettlement(besieged, MobileParty.NavigationType.Default, false); } catch { }
+                            try { DefArmyAi.RailTransportAi.EnableForMarch(defenders[i], besieged.Position.ToVec2()); } catch { }   // v4.21x: 解围长途自动开铁路运输
                         }
                         if (defenders.Count > 0)
                             DLog.Force("AI 解围: " + k.Name + " 派 " + defenders.Count + " 支部队增援 "
-                                + (besieged.Name != null ? besieged.Name.ToString() : "?"));
+                                + (besieged.Name != null ? besieged.Name.ToString() : "?") + "(援军 " + (int)relief + ")");
                         continue;   // 每日每国最多一次响应
                     }
 
@@ -456,6 +660,7 @@ namespace FeudalInternalAffairs
                         var defenders = NearestParties(k, threat, 1, 260f);
                         if (defenders.Count > 0)
                         {
+                            try { if (!DefArmy.CanAutoMove(defenders[0])) return; } catch { }   // v4.245: 玩家接管的军团不自动回防
                             try { defenders[0].SetMoveGoToSettlement(threat, MobileParty.NavigationType.Default, false); } catch { }
                             DLog.Info("AI 回防: " + k.Name + " 派 " + MapSelection.NameOf(defenders[0])
                                 + " 回防 " + (threat.Name != null ? threat.Name.ToString() : "?"));
@@ -606,8 +811,8 @@ namespace FeudalInternalAffairs
                     WarEconomy.SpendPublic(k, cost);
                     try { needTown.ItemRoster.AddToCounts(grain, buy); } catch { }   // 入仓(军粮/民食系统读这里)
                     if (me != null) me.Stock = Math.Max(0f, me.Stock - buy);         // 市场买走 -> 供给减少(价格上行)
-                    DLog.Force("AI 经济: " + k.Name + " 购入 " + buy + " 粮(费 " + (int)cost + ", "
-                        + (war ? "战时储备" : "饥荒自救") + ", " + (needTown.Name != null ? needTown.Name.ToString() : "?") + ")");
+                    AiEconomyLog.Add(k, "购粮=" + buy + "@" + (needTown.Name != null ? needTown.Name.ToString() : "?")
+                        + (war ? "(战备)" : "(自救)"));
                 }
             }
             catch (Exception ex) { DLog.Force("AI 经济月结异常: " + ex.Message); }

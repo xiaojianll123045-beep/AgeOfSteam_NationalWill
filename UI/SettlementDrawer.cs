@@ -30,6 +30,7 @@ namespace FeudalInternalAffairs
                 PanelScreen.OpenPanel(Key, Movie, _vm, null,
                     delegate (float dt) { if (_vm != null) _vm.TickAnim(dt); OnTick(dt); },
                     delegate { if (_vm != null) _vm.ClosePanelAnim(560f); });
+                PanelScreen.SetScrollHandler(Key, delegate (int dir) { if (_vm != null) { _vm.ScrollStep(dir); RegisterSpots(); } });
                 RegisterSpots();
             }
             catch (Exception ex) { DLog.Force("打开抽屉失败: " + ex.Message); }
@@ -74,7 +75,7 @@ namespace FeudalInternalAffairs
                     foreach (var row in _vm.Rows)
                     {
                         if (row == null) continue;
-                        float y = 174f + i * 54f;
+                        float y = 224f + i * 54f;
                         if (y > sh - 120f) break;
                         var r = row;
                         PanelScreen.AddSpot(448f, y + 6f, 42f, 42f, r.ExecuteRemove);          // −

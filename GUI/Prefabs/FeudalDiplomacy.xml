@@ -9,20 +9,21 @@
         <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="540" HeightSizePolicy="StretchToParent"
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
           <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_frame" />
 
             <!-- 不透明底板 -->
-            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6" Sprite="BlankWhiteSquare" Color="#100C08EE" />
 
             <!-- 标题栏 -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" VerticalAlignment="Top"
-                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000055">
+                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="fia_ui_banner_red">
               <Children>
                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="#C9A227FF" Text="外交" />
+                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="#E9CD74FF" Text="外交" />
                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="38"
-                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="ButtonBrush1"
+                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="Fia.Button"
                               Command.Click="ExecuteClose" UpdateChildrenStates="true">
                   <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="24" Text="X" />
                   </Children>
                 </ButtonWidget>
@@ -31,7 +32,7 @@
 
             <!-- 概览条 -->
             <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="500" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="24" MarginTop="88" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#C8B98FFF" Text="@SummaryText" />
+                        MarginLeft="24" MarginTop="88" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#D8C9A0FF" Text="@SummaryText" />
 
             <!-- 页签 -->
             <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="40"
@@ -53,19 +54,19 @@
               </Children>
             </Widget>
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
-                    MarginTop="166" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF59" />
+                    MarginTop="166" MarginLeft="22" MarginRight="22" Sprite="fia_ui_divider" />
 
             <!-- 选中详情卡 -->
             <Widget IsVisible="@HasSelection" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="122" VerticalAlignment="Top"
-                    MarginTop="178" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000055" />
+                    MarginTop="178" MarginLeft="14" MarginRight="14" Sprite="fia_ui_banner_red" />
             <TextWidget IsVisible="@HasSelection" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="30" MarginTop="188" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#F0E4C8FF" Text="@SelName" />
             <TextWidget IsVisible="@HasSelection" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="30" MarginTop="216" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#C8B98FFF" Text="@SelRuler" />
+                        MarginLeft="30" MarginTop="216" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#D8C9A0FF" Text="@SelRuler" />
             <TextWidget IsVisible="@HasSelection" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                         MarginLeft="30" MarginTop="240" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@SelRelationColor" Text="@SelRelation" />
             <TextWidget IsVisible="@HasSelection" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="30" MarginTop="266" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#C8B98FFF" Text="@SelStance" />
+                        MarginLeft="30" MarginTop="266" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#D8C9A0FF" Text="@SelStance" />
             <ListPanel IsVisible="@HasSelection" DataSource="{SelPips}" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="300" MarginTop="244"
                        StackLayout.LayoutMethod="HorizontalLeftToRight">
@@ -91,13 +92,13 @@
 
             <!-- 列表表头 -->
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="36" MarginTop="332" Brush="MapTextBrushGal" Brush.FontSize="13" Brush.FontColor="#7A7060FF" Text="国家" />
+                        MarginLeft="36" MarginTop="332" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF" Text="国家" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="190" MarginTop="332" Brush="MapTextBrushGal" Brush.FontSize="13" Brush.FontColor="#7A7060FF" Text="关系" />
+                        MarginLeft="190" MarginTop="332" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF" Text="关系" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="330" MarginTop="332" Brush="MapTextBrushGal" Brush.FontSize="13" Brush.FontColor="#7A7060FF" Text="状态" />
+                        MarginLeft="330" MarginTop="332" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF" Text="状态" />
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                        MarginLeft="424" MarginTop="332" Brush="MapTextBrushGal" Brush.FontSize="13" Brush.FontColor="#7A7060FF" Text="行动" />
+                        MarginLeft="424" MarginTop="332" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#7A7060FF" Text="行动" />
 
             <!-- 国家列表 -->
             <ListPanel DataSource="{Rows}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
@@ -105,14 +106,15 @@
                        StackLayout.LayoutMethod="VerticalTopToBottom">
               <ItemTemplate>
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="54"
-                        Sprite="ArmyManagement\voter_tuple" Color="#FFFFFFE6">
+                        Sprite="fia_ui_row" Color="#FFFFFFE6">
                   <Children>
                     <Widget WidthSizePolicy="Fixed" SuggestedWidth="3" HeightSizePolicy="StretchToParent"
                             HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="2" Sprite="BlankWhiteSquare" Color="@AccentColor" />
                     <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="370"
-                                  HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="14" Brush="ButtonBrush2"
+                                  HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="14" Brush="Fia.Button"
                                   Command.Click="ExecuteSelect" UpdateChildrenStates="true">
                       <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                         <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                    HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="10" MarginRight="10"
                                    StackLayout.LayoutMethod="VerticalTopToBottom">
@@ -120,14 +122,24 @@
                             <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                        StackLayout.LayoutMethod="HorizontalLeftToRight">
                               <Children>
+                                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="28" SuggestedHeight="28" VerticalAlignment="Center" MarginRight="8" Sprite="@RelationIcon" />
                                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
                                             Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#F0E4C8FF" Text="@Name" />
                                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
-                                            MarginLeft="24" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@RelationColor" Text="@RelationFull" />
+                                            MarginLeft="24" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@RelationColor" Text="@RelationText" />
+                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" VerticalAlignment="Center"
+                                            MarginLeft="8" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="@RelationColor" Text="@RelationDesc" />
                               </Children>
                             </ListPanel>
-                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left"
-                                        MarginTop="2" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="@StanceColor" Text="@StanceText" />
+                            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left"
+                                       StackLayout.LayoutMethod="HorizontalLeftToRight">
+                              <Children>
+                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                            MarginTop="2" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="@StanceColor" Text="@StanceText" />
+                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                            MarginTop="2" MarginLeft="14" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#D8C9A0FF" Text="@StrengthText" />
+                              </Children>
+                            </ListPanel>
                           </Children>
                         </ListPanel>
                       </Children>
@@ -145,17 +157,27 @@
 
             <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                           SuggestedWidth="122" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                          MarginLeft="26" MarginBottom="24" Brush="ButtonBrush2" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+                          MarginLeft="26" MarginBottom="24" Brush="Fia.Button" Command.Click="ExecuteClose" UpdateChildrenStates="true">
               <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Text="关闭" />
+              </Children>
+            </ButtonWidget>
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                          SuggestedWidth="150" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                          MarginLeft="340" MarginBottom="24" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="条约" />
               </Children>
             </ButtonWidget>
 
             <!-- v5.0-P27: 权力集团 -->
             <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                           SuggestedWidth="150" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                          MarginLeft="160" MarginBottom="24" Brush="ButtonBrush2" UpdateChildrenStates="true">
+                          MarginLeft="160" MarginBottom="24" Brush="Fia.Button" UpdateChildrenStates="true">
               <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8C33AFF" Text="权力集团" />
               </Children>
             </ButtonWidget>

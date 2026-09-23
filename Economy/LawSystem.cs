@@ -15,7 +15,8 @@ namespace FeudalInternalAffairs
         internal string[] Tiers = new string[4];
         internal string[] Effect = new string[4];
         internal int[][] Att = new int[4][];        // [档][集团 8]
-        internal int Legacy = -1;                   // 旧 6 法令索引
+        internal int Legacy = -1;                   // 旧 6 部法映射
+        internal string Scope;                      // v4.186: 空 = 通用(任意地图/国家可用); "c:文化id" / "k:王国id" = 特有(硬编码)
     }
 
     // 法律体系(文档 24.3, v4.133 按 V3 官方重写): 19 部法 × 3-4 档, 3 大类(权力/经济/民权)
@@ -25,7 +26,7 @@ namespace FeudalInternalAffairs
         // 集团索引: 0 王室 1 大贵族 2 地方贵族 3 教会 4 商帮 5 行会 6 农民 7 军队
         internal static readonly string[] CatOrder = { "权力", "经济", "民权" };
 
-        internal const int LawCount = 23;
+        internal const int LawCount = 29;   // v4.186: 23 通用 + 6 特有(按文化)
 
         // 索引
         internal const int LPolity = 0, LFranchise = 1, LSuccession = 2, LJustice = 3, LBureaucracy = 4, LChurch = 5;
@@ -424,9 +425,9 @@ namespace FeudalInternalAffairs
                     Tiers = new[] { "无学", "教会学堂", "公立学堂" },
                     Effect = new[]
                     {
-                        "无学: 识字无增长, 学者/商帮不满",
-                        "教会学堂: 识字 +0.1%/月, 教会力量 +10%",
-                        "公立学堂: 识字 +0.25%/月, 地方贵族/商帮满意, 教会不满"
+                        "无学: 教育机会无加成, 学者/商帮不满",
+                        "教会学堂: 教育机会 +10%, 教会力量 +10%",
+                        "公立学堂: 教育机会 +12.5%, 地方贵族/商帮满意, 教会不满"
                     },
                     Att = new[]
                     {
@@ -487,15 +488,149 @@ namespace FeudalInternalAffairs
                         A(0, 0, 0, -10, -20, -10, 20, 0),
                         A(0, 0, 0, 20, 0, 0, 0, 0)
                     }
+                },
+
+                // ================= 特有法律(v4.186, 文档 24.12 用户要求) =================
+                // 硬编码: 按文化归属生效(Scope="c:文化id"); 未编码的国家/地图只用上面的通用 23 部
+                new LawDef
+                {
+                    Id = "senate", Name = "元老院传统(特有)", Cat = "权力", Scope = "c:empire",
+                    Tiers = new[] { "废弃元老院", "恢复元老院", "大元老院" },
+                    Effect = new[]
+                    {
+                        "废弃: 权威 +2/日, 权贵与地方不满",
+                        "恢复: 合法性 +8, 权贵满意, 权威 -1/日",
+                        "大元老院: 合法性 +15, 立法成功 +10%, 王权不满"
+                    },
+                    Att = new[]
+                    {
+                        A(10, -12, -8, 0, 0, 0, 0, 0),
+                        A(-4, 12, 8, 4, 4, 4, 4, -2),
+                        A(-10, 16, 12, 6, 6, 6, 8, -6)
+                    }
+                },
+                new LawDef
+                {
+                    Id = "chivalry", Name = "采邑骑士(特有)", Cat = "权力", Scope = "c:vlandia",
+                    Tiers = new[] { "解散骑士团", "册封骑士", "大采邑制" },
+                    Effect = new[]
+                    {
+                        "解散: 军队不满, 税收 +3%",
+                        "册封: 军队满意 +12, 贵族忠诚 +5, 维持费 +10%",
+                        "大采邑: 骑兵战力 +15%, 王权 -1/日, 税收 +5%"
+                    },
+                    Att = new[]
+                    {
+                        A(4, -8, -4, 0, 6, 0, 4, -16),
+                        A(-2, 10, 8, 4, 0, 0, -4, 14),
+                        A(-10, 16, 12, 6, -4, -4, -8, 18)
+                    }
+                },
+                new LawDef
+                {
+                    Id = "veche", Name = "村社大会(特有)", Cat = "权力", Scope = "c:sturgia",
+                    Tiers = new[] { "取缔村社", "承认村社", "大村社" },
+                    Effect = new[]
+                    {
+                        "取缔: 权威 +2/日, 农民强烈不满",
+                        "承认: 农民满意 +14, 地方自治, 税收 -3%",
+                        "大村社: 农民/地方满意 +20, 治安 +10%, 王权 -2/日"
+                    },
+                    Att = new[]
+                    {
+                        A(12, 0, -6, 0, 0, 0, -18, 0),
+                        A(-4, 0, 10, 2, 0, 4, 14, 0),
+                        A(-12, -4, 16, 4, -2, 6, 20, -2)
+                    }
+                },
+                new LawDef
+                {
+                    Id = "druids", Name = "德鲁伊教团(特有)", Cat = "权力", Scope = "c:battania",
+                    Tiers = new[] { "禁止教团", "容忍教团", "国教教团" },
+                    Effect = new[]
+                    {
+                        "禁止: 教会不满, 同化 +20%",
+                        "容忍: 教会满意 +10, 满意度 +5",
+                        "国教: 教会满意 +18, 同化 +40%, 异文化 -12 满意度"
+                    },
+                    Att = new[]
+                    {
+                        A(6, 0, 0, -18, 0, 0, -6, 0),
+                        A(0, 0, 4, 10, 0, 0, 6, 0),
+                        A(-2, 0, 8, 18, -4, -2, 4, 2)
+                    }
+                },
+                new LawDef
+                {
+                    Id = "tribal", Name = "部族联盟(特有)", Cat = "权力", Scope = "c:khuzait",
+                    Tiers = new[] { "拆分部族", "部族联盟", "大汗集权" },
+                    Effect = new[]
+                    {
+                        "拆分: 骑兵战力 -10%, 权威 +2/日",
+                        "联盟: 骑兵战力 +10%, 军队满意 +10, 税收 -2%",
+                        "集权: 骑兵战力 +20%, 权威 +3/日, 部族不满"
+                    },
+                    Att = new[]
+                    {
+                        A(10, -10, 0, 0, 0, 0, 0, -14),
+                        A(0, 8, 4, 2, 4, 4, 6, 10),
+                        A(14, -14, -8, 0, 0, 0, -8, -6)
+                    }
+                },
+                new LawDef
+                {
+                    Id = "caravan_law", Name = "沙漠商队法(特有)", Cat = "权力", Scope = "c:aserai",
+                    Tiers = new[] { "封闭商道", "保护商队", "商队帝国" },
+                    Effect = new[]
+                    {
+                        "封闭: 商帮强烈不满, 治安 +10%",
+                        "保护: 商帮满意 +14, 贸易容量 +10%",
+                        "商队帝国: 商帮满意 +20, 贸易容量 +25%, 关税 +5%"
+                    },
+                    Att = new[]
+                    {
+                        A(4, 0, 0, 4, -18, -6, 0, 2),
+                        A(0, 0, 0, 0, 14, 8, 2, 0),
+                        A(-4, -4, 0, -2, 20, 10, 4, 0)
+                    }
                 }
             };
-            DLog.Force("法律: 定义表就绪 共 " + _defs.Length + " 部(3 大类, 对照 V3 官方)");
+            DLog.Force("法律: 定义表就绪 共 " + _defs.Length + " 部(3 大类, 对经典)");
         }
 
         internal static LawDef Def(int i)
         {
             EnsureDefs();
             return (i >= 0 && i < _defs.Length) ? _defs[i] : null;
+        }
+
+        // v4.186: 法律是否适用于当前国家 —— 空 Scope = 通用; "c:xxx" = 该文化特有; "k:xxx" = 该王国特有
+        internal static bool IsAvailable(int i)
+        {
+            try
+            {
+                var d = Def(i);
+                if (d == null) return false;
+                if (string.IsNullOrEmpty(d.Scope)) return true;
+                var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                if (pk == null) return false;
+                if (d.Scope.StartsWith("c:", StringComparison.Ordinal))
+                {
+                    string cid = d.Scope.Substring(2);
+                    return pk.Culture != null && pk.Culture.StringId == cid;
+                }
+                if (d.Scope.StartsWith("k:", StringComparison.Ordinal))
+                    return pk.StringId == d.Scope.Substring(2);
+                return false;
+            }
+            catch { return false; }
+        }
+
+        // 该法律是否特有(UI 标记用)
+        internal static bool IsSpecial(int i)
+        {
+            var d = Def(i);
+            return d != null && !string.IsNullOrEmpty(d.Scope);
         }
 
         internal static int IndexOf(string id)
@@ -634,6 +769,7 @@ namespace FeudalInternalAffairs
             {
                 var d = Def(law);
                 if (d == null) return "法律不存在";
+                if (!IsAvailable(law)) return d.Name + " 不适用于当前国家(特有法律)";   // v4.186
                 if (target < 0) target = 0;
                 if (target > TierCount(law) - 1) target = TierCount(law) - 1;
                 if (target == Level(law)) return d.Name + " 当前已是 " + TierName(law, target);
@@ -1007,22 +1143,24 @@ namespace FeudalInternalAffairs
             try { return 1f + 0.04f * Level(LLevy); } catch { return 1f; }
         }
 
-        internal static float LiteracyMonthly()   // 教育 + 平民权利 + 言论 + 科举
+        // v4.148 V3 官方: 学校法不再直接加识字率, 而是提升"教育机会"(宗教学校 +10% / 公立学校 +12.5%)
+        //   识字率只通过 Pops.EducationWeekly 向教育机会动态靠拢(长期演化)
+        internal static float EducationAccessMult()
         {
             try
             {
-                float r = 0f;
+                float m = 1f;
                 switch (Level(LEducation))
                 {
-                    case 1: r += 0.001f; break;
-                    case 2: r += 0.0025f; break;
+                    case 1: m += 0.10f; break;         // 教会学堂(宗教学校): +10%
+                    case 2: m += 0.125f; break;        // 公立学堂(公立学校): +12.5%
                 }
-                r += 0.0005f * Level(LRights);
-                if (Level(LSpeech) >= 2) r += 0.001f;
-                if (Level(LBureaucracy) >= 2) r += 0.001f;
-                return r;
+                m += 0.02f * Level(LRights);           // 平民权利: 教育普及
+                if (Level(LSpeech) >= 2) m += 0.05f;   // 言论自由: 知识传播
+                if (Level(LBureaucracy) >= 2) m += 0.05f;  // 官僚(科举): 教育机会
+                return m;
             }
-            catch { return 0f; }
+            catch { return 1f; }
         }
 
         internal static float WorkforceBonus()    // 妇女权利: 劳动力比例加成
@@ -1109,14 +1247,13 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                float lit = LiteracyMonthly();
-                if (lit > 0f) Pops.ShiftLiteracy(lit);
+                // v4.148: 识字率不再每月直加, 改由"教育机会"驱动(Pops.EducationWeekly 向教育机会靠拢)
                 int cost = WelfareMonthlyCost();
                 if (cost > 0)
                 {
                     try { EconomyWorld.TreasurySpend(cost); Fiscal.AddCourt(cost); } catch { }
                 }
-                DLog.Force("法律月结: 识字 +" + lit.ToString("F3") + " 福利支出 " + cost);
+                DLog.Force("法律月结: 教育机会 ×" + EducationAccessMult().ToString("F3") + " 福利支出 " + cost);
             }
             catch { }
         }
@@ -1149,13 +1286,15 @@ namespace FeudalInternalAffairs
                 if (seg.Length > 1)
                 {
                     var lv = seg[1].Split(',');
-                    if (lv.Length == LawCount)
+                    if (lv.Length >= 19 && lv.Length <= LawCount)
                     {
-                        for (int i = 0; i < LawCount && i < lv.Length; i++)
+                        // v4.186: 兼容 19/23 部旧存档(新增的 6 部特有法从 0 档起)
+                        for (int i = 0; i < lv.Length && i < LawCount; i++)
                         {
                             int x;
                             if (int.TryParse(lv[i], out x)) _level[i] = Clamp(x, 0, TierCount(i) - 1);
                         }
+                        if (lv.Length != LawCount) DLog.Force("法律: " + lv.Length + " 部法存档已迁移到 " + LawCount + " 部");
                     }
                     else if (lv.Length == 11)
                     {

@@ -3,10 +3,24 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
 using TaleWorlds.Library;
 
 namespace FeudalInternalAffairs
 {
+    // v5.x: AI 权力集团(AI 侧独立数据, 不占用玩家的单集团流程/UI)
+    internal class AiBloc
+    {
+        internal string LeaderId;
+        internal string Name;
+        internal int Identity;
+        internal readonly List<string> Members = new List<string>();
+        internal float Cohesion = 30f;
+        internal float MandateProgress;
+        internal int Mandates;
+        internal readonly int[][] Principle = { new int[2], new int[2], new int[2] };   // [身份][原则]
+    }
+
     // 权力集团(文档 24.8; v4.138 照 V3 官方 Power_bloc 重做, 骑砍化):
     //   创建花 5000 第纳尔(v4.139: 国家意志无影响力概念, 用户要求走国库); 3 种身份(骑砍化自官方六身份);
     //   凝聚力 0-100(V3 Cohesion: 基础 30 - 成员×3 + 领袖实力/关系修正), 每周向目标 ±1;
@@ -26,9 +40,9 @@ namespace FeudalInternalAffairs
         internal static readonly string[] IdentityNames = { "贸易联盟", "军事同盟", "主权帝国" };
         internal static readonly string[] IdentityDesc =
         {
-            "贸易联盟: 领袖贸易容量 +25%, 成员关税 -50%(V3 Trade League)",
-            "军事同盟: 全体训练速度 +20%, 领袖威望 +10%(V3 Military Treaty)",
-            "主权帝国: 成员每月上贡, 附庸自由渴望 -5%(V3 Sovereign Empire)"
+            "贸易联盟: 领袖贸易容量 +25%, 成员关税 -50%(Trade League)",
+            "军事同盟: 全体训练速度 +20%, 领袖威望 +10%(Military Treaty)",
+            "主权帝国: 成员每月上贡, 附庸自由渴望 -5%(Sovereign Empire)"
         };
         // 原则(每身份 2 个, 3 档; 简化自官方列表)
         internal static readonly string[][] PrincipleNames =
@@ -391,6 +405,341 @@ namespace FeudalInternalAffairs
             try { return NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null; } catch { return null; }
         }
 
+        // ================= v5.x: AI 集团(AI 段; 创建/加入/升级/协作) =================
+        //   玩家单集团流程不变; AI 集团单独存续, 用于均势外交与战争协同。
+        private static readonly Dictionary<string, AiBloc> AiBlocs = new Dictionary<string, AiBloc>();
+        private static int _aiWeekDay = -9999;
+
+        private static Kingdom FindKingdomById(string id)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(id)) return null;
+                foreach (var k in Kingdom.All) if (k != null && k.StringId == id) return k;
+            }
+            catch { }
+            return null;
+        }
+
+        private static AiBloc AiBlocOf(string kingdomId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(kingdomId)) return null;
+                foreach (var kv in AiBlocs)
+                    if (kv.Value != null && kv.Value.Members.Contains(kingdomId)) return kv.Value;
+            }
+            catch { }
+            return null;
+        }
+
+        internal static bool AiSameBloc(Kingdom a, Kingdom b)
+        {
+            try
+            {
+                if (a == null || b == null) return false;
+                var ba = AiBlocOf(a.StringId);
+                return ba != null && ba.Members.Contains(b.StringId);
+            }
+            catch { return false; }
+        }
+
+        // 同集团成员正与 b 交战 -> 协同参战(供 AiDiplomacy 宣战权重)
+        internal static bool AiMateAtWarWith(Kingdom a, Kingdom b)
+        {
+            try
+            {
+                if (a == null || b == null) return false;
+                var ba = AiBlocOf(a.StringId);
+                if (ba == null) return false;
+                for (int i = 0; i < ba.Members.Count; i++)
+                {
+                    if (ba.Members[i] == b.StringId) continue;
+                    var m = FindKingdomById(ba.Members[i]);
+                    if (m == null) continue;
+                    bool war = false;
+                    try { war = m.IsAtWarWith(b); } catch { }
+                    if (war) return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        // 集团成员仍在交战且凝聚力足够 -> 不单独媾和
+        internal static bool AiShouldNotPeace(Kingdom a, Kingdom b)
+        {
+            try
+            {
+                if (a == null || b == null) return false;
+                var ba = AiBlocOf(a.StringId);
+                if (ba == null || ba.Cohesion < 40f) return false;
+                for (int i = 0; i < ba.Members.Count; i++)
+                {
+                    if (ba.Members[i] == a.StringId) continue;
+                    var m = FindKingdomById(ba.Members[i]);
+                    if (m == null) continue;
+                    bool war = false;
+                    try { war = m.IsAtWarWith(b); } catch { }
+                    if (war) return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static int AiRankOf(Kingdom k)
+        {
+            try
+            {
+                int rank = 1;
+                float mine = k.CurrentTotalStrength;
+                foreach (var x in Kingdom.All)
+                {
+                    if (x == null || x.IsEliminated || ReferenceEquals(x, k)) continue;
+                    if (x.CurrentTotalStrength > mine) rank++;
+                }
+                return rank;
+            }
+            catch { return 9; }
+        }
+
+        private static void RecomputeAiCohesion(AiBloc b)
+        {
+            try
+            {
+                float v = 30f;
+                v -= Math.Max(0, b.Members.Count - 1) * 3f;
+                var leader = FindKingdomById(b.LeaderId);
+                float all = 0f, my = 0f;
+                for (int i = 0; i < b.Members.Count; i++)
+                {
+                    var m = FindKingdomById(b.Members[i]);
+                    if (m == null) continue;
+                    float pow = m.CurrentTotalStrength;
+                    all += pow;
+                    if (ReferenceEquals(m, leader)) my = pow;
+                }
+                if (all > 0f) v += my / all * 20f;
+                b.Cohesion = LawSystem.ClampF(v, 0f, 100f);
+            }
+            catch { }
+        }
+
+        // 月度: AI 创建/加入/升级集团(由 AiAgenda 调用)
+        internal static void AiMonthly(Kingdom k, int day)
+        {
+            try
+            {
+                if (k == null || k.IsEliminated) return;
+                var mine = AiBlocOf(k.StringId);
+                if (mine == null)
+                {
+                    // 1) 加入现有 AI 集团
+                    AiBloc join = null;
+                    foreach (var kv in AiBlocs)
+                    {
+                        var b = kv.Value;
+                        if (b == null || b.Members.Count >= 5) continue;
+                        if (b.Members.Contains(k.StringId)) continue;
+                        var leader = FindKingdomById(b.LeaderId);
+                        if (leader == null) continue;
+                        bool war = false;
+                        try { war = k.IsAtWarWith(leader); } catch { }
+                        if (war) continue;
+                        if (Diplomacy.Get(k, leader) < 0) continue;
+                        join = b;
+                        break;
+                    }
+                    if (join != null && MBRandom.RandomFloat < 0.3f)
+                    {
+                        join.Members.Add(k.StringId);
+                        RecomputeAiCohesion(join);
+                        AiAgenda.LogDip(k, "加入 " + join.Name + "(成员 " + join.Members.Count + ")");
+                        return;
+                    }
+                    // 2) 创建(强国 + 目标明确; 全球同时只存一个 AI 集团)
+                    AiDirector.Goal goal = AiAgenda.GoalOf(k);
+                    if (AiBlocs.Count == 0 && AiRankOf(k) <= 3 && Decrees.AiAuthOf(k) >= 120f && MBRandom.RandomFloat < 0.2f)
+                    {
+                        int ident = goal == AiDirector.Goal.Military ? IdMilitary : (goal == AiDirector.Goal.Economy ? IdTrade : IdEmpire);
+                        var b = new AiBloc
+                        {
+                            LeaderId = k.StringId,
+                            Identity = ident,
+                            Name = (k.Name != null ? k.Name.ToString() : k.StringId) + " 的" + IdentityNames[ident]
+                        };
+                        b.Members.Add(k.StringId);
+                        Decrees.AiAuthSpend(k, 60f);
+                        AiBlocs[k.StringId] = b;
+                        AiAgenda.LogDip(k, "创建" + IdentityNames[ident]);
+                    }
+                    return;
+                }
+                // 3) 领袖升级原则(按 Goal: 军事->进攻协作, 经济->对外贸易, 主权->附庸化/榨取)
+                if (mine.LeaderId == k.StringId)
+                {
+                    AiDirector.Goal goal = AiAgenda.GoalOf(k);
+                    int pi = goal == AiDirector.Goal.Military ? 1 : 0;
+                    int cur = mine.Principle[mine.Identity][pi];
+                    if (cur < 3 && mine.Mandates >= cur + 1)
+                    {
+                        mine.Mandates -= cur + 1;
+                        mine.Principle[mine.Identity][pi] = cur + 1;
+                        AiAgenda.LogDip(k, "集团原则 " + PrincipleNames[mine.Identity][pi] + " -> " + (cur + 1) + " 档");
+                    }
+                }
+            }
+            catch { }
+        }
+
+        // 周结: 凝聚力/授权/内部关系/贡金(由 AiDiplomacy.Month 调用, 内部按 7 天节流)
+        internal static void AiWeekly(int day)
+        {
+            try
+            {
+                if (day < _aiWeekDay) AiBlocs.Clear();   // 新档/读档 -> 重置
+                if (day - _aiWeekDay < 7) return;
+                _aiWeekDay = day;
+                if (AiBlocs.Count == 0) return;
+                var dead = new List<string>();
+                foreach (var kv in AiBlocs)
+                {
+                    var b = kv.Value;
+                    if (b == null) continue;
+                    for (int i = b.Members.Count - 1; i >= 0; i--)
+                    {
+                        var mm = FindKingdomById(b.Members[i]);
+                        if (mm == null || mm.IsEliminated) b.Members.RemoveAt(i);
+                    }
+                    var ld = FindKingdomById(b.LeaderId);
+                    if (b.Members.Count == 0 || ld == null || ld.IsEliminated) { dead.Add(kv.Key); continue; }
+                    int others = Math.Max(0, b.Members.Count - 1);
+                    b.MandateProgress += (2f + others * 4f) * (b.Cohesion / 100f);
+                    while (b.MandateProgress >= MandateNeed)
+                    {
+                        b.MandateProgress -= MandateNeed;
+                        if (b.Mandates < MaxMandates) b.Mandates++;
+                    }
+                    float target = AiCohesionTarget(b);
+                    if (b.Cohesion < target) b.Cohesion = Math.Min(target, b.Cohesion + 1f);
+                    else if (b.Cohesion > target) b.Cohesion = Math.Max(target, b.Cohesion - 1f);
+                    var leader = FindKingdomById(b.LeaderId);
+                    for (int i = 0; i < b.Members.Count; i++)
+                    {
+                        var m = FindKingdomById(b.Members[i]);
+                        if (m == null || leader == null || ReferenceEquals(m, leader)) continue;
+                        try { Diplomacy.Change(m, leader, 2); } catch { }
+                        if (b.Identity == IdEmpire)
+                        {
+                            int trib = 200 + 50 * b.Principle[IdEmpire][0];
+                            try
+                            {
+                                if (WarEconomy.GoldOfPublic(m) > trib * 2f)
+                                {
+                                    WarEconomy.SpendPublic(m, trib);
+                                    WarEconomy.AddPublic(leader, trib);
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                }
+                for (int i = 0; i < dead.Count; i++) AiBlocs.Remove(dead[i]);
+            }
+            catch { }
+        }
+
+        private static float AiCohesionTarget(AiBloc b)
+        {
+            try
+            {
+                float v = 30f;
+                v -= Math.Max(0, b.Members.Count - 1) * 3f;
+                var leader = FindKingdomById(b.LeaderId);
+                float all = 0f, my = 0f;
+                for (int i = 0; i < b.Members.Count; i++)
+                {
+                    var m = FindKingdomById(b.Members[i]);
+                    if (m == null) continue;
+                    float pow = m.CurrentTotalStrength;
+                    all += pow;
+                    if (ReferenceEquals(m, leader)) my = pow;
+                }
+                if (all > 0f) v += my / all * 20f;
+                return LawSystem.ClampF(v, 0f, 100f);
+            }
+            catch { return 30f; }
+        }
+
+        // AI 集团存档段(附在玩家 FIA_Bloc 之后, '~' 分隔)
+        internal static string SaveAi()
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                foreach (var kv in AiBlocs)
+                {
+                    var b = kv.Value;
+                    if (b == null) continue;
+                    sb.Append('L').Append(b.LeaderId).Append(',').Append(b.Identity).Append(',')
+                      .Append((int)b.Cohesion).Append(',').Append((int)b.MandateProgress).Append(',').Append(b.Mandates).Append(';');
+                    for (int i = 0; i < b.Members.Count; i++)
+                        sb.Append('M').Append(b.LeaderId).Append(',').Append(b.Members[i]).Append(';');
+                    for (int id = 0; id < 3; id++)
+                        sb.Append('P').Append(b.LeaderId).Append(',').Append(id).Append(',').Append(b.Principle[id][0]).Append(',').Append(b.Principle[id][1]).Append(';');
+                }
+                return sb.ToString();
+            }
+            catch { return ""; }
+        }
+
+        internal static void LoadAi(string data)
+        {
+            try
+            {
+                AiBlocs.Clear();
+                if (string.IsNullOrEmpty(data)) return;
+                foreach (var seg in data.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (seg.Length < 2) continue;
+                    char tag = seg[0];
+                    var f = seg.Substring(1).Split(',');
+                    if (tag == 'L' && f.Length >= 5)
+                    {
+                        var b = new AiBloc();
+                        int v;
+                        b.LeaderId = f[0];
+                        if (int.TryParse(f[1], out v)) b.Identity = Math.Max(0, Math.Min(2, v));
+                        if (int.TryParse(f[2], out v)) b.Cohesion = v;
+                        if (int.TryParse(f[3], out v)) b.MandateProgress = v;
+                        if (int.TryParse(f[4], out v)) b.Mandates = v;
+                        b.Name = NameOfKingdom(b.LeaderId) + " 的" + IdentityNames[b.Identity];
+                        AiBlocs[b.LeaderId] = b;
+                    }
+                    else if (tag == 'M' && f.Length >= 2)
+                    {
+                        AiBloc b;
+                        if (AiBlocs.TryGetValue(f[0], out b) && !b.Members.Contains(f[1])) b.Members.Add(f[1]);
+                    }
+                    else if (tag == 'P' && f.Length >= 4)
+                    {
+                        AiBloc b;
+                        int id, a, c;
+                        if (AiBlocs.TryGetValue(f[0], out b)
+                            && int.TryParse(f[1], out id) && id >= 0 && id < 3
+                            && int.TryParse(f[2], out a) && int.TryParse(f[3], out c))
+                        {
+                            b.Principle[id][0] = Math.Max(0, Math.Min(3, a));
+                            b.Principle[id][1] = Math.Max(0, Math.Min(3, c));
+                        }
+                    }
+                }
+                DLog.Force("权力集团: AI 读档 " + AiBlocs.Count + " 个");
+            }
+            catch { }
+        }
+
         // ================= 存档 FIA_Bloc =================
         internal static string Save()
         {
@@ -411,6 +760,8 @@ namespace FeudalInternalAffairs
                     sb.Append(Members[i].KingdomId).Append(',').Append(Members[i].JoinDay);
                 }
                 sb.Append(';');
+                sb.Append('~');           // v5.x: AI 集团段(旧档无此段, Load 兼容)
+                sb.Append(SaveAi());
                 return sb.ToString();
             }
             catch { return "v1;"; }
@@ -420,6 +771,10 @@ namespace FeudalInternalAffairs
         {
             try
             {
+                string aiPart = null;
+                int tilde = data != null ? data.IndexOf('~') : -1;
+                if (tilde >= 0) { aiPart = data.Substring(tilde + 1); data = data.Substring(0, tilde); }
+                LoadAi(aiPart);
                 if (string.IsNullOrEmpty(data)) return;
                 var seg = data.Split(';');
                 if (seg.Length > 1 && !string.IsNullOrEmpty(seg[1]))
@@ -482,6 +837,8 @@ namespace FeudalInternalAffairs
             Mandates = 0;
             for (int i = 0; i < 3; i++) { PrincipleTier[i][0] = 0; PrincipleTier[i][1] = 0; }
             _lastWeekDay = -9999;
+            AiBlocs.Clear();      // v5.x: AI 集团
+            _aiWeekDay = -9999;
         }
 
         // 成员列表(UI)

@@ -39,28 +39,34 @@ namespace FeudalInternalAffairs
         {
             new NeedDef { Id = "basic_food", Name = "基本食物", Curve = 0, Start = 1, Peak = 19, End = 29, V1 = 90f, V2 = 168f, Conv = 13f / 20f, Goods = {
                 E(FeudalGoods.Grain, 0.85f, 0f, 0.9f), E(FeudalGoods.Fish, 1f, 0f, 0.9f),
-                E(FeudalGoods.Meat, 1f, 0f, 0.9f), E(FeudalGoods.DateFruit, 1f, 0f, 0.9f), E(FeudalGoods.Olives, 1.15f, 0f, 0.9f) } },
+                E(FeudalGoods.Meat, 1f, 0f, 0.9f), E(FeudalGoods.DateFruit, 1f, 0f, 0.9f), E(FeudalGoods.Olives, 1.15f, 0f, 0.9f),
+                E(FeudalGoods.Groceries, 1.1f, 0f, 0.9f) } },
             new NeedDef { Id = "luxury_food", Name = "奢侈食物", Curve = 2, Start = 20, End = 0, V1 = 8f, V2 = 3859f, Conv = 30f / 30f, Goods = {
                 E(FeudalGoods.Meat, 1.25f, 0.1f, 0.75f), E(FeudalGoods.DateFruit, 0.75f, 0.1f, 0.75f),
                 E(FeudalGoods.Spice, 1.5f, 0f, 1f), E(FeudalGoods.Salt, 0.5f, 0f, 0.5f) } },
             new NeedDef { Id = "simple_clothing", Name = "简陋衣物", Curve = 0, Start = 1, Peak = 9, End = 14, V1 = 23f, V2 = 43f, Conv = 22f / 20f, Goods = {
                 E(FeudalGoods.Wool, 1f, 0f, 0.5f), E(FeudalGoods.Leather, 2f, 0f, 1f) } },
             new NeedDef { Id = "standard_clothing", Name = "标准衣物", Curve = 0, Start = 10, Peak = 25, End = 39, V1 = 7f, V2 = 161f, Conv = 245f / 30f, Goods = {
-                E(FeudalGoods.Linen, 1f, 0f, 1f) } },
+                E(FeudalGoods.Linen, 1f, 0f, 1f), E(FeudalGoods.Clothes, 1.2f, 0f, 1f) } },
             new NeedDef { Id = "crude_items", Name = "粗糙用品", Curve = 0, Start = 5, Peak = 9, End = 14, V1 = 13f, V2 = 43f, Conv = 25f / 20f, Goods = {
                 E(FeudalGoods.Hardwood, 1f, 0f, 0.5f), E(FeudalGoods.Clay, 2f, 0f, 1f) } },
             new NeedDef { Id = "household_items", Name = "家居用品", Curve = 0, Start = 10, Peak = 31, End = 44, V1 = 7f, V2 = 238f, Conv = 210f / 30f, Goods = {
-                E(FeudalGoods.Pottery, 1f, 0.1f, 0.75f), E(FeudalGoods.Tools, 1f, 0f, 0.5f), E(FeudalGoods.Leather, 0.5f, 0f, 0.5f) } },
+                E(FeudalGoods.Pottery, 1f, 0.1f, 0.75f), E(FeudalGoods.Tools, 1f, 0f, 0.5f), E(FeudalGoods.Leather, 0.5f, 0f, 0.5f),
+                E(FeudalGoods.Furniture, 1.2f, 0f, 0.75f), E(FeudalGoods.Glass, 0.8f, 0f, 0.5f), E(FeudalGoods.Paper, 0.6f, 0f, 0.5f) } },
             new NeedDef { Id = "luxury_items", Name = "奢侈品", Curve = 2, Start = 15, End = 0, V1 = 11f, V2 = 9648f, Conv = 100f / 40f, Goods = {
                 E(FeudalGoods.Silver, 0.5f, 0.1f, 0.25f), E(FeudalGoods.Spice, 1f, 0.1f, 0.5f),
-                E(FeudalGoods.Leather, 1f, 0.1f, 0.5f), E(FeudalGoods.Tools, 0.5f, 0.1f, 0.5f) } },
+                E(FeudalGoods.Leather, 1f, 0.1f, 0.5f), E(FeudalGoods.Tools, 0.5f, 0.1f, 0.5f),
+                E(FeudalGoods.Silk, 0.8f, 0.1f, 0.5f), E(FeudalGoods.Gold, 0.4f, 0.1f, 0.25f), E(FeudalGoods.Radios, 0.5f, 0.1f, 0.5f),
+                E(FeudalGoods.Telephones, 0.5f, 0.1f, 0.5f), E(FeudalGoods.Automobiles, 0.3f, 0.1f, 0.25f) } },
             new NeedDef { Id = "heating", Name = "取暖", Curve = 1, Start = 1, Peak = 10, End = 0, V1 = 0f, V2 = 26f, Conv = 25f / 20f, Goods = {
                 E(FeudalGoods.Hardwood, 0.75f, 0f, 0.5f), E(FeudalGoods.Charcoal, 2f, 0f, 0.8f) } },
             new NeedDef { Id = "intoxicants", Name = "麻醉品", Curve = 1, Start = 1, Peak = 30, End = 0, V1 = 0f, V2 = 216f, Conv = 50f / 30f, Goods = {
                 E(FeudalGoods.Beer, 1f, 0f, 0.75f), E(FeudalGoods.Grape, 0.9f, 0f, 0.75f),
-                E(FeudalGoods.Spice, 0.75f, 0f, 0.75f), E(FeudalGoods.Wine, 0.25f, 0f, 0.25f) } },
+                E(FeudalGoods.Spice, 0.75f, 0f, 0.75f), E(FeudalGoods.Wine, 0.25f, 0f, 0.25f),
+                E(FeudalGoods.Tobacco, 0.9f, 0f, 0.75f), E(FeudalGoods.Opium, 0.4f, 0f, 0.5f) } },
             new NeedDef { Id = "stimulants", Name = "提神品", Curve = 0, Start = 6, Peak = 23, End = 30, V1 = 7f, V2 = 56f, Conv = 50f / 30f, Goods = {
-                E(FeudalGoods.DateFruit, 1f, 0f, 0.75f), E(FeudalGoods.Spice, 0.95f, 0f, 0.75f), E(FeudalGoods.Salt, 0.8f, 0f, 0.75f) } },
+                E(FeudalGoods.DateFruit, 1f, 0f, 0.75f), E(FeudalGoods.Spice, 0.95f, 0f, 0.75f), E(FeudalGoods.Salt, 0.8f, 0f, 0.75f),
+                E(FeudalGoods.Coffee, 1.1f, 0f, 0.75f), E(FeudalGoods.Tea, 1.1f, 0f, 0.75f), E(FeudalGoods.Sugar, 0.9f, 0f, 0.75f) } },
             new NeedDef { Id = "luxury_drinks", Name = "奢侈饮品", Curve = 2, Start = 15, End = 0, V1 = 21f, V2 = 3859f, Conv = 300f / 50f, Goods = {
                 E(FeudalGoods.Spice, 1f, 0f, 0.75f), E(FeudalGoods.Wine, 0.45f, 0f, 0.33f) } },
             new NeedDef { Id = "services", Name = "服务", Curve = 2, Start = 10, End = 0, V1 = 24f, V2 = 6561f, Conv = 30f / 30f, Goods = {

@@ -19,6 +19,41 @@ namespace FeudalInternalAffairs
         internal const string HorseId = "fia_horse";
         internal const string ServiceId = "fia_service";
 
+        // v4.167: V3 化商品扩展(第 25 章, 33 种; 借原版网格)
+        internal const string LeadId = "fia_lead";
+        internal const string SulfurId = "fia_sulfur";
+        internal const string OilId = "fia_oil";
+        internal const string GoldId = "fia_gold";
+        internal const string CoffeeId = "fia_coffee";
+        internal const string SugarId = "fia_sugar";
+        internal const string TeaId = "fia_tea";
+        internal const string TobaccoId = "fia_tobacco";
+        internal const string OpiumId = "fia_opium";
+        internal const string SilkId = "fia_silk";
+        internal const string RubberId = "fia_rubber";
+        internal const string DyeId = "fia_dye";
+        internal const string ClothesId = "fia_clothes";
+        internal const string FurnitureId = "fia_furniture";
+        internal const string GroceriesId = "fia_groceries";
+        internal const string PaperId = "fia_paper";
+        internal const string SteelId = "fia_steel";
+        internal const string GlassId = "fia_glass";
+        internal const string FertilizerId = "fia_fertilizer";
+        internal const string ExplosivesId = "fia_explosives";
+        internal const string EnginesId = "fia_engines";
+        internal const string ClippersId = "fia_clippers";
+        internal const string SteamersId = "fia_steamers";
+        internal const string MerchantMarineId = "fia_merchant_marine";
+        internal const string AmmunitionId = "fia_ammunition";
+        internal const string ArtilleryId = "fia_artillery";
+        internal const string ElectricityId = "fia_electricity";
+        internal const string TransportationId = "fia_transportation";
+        internal const string RadiosId = "fia_radios";
+        internal const string TelephonesId = "fia_telephones";
+        internal const string AutomobilesId = "fia_automobiles";
+        internal const string TanksId = "fia_tanks";
+        internal const string AeroplanesId = "fia_aeroplanes";
+
         private static Game _game;
         private static bool _registered;
 
@@ -65,6 +100,40 @@ namespace FeudalInternalAffairs
                 CreateTradeGood(om, WineId, "fia_item_wine", "Wine", "jars of wine", "merchandise_flax", 50);
                 CreateTradeGood(om, HorseId, "fia_item_horse", "Horses", "herds of horses", "merchandise_ironware_horseshoe", 150);
                 CreateTradeGood(om, ServiceId, "fia_item_service", "Services", "market services", "merchandise_stones", 30);
+                // v4.167: V3 化商品扩展(第 25 章)
+                CreateTradeGood(om, LeadId, "fia_item_lead", "Lead", "ingots of lead", "merchandise_ironware", 40);
+                CreateTradeGood(om, SulfurId, "fia_item_sulfur", "Sulfur", "lumps of sulfur", "merchandise_stones", 50);
+                CreateTradeGood(om, OilId, "fia_item_oil", "Oil", "barrels of oil", "merchandise_ironware_horseshoe", 40);
+                CreateTradeGood(om, GoldId, "fia_item_gold", "Gold", "ingots of gold", "merchandise_ironware", 100);
+                CreateTradeGood(om, CoffeeId, "fia_item_coffee", "Coffee", "sacks of coffee", "merchandise_flax", 50);
+                CreateTradeGood(om, SugarId, "fia_item_sugar", "Sugar", "sacks of sugar", "merchandise_stones", 30);
+                CreateTradeGood(om, TeaId, "fia_item_tea", "Tea", "chests of tea", "merchandise_flax", 50);
+                CreateTradeGood(om, TobaccoId, "fia_item_tobacco", "Tobacco", "bales of tobacco", "merchandise_flax", 40);
+                CreateTradeGood(om, OpiumId, "fia_item_opium", "Opium", "chests of opium", "merchandise_flax", 50);
+                CreateTradeGood(om, SilkId, "fia_item_silk", "Silk", "bolts of silk", "merchandise_flax", 40);
+                CreateTradeGood(om, RubberId, "fia_item_rubber", "Rubber", "blocks of rubber", "merchandise_ironware_horseshoe", 40);
+                CreateTradeGood(om, DyeId, "fia_item_dye", "Dye", "barrels of dye", "merchandise_ironware_horseshoe", 40);
+                CreateTradeGood(om, ClothesId, "fia_item_clothes", "Clothes", "bundles of clothes", "merchandise_flax", 30);
+                CreateTradeGood(om, FurnitureId, "fia_item_furniture", "Furniture", "sets of furniture", "merchandise_flax", 30);
+                CreateTradeGood(om, GroceriesId, "fia_item_groceries", "Groceries", "crates of groceries", "merchandise_flax", 30);
+                CreateTradeGood(om, PaperId, "fia_item_paper", "Paper", "reams of paper", "merchandise_flax", 30);
+                CreateTradeGood(om, SteelId, "fia_item_steel", "Steel", "ingots of steel", "merchandise_ironware", 50);
+                CreateTradeGood(om, GlassId, "fia_item_glass", "Glass", "crates of glass", "merchandise_stones", 40);
+                CreateTradeGood(om, FertilizerId, "fia_item_fertilizer", "Fertilizer", "sacks of fertilizer", "merchandise_stones", 30);
+                CreateTradeGood(om, ExplosivesId, "fia_item_explosives", "Explosives", "kegs of explosives", "merchandise_stones", 50);
+                CreateTradeGood(om, EnginesId, "fia_item_engines", "Engines", "crated engines", "merchandise_ironware", 60);
+                CreateTradeGood(om, ClippersId, "fia_item_clippers", "Clippers", "clipper ships", "merchandise_ironware", 60);
+                CreateTradeGood(om, SteamersId, "fia_item_steamers", "Steamers", "steam ships", "merchandise_ironware", 70);
+                CreateTradeGood(om, MerchantMarineId, "fia_item_merchant_marine", "Merchant Marine", "merchant vessels", "merchandise_ironware", 50);
+                CreateTradeGood(om, AmmunitionId, "fia_item_ammunition", "Ammunition", "crates of ammunition", "merchandise_ironware", 50);
+                CreateTradeGood(om, ArtilleryId, "fia_item_artillery", "Artillery", "field guns", "merchandise_ironware", 70);
+                CreateTradeGood(om, ElectricityId, "fia_item_electricity", "Electricity", "units of electricity", "merchandise_stones", 30);
+                CreateTradeGood(om, TransportationId, "fia_item_transportation", "Transportation", "units of transport", "merchandise_stones", 30);
+                CreateTradeGood(om, RadiosId, "fia_item_radios", "Radios", "crated radios", "merchandise_ironware", 80);
+                CreateTradeGood(om, TelephonesId, "fia_item_telephones", "Telephones", "crated telephones", "merchandise_ironware", 70);
+                CreateTradeGood(om, AutomobilesId, "fia_item_automobiles", "Automobiles", "motor cars", "merchandise_ironware", 100);
+                CreateTradeGood(om, TanksId, "fia_item_tanks", "Tanks", "armored vehicles", "merchandise_stones", 80);
+                CreateTradeGood(om, AeroplanesId, "fia_item_aeroplanes", "Aeroplanes", "aeroplanes", "merchandise_stones", 80);
                 _registered = true;
                 _game = game;
                 DLog.Info("商品: 注册来源=" + source);
@@ -93,7 +162,11 @@ namespace FeudalInternalAffairs
         private static void Dump()
         {
             var sb = new System.Text.StringBuilder();
-            foreach (var id in new[] { StoneId, WeaponsId, ArmorId, HerbsId, WineId, HorseId, ServiceId })
+            foreach (var id in new[] { StoneId, WeaponsId, ArmorId, HerbsId, WineId, HorseId, ServiceId,
+                LeadId, SulfurId, OilId, GoldId, CoffeeId, SugarId, TeaId, TobaccoId, OpiumId, SilkId, RubberId, DyeId,
+                ClothesId, FurnitureId, GroceriesId, PaperId, SteelId, GlassId, FertilizerId, ExplosivesId, EnginesId,
+                ClippersId, SteamersId, MerchantMarineId, AmmunitionId, ArtilleryId, ElectricityId, TransportationId,
+                RadiosId, TelephonesId, AutomobilesId, TanksId, AeroplanesId })
             {
                 var it = Get(id);
                 if (it == null) { sb.Append(id + "=失败 "); continue; }

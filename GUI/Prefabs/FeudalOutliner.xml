@@ -1,0 +1,94 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+      <Children>
+
+        <Widget IsVisible="@IsExpanded" CanAcceptEvents="true" WidthSizePolicy="Fixed" SuggestedWidth="@PanelWidth" HeightSizePolicy="StretchToParent"
+                HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="0" MarginTop="0" MarginBottom="0">
+          <Children>
+            <Widget CanAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    Sprite="BlankWhiteSquare" Color="#0C0A08E6" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="3" MarginRight="3" MarginTop="3" MarginBottom="3"
+                    Sprite="fia_ui2_tex_wood" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="3" MarginRight="3" MarginTop="3" MarginBottom="3"
+                    Sprite="BlankWhiteSquare" Color="#00000066" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="2" VerticalAlignment="Top" MarginTop="2"
+                    MarginLeft="3" MarginRight="3" Sprite="BlankWhiteSquare" Color="#C9A22788" />
+
+            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="24" VerticalAlignment="Top" MarginTop="8"
+                        TextHorizontalAlignment="Center" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#E9CD74FF" Text="概览" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="8" VerticalAlignment="Top"
+                    MarginTop="38" MarginLeft="14" MarginRight="14" Sprite="fia_ui2_divider_ornate" />
+
+            <ListPanel DataSource="{Items}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                       HorizontalAlignment="Left" VerticalAlignment="Top" MarginTop="46" MarginLeft="4" MarginRight="4"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="@Height"
+                        Sprite="BlankWhiteSquare" Color="@Bg">
+                  <Children>
+                    <Widget IsVisible="@IsHeader" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="34"
+                            VerticalAlignment="Center" Sprite="fia_ui2_subheader" />
+                    <TextWidget IsVisible="@IsHeader" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="8"
+                                Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E9CD74FF" Text="@Arrow" />
+                    <Widget IsVisible="@ShowHeaderIcon" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="24" SuggestedHeight="24"
+                            HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="26" Sprite="@Icon" />
+                    <TextWidget IsVisible="@IsHeader" WidthSizePolicy="Fixed" SuggestedWidth="230" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="58"
+                                Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#E9CD74FF" Text="@Name" />
+                    <TextWidget IsVisible="@IsHeader" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="10"
+                                Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FCC" Text="@Count" />
+
+                    <Widget IsVisible="@ShowRowIcon" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="24" SuggestedHeight="24"
+                            HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="6" Sprite="@Icon" />
+                    <TextWidget IsVisible="@IsRow" WidthSizePolicy="Fixed" SuggestedWidth="200" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="34"
+                                Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#F0E4C2FF" Text="@Name" />
+                    <TextWidget IsVisible="@IsRow" WidthSizePolicy="Fixed" SuggestedWidth="80" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="86" TextHorizontalAlignment="Right"
+                                Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@ExtraColor" Text="@Extra" />
+                    <TextWidget IsVisible="@IsRow" WidthSizePolicy="Fixed" SuggestedWidth="76" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="6" TextHorizontalAlignment="Right"
+                                Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@ValueColor" Text="@Value" />
+
+                    <TextWidget IsVisible="@IsPlain" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="14"
+                                Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FCC" Text="@Name" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+          </Children>
+        </Widget>
+
+        <Widget IsVisible="@IsCollapsed" CanAcceptEvents="true" WidthSizePolicy="Fixed" SuggestedWidth="@PanelWidth" HeightSizePolicy="StretchToParent"
+                HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="0" MarginTop="0" MarginBottom="0">
+          <Children>
+            <Widget CanAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    Sprite="BlankWhiteSquare" Color="#0C0A08E6" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6"
+                    Sprite="BlankWhiteSquare" Color="#00000066" />
+            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="34" VerticalAlignment="Top" MarginTop="10"
+                        TextHorizontalAlignment="Center" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E9CD74FF" Text="≡" />
+            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="70" VerticalAlignment="Top" MarginTop="52"
+                        TextHorizontalAlignment="Center" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FCC" Text="@StripSummary" />
+          </Children>
+        </Widget>
+
+        <Widget CanAcceptEvents="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="60"
+                HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="@HandleRight" MarginTop="184"
+                Sprite="BlankWhiteSquare" Color="#000000AA">
+          <Children>
+            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" TextHorizontalAlignment="Center"
+                        Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#E9CD74FF" Text="@HandleArrow" />
+          </Children>
+        </Widget>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

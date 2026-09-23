@@ -11,12 +11,12 @@
                 HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="@PanelOffset"
                 Brush="ArmyManagement.Panel.Left" DoNotAcceptEvents="true">
           <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_frame" />
 
-            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6" Sprite="BlankWhiteSquare" Color="#100C08EE" />
 
             <!-- 头部: 国旗 + 国名 + 君主 + 文化 -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="132" VerticalAlignment="Top"
-                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000055">
+                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="fia_ui_banner_red">
               <Children>
                 <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="96"
                         HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="16" MarginTop="12" Sprite="BlankWhiteSquare" Color="@ColorBar" />
@@ -26,18 +26,18 @@
                                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="16" MarginTop="12" />
                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                             HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="128" MarginTop="10"
-                            Brush="MapTextBrushGal" Brush.FontSize="29" Brush.FontColor="#C9A227FF" Text="@KingdomName" />
+                            Brush="MapTextBrushGal" Brush.FontSize="29" Brush.FontColor="#E9CD74FF" Text="@KingdomName" />
                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                             HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="128" MarginTop="52"
                             Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#F0E4C8FF" Text="@RulerName" />
                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                             HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="128" MarginTop="82"
-                            Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#C8B98FFF" Text="@CultureText" />
+                            Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#D8C9A0FF" Text="@CultureText" />
               </Children>
             </Widget>
 
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
-                    MarginTop="152" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF59" />
+                    MarginTop="152" MarginLeft="22" MarginRight="22" Sprite="fia_ui_divider" />
 
             <!-- 信息列表(全部信息, 16 行窗口, 滚轮上下滚动) -->
             <ListPanel DataSource="{VisibleLines}" WidthSizePolicy="Fixed" SuggestedWidth="472" HeightSizePolicy="CoverChildren"
@@ -60,14 +60,15 @@
             <!-- 底部提示 + 开始游戏 -->
             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                         HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="96"
-                        Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#C8B98FFF"
+                        Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#D8C9A0FF"
                         Text="滚轮上下滚动查看全部 · 点击其他领地可切换 · 选定后点下方按钮" />
             <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed"
                           SuggestedHeight="58" HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                          MarginLeft="24" MarginRight="24" MarginBottom="24" Brush="ButtonBrush2" UpdateChildrenStates="true">
+                          MarginLeft="24" MarginRight="24" MarginBottom="24" Brush="Fia.Button" UpdateChildrenStates="true">
               <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                            Brush="MapTextBrushGal" Brush.FontSize="26" Brush.FontColor="#C9A227FF" Text="开始游戏" />
+                            Brush="MapTextBrushGal" Brush.FontSize="26" Brush.FontColor="#E9CD74FF" Text="开始游戏" />
               </Children>
             </ButtonWidget>
 

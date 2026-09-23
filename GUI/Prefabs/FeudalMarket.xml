@@ -5,37 +5,39 @@
     <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
       <Children>
 
-        <!-- ===== 市场面板(左侧, 维多利亚3 风格; 原版雕花边框) ===== -->
+        <!-- ===== 市场面板(左侧,  风格; 原版雕花边框) ===== -->
         <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="780" HeightSizePolicy="StretchToParent"
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
           <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_frame" />
 
-            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6" Sprite="BlankWhiteSquare" Color="#100C08EE" />
 
             <!-- 标题栏 -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" VerticalAlignment="Top"
-                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="BlankWhiteSquare" Color="#00000055">
+                    MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="fia_ui_banner_red">
               <Children>
                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="29" Brush.FontColor="#C9A227FF" Text="@Title" />
+                            MarginLeft="18" Brush="MapTextBrushGal" Brush.FontSize="29" Brush.FontColor="#E9CD74FF" Text="@Title" />
                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="38"
-                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="66" Brush="ButtonBrush2"
+                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="66" Brush="Fia.Button"
                               Command.Click="ExecuteToggleScope" UpdateChildrenStates="true">
                   <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Text="@ScopeText" />
                   </Children>
                 </ButtonWidget>
                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="38"
-                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="ButtonBrush1"
+                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="14" Brush="Fia.Button"
                               Command.Click="ExecuteClose" UpdateChildrenStates="true">
                   <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="24" Text="X" />
                   </Children>
                 </ButtonWidget>
               </Children>
             </Widget>
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="12" VerticalAlignment="Top"
-                    MarginTop="82" MarginLeft="22" MarginRight="22" Sprite="GradientDivider_9" Color="#FFFFFF59" />
+                    MarginTop="82" MarginLeft="22" MarginRight="22" Sprite="fia_ui_divider" />
 
             <!-- 提示(多行图例: 解释每个数字是什么意思; 加深色底板, 防地图上的城名标签透出来) -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="80" VerticalAlignment="Top"
@@ -50,20 +52,23 @@
                        StackLayout.LayoutMethod="HorizontalLeftToRight">
               <Children>
                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="130" SuggestedHeight="42"
-                              Brush="ButtonBrush2" Command.Click="ExecuteTabGoods" UpdateChildrenStates="true">
+                              Brush="Fia.Button" Command.Click="ExecuteTabGoods" UpdateChildrenStates="true">
                   <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Text="商品" />
                   </Children>
                 </ButtonWidget>
                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="130" SuggestedHeight="42"
-                              MarginLeft="14" Brush="ButtonBrush2" Command.Click="ExecuteTabTrade" UpdateChildrenStates="true">
+                              MarginLeft="14" Brush="Fia.Button" Command.Click="ExecuteTabTrade" UpdateChildrenStates="true">
                   <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Text="贸易" />
                   </Children>
                 </ButtonWidget>
                 <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="42"
-                              MarginLeft="14" Brush="ButtonBrush2" Command.Click="ExecuteTabFood" UpdateChildrenStates="true">
+                              MarginLeft="14" Brush="Fia.Button" Command.Click="ExecuteTabFood" UpdateChildrenStates="true">
                   <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Text="粮食安全" />
                   </Children>
                 </ButtonWidget>
@@ -79,9 +84,10 @@
                            StackLayout.LayoutMethod="HorizontalLeftToRight">
                   <ItemTemplate>
                     <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                                  SuggestedWidth="76" SuggestedHeight="52" MarginRight="10" Brush="ButtonBrush2"
+                                  SuggestedWidth="76" SuggestedHeight="52" MarginRight="10" Brush="Fia.Button"
                                   Command.Click="ExecuteSelect" UpdateChildrenStates="true">
                       <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="26" SuggestedHeight="26"
                                 HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="4" Sprite="@Sprite" Color="@Color" />
                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Center" VerticalAlignment="Bottom"
@@ -93,27 +99,35 @@
               </Children>
             </Widget>
 
+            <!-- 筛选状态(原搜索框位置: 键盘输入进不来, 只显示当前筛选) -->
+            <TextWidget IsVisible="@IsGoodsTab" WidthSizePolicy="Fixed" SuggestedWidth="700" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="296"
+                        Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8A8070FF" Text="@FilterSummary" />
+            <TextWidget IsVisible="@IsGoodsTab" WidthSizePolicy="Fixed" SuggestedWidth="200" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="26" MarginTop="296"
+                        Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#D8C9A0FF" Text="@SearchText" />
+
             <!-- ===== 商品表 ===== -->
             <Widget IsVisible="@IsGoodsTab" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                     MarginTop="320" MarginBottom="82" MarginLeft="14" MarginRight="14">
               <Children>
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="28" VerticalAlignment="Top"
-                        Sprite="BlankWhiteSquare" Color="#00000055">
+                        Sprite="BlankWhiteSquare" Color="#14100BE0">
                   <Children>
                     <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="18" SuggestedHeight="18"
                             HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="58" Sprite="Inventory\icon_gold" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="84" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="市场价" />
+                                MarginLeft="84" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="市场价" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="366" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="比昨天" />
+                                MarginLeft="366" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="比昨天" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="436" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="产出" />
+                                MarginLeft="436" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="产出" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="512" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="消耗" />
+                                MarginLeft="512" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="消耗" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="576" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="现存" />
+                                MarginLeft="576" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="现存" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="640" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="缺口" />
+                                MarginLeft="640" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="缺口" />
                   </Children>
                 </Widget>
 
@@ -122,7 +136,7 @@
                     <!-- "本城"待选: 列表已清空, 这里给提示 -->
                     <TextWidget IsVisible="@IsPickingCity" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="40"
                                 HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="170"
-                                Brush="MapTextBrushGal" Brush.FontSize="26" Brush.FontColor="#C9A227FF" Text="@PickText" />
+                                Brush="MapTextBrushGal" Brush.FontSize="26" Brush.FontColor="#E9CD74FF" Text="@PickText" />
                     <ScrollablePanel Id="MktScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                      AutoHideScrollBars="true" ClipRect="MktClip" InnerPanel="MktClip\MktList" VerticalScrollbar="..\MktBar">
                       <Children>
@@ -132,14 +146,14 @@
                                        HorizontalAlignment="Left" VerticalAlignment="Top" StackLayout.LayoutMethod="VerticalTopToBottom">
                               <ItemTemplate>
                                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="68"
-                                        Sprite="ArmyManagement\voter_tuple" Color="#FFFFFFE6">
+                                        Sprite="fia_ui_row" Color="#FFFFFFE6">
                                   <Children>
                                     <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="34"
                                             HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="16" MarginTop="12" Sprite="@Icon" />
                                     <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="20" SuggestedHeight="20"
                                             HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="58" MarginTop="19" Sprite="Inventory\icon_gold" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                                                MarginLeft="84" MarginTop="14" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#C9A227FF" Text="@PriceText" />
+                                                MarginLeft="84" MarginTop="14" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#E9CD74FF" Text="@PriceText" />
 
                                     <!-- 价格条: 底 + 填充 + 基础价刻度 -->
                                     <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="200" SuggestedHeight="16"
@@ -152,21 +166,25 @@
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                                                 MarginLeft="366" MarginTop="15" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@ChangeColor" Text="@ChangeText" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                                                MarginLeft="436" MarginTop="15" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#C8B98FFF" Text="@SupplyText" />
+                                                MarginLeft="436" MarginTop="15" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#D8C9A0FF" Text="@SupplyText" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                                                MarginLeft="512" MarginTop="15" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#C8B98FFF" Text="@DemandText" />
+                                                MarginLeft="512" MarginTop="15" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#D8C9A0FF" Text="@DemandText" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                                                 MarginLeft="576" MarginTop="15" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#F0E4C8FF" Text="@StockText" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
                                                 MarginLeft="640" MarginTop="15" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@GapColor" Text="@GapText" />
-                                    <!-- 第二行: 买单/卖单/余额/市场接入(文档 19.14.1); 字号提到 17, 不再和平衡条打架 -->
+                                    <!-- 第二行: 商品名 + 分类 + 买单/卖单/余额/市场接入(参考 19.14.1) -->
+                                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="64" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                                MarginLeft="84" MarginTop="41" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#F0E4C8FF" Text="@Name" />
+                                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="80" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                                MarginLeft="150" MarginTop="42" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8A8070FF" Text="@CategoryText" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top"
-                                                MarginLeft="84" MarginTop="41" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@SubColor" Text="@SubText" />
+                                                MarginLeft="240" MarginTop="41" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@SubColor" Text="@SubText" />
                                     <!-- 市场平衡条(需>供 红 / 供>需 绿; 挪到行尾, 让开第二行文字) -->
                                     <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="60" SuggestedHeight="6"
-                                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="560" MarginTop="48" Sprite="BlankWhiteSquare" Color="#00000066" />
+                                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="680" MarginTop="48" Sprite="BlankWhiteSquare" Color="#00000066" />
                                     <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@BalBarWidth" SuggestedHeight="6"
-                                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="560" MarginTop="48" Sprite="BlankWhiteSquare" Color="@BalBarColor" />
+                                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="680" MarginTop="48" Sprite="BlankWhiteSquare" Color="@BalBarColor" />
                                   </Children>
                                 </Widget>
                               </ItemTemplate>
@@ -195,18 +213,18 @@
                     MarginTop="252" MarginBottom="82" MarginLeft="14" MarginRight="14">
               <Children>
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="28" VerticalAlignment="Top"
-                        Sprite="BlankWhiteSquare" Color="#00000055">
+                        Sprite="BlankWhiteSquare" Color="#14100BE0">
                   <Children>
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="20" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="城市" />
+                                MarginLeft="20" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="城市" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="300" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="调运容量/日" />
+                                MarginLeft="300" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="调运容量/日" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="460" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="进出口容量/日" />
+                                MarginLeft="460" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="进出口容量/日" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="620" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="在建" />
+                                MarginLeft="620" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="在建" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="690" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="商队(支/损/安保)" />
+                                MarginLeft="690" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="商队(支/损/安保)" />
                   </Children>
                 </Widget>
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginTop="30">
@@ -220,16 +238,16 @@
                                        HorizontalAlignment="Left" VerticalAlignment="Top" StackLayout.LayoutMethod="VerticalTopToBottom">
                               <ItemTemplate>
                                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48"
-                                        Sprite="ArmyManagement\voter_tuple" Color="#FFFFFFE6">
+                                        Sprite="fia_ui_row" Color="#FFFFFFE6">
                                   <Children>
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
                                                 MarginLeft="20" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#F0E4C8FF" Text="@Name" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                MarginLeft="300" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="@TradeCap" />
+                                                MarginLeft="300" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="@TradeCap" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                MarginLeft="460" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="@ImportCap" />
+                                                MarginLeft="460" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="@ImportCap" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                MarginLeft="620" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C8B98FFF" Text="@QueuedText" />
+                                                MarginLeft="620" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#D8C9A0FF" Text="@QueuedText" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
                                                 MarginLeft="690" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E8C33AFF" Text="@CaravansText" />
                                   </Children>
@@ -260,18 +278,18 @@
                     MarginTop="252" MarginBottom="82" MarginLeft="14" MarginRight="14">
               <Children>
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="28" VerticalAlignment="Top"
-                        Sprite="BlankWhiteSquare" Color="#00000055">
+                        Sprite="BlankWhiteSquare" Color="#14100BE0">
                   <Children>
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="20" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="城市" />
+                                MarginLeft="20" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="城市" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="300" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="食物库存" />
+                                MarginLeft="300" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="食物库存" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="440" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="日消耗" />
+                                MarginLeft="440" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="日消耗" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="560" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="日产" />
+                                MarginLeft="560" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="日产" />
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                MarginLeft="660" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C9A227FF" Text="可支撑(天)" />
+                                MarginLeft="660" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="可支撑(天)" />
                   </Children>
                 </Widget>
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginTop="30">
@@ -285,16 +303,16 @@
                                        HorizontalAlignment="Left" VerticalAlignment="Top" StackLayout.LayoutMethod="VerticalTopToBottom">
                               <ItemTemplate>
                                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48"
-                                        Sprite="ArmyManagement\voter_tuple" Color="#FFFFFFE6">
+                                        Sprite="fia_ui_row" Color="#FFFFFFE6">
                                   <Children>
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
                                                 MarginLeft="20" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#F0E4C8FF" Text="@Name" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
                                                 MarginLeft="300" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#F0E4C8FF" Text="@StockText" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                MarginLeft="440" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C8B98FFF" Text="@NeedText" />
+                                                MarginLeft="440" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#D8C9A0FF" Text="@NeedText" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                MarginLeft="560" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#C8B98FFF" Text="@ProdText" />
+                                                MarginLeft="560" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#D8C9A0FF" Text="@ProdText" />
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Center"
                                                 MarginLeft="660" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@DaysColor" Text="@DaysText" />
                                   </Children>
@@ -323,8 +341,9 @@
             <!-- 底部 -->
             <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                           SuggestedWidth="122" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom"
-                          MarginLeft="26" MarginBottom="26" Brush="ButtonBrush2" Command.Click="ExecuteClose" UpdateChildrenStates="true">
+                          MarginLeft="26" MarginBottom="26" Brush="Fia.Button" Command.Click="ExecuteClose" UpdateChildrenStates="true">
               <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="22" Text="关闭" />
               </Children>
             </ButtonWidget>
@@ -342,9 +361,9 @@
                        StackLayout.LayoutMethod="VerticalTopToBottom">
               <Children>
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                            Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#C9A227FF" Text="@TooltipName" MarginBottom="8" />
+                            Brush="MapTextBrushGal" Brush.FontSize="21" Brush.FontColor="#E9CD74FF" Text="@TooltipName" MarginBottom="8" />
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                            Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FFF" Text="@TooltipLine2" MarginBottom="10" />
+                            Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#D8C9A0FF" Text="@TooltipLine2" MarginBottom="10" />
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                             Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#F0E4C8FF" Text="@TooltipDesc" />
               </Children>

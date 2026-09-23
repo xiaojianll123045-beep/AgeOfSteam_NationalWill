@@ -80,10 +80,12 @@ namespace FeudalInternalAffairs
         private const int SlotPlay = 11;
         private const int SlotArmy = 12;
         private const int SlotTroops = 13;   // v4.100: 军队总览
-        private const int SlotCount = 14;
+        private const int SlotTech = 14;     // v4.151: 科技
+        private const int SlotCulture = 15;  // v4.186: 文化(文档 24.13)
+        private const int SlotCount = 16;
 
         // 悬停名称(顺序与槽位一致)
-        internal static readonly string[] Names = { "国家", "人口", "建筑", "市场", "外交", "国策", "财政", "社会", "行会", "统计", "政治", "博弈", "军务", "军队" };
+        internal static readonly string[] Names = { "国家", "人口", "建筑", "市场", "外交", "国策", "财政", "社会", "行会", "统计", "政治", "博弈", "军务", "军队", "科技", "文化" };
 
         internal static string NameOf(int idx) { return idx >= 0 && idx < Names.Length ? Names[idx] : ""; }
 
@@ -119,6 +121,8 @@ namespace FeudalInternalAffairs
                 if (IsSlotOpen(idx)) { CloseSlot(idx); return; }
                 // 国策树是独立全屏页: 打开别的页面前先把它收掉
                 if (idx != SlotFocus && FocusTreeScreen.IsOpen) FocusTreeScreen.Close();
+                if (idx != SlotTech && TechPanel.IsOpen) TechPanel.Close();
+                if (idx != SlotCulture && CulturePanel.IsOpen) CulturePanel.Close();   // v4.186
                 switch (idx)
                 {
                     case SlotNation: NationalPanel.OpenSidebar(); break;
@@ -141,6 +145,8 @@ namespace FeudalInternalAffairs
                     case SlotPlay: DiploPlayPanel.Open(); break;
                     case SlotArmy: ArmyPanel.Open(); break;
                     case SlotTroops: TroopsPanel.Open(); break;
+                    case SlotTech: TechPanel.Open(); break;   // v4.151
+                    case SlotCulture: CulturePanel.Open(); break;   // v4.186
                 }
             }
             catch (Exception ex) { DLog.Force("导航栏打开页面失败(" + idx + "): " + ex.Message); }
@@ -164,6 +170,8 @@ namespace FeudalInternalAffairs
                     case SlotPlay: return DiploPlayPanel.IsOpen;
                     case SlotArmy: return ArmyPanel.IsOpen;
                     case SlotTroops: return TroopsPanel.IsOpen;
+                    case SlotTech: return TechPanel.IsOpen;   // v4.151
+                    case SlotCulture: return CulturePanel.IsOpen;   // v4.186
             }
             return false;
         }
@@ -188,6 +196,8 @@ namespace FeudalInternalAffairs
                     case SlotPlay: DiploPlayPanel.Close(); break;
                     case SlotArmy: ArmyPanel.Close(); break;
                     case SlotTroops: TroopsPanel.Close(); break;
+                    case SlotTech: TechPanel.Close(); break;   // v4.151
+                    case SlotCulture: CulturePanel.Close(); break;   // v4.186
                 }
             }
             catch (Exception ex) { DLog.Force("导航栏关闭页面失败(" + idx + "): " + ex.Message); }

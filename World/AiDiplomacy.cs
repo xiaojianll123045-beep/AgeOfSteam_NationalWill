@@ -176,6 +176,16 @@ namespace FeudalInternalAffairs
 
                 BorderFriction();   // 边境摩擦: 接壤国家关系保底 -25, 给宣战提供理由
 
+                // v5.x: 统一大脑 —— AI 选举周期/集团周结/AI 政治议程(每国每月至多 2 条政治 + 2 条外交日志)
+                try { Elections.AiMonthly(day); } catch { }
+                try { PowerBlocs.AiWeekly(day); } catch { }
+                for (int ai = 0; ai < all.Count; ai++)
+                {
+                    var kk = all[ai];
+                    if (kk == pk) continue;
+                    try { AiAgenda.Month(kk, day); } catch { }
+                }
+
                 // ---- 1) AI-AI 和谈: 按"联盟阵营"整体停战 ----
                 var done = new HashSet<string>();
                 for (int i = 0; i < all.Count; i++)
@@ -198,6 +208,7 @@ namespace FeudalInternalAffairs
                         var sideA = SideOf(a);
                         var sideB = SideOf(b);
                         if (ContainsPlayer(sideA, pk) || ContainsPlayer(sideB, pk)) continue;   // 涉及玩家的由玩家主导
+                        if (PowerBlocs.AiShouldNotPeace(a, b)) continue;   // v5.x: 集团成员仍在交战 -> 不单独媾和
 
                         if (!PeaceConditionsMetSides(sideA, sideB, wd)) continue;   // 条件 2: 多数条件成立
                         if (MBRandom.RandomFloat > 0.45f) continue;
@@ -229,6 +240,11 @@ namespace FeudalInternalAffairs
                         if (PeaceAge(a, b) < 56) continue;            // 停战不足 56 天
                         if (!Borders(a, b)) continue;                 // 用户要求: 不接壤不宣战
                         int rel = Diplomacy.Get(a, b);
+                        // v5.x: 集团协同(同集团不打) + 统一大脑军费底线(储备不足不打)
+                        if (PowerBlocs.AiSameBloc(a, b)) continue;
+                        float dirReserve = 0f;
+                        try { dirReserve = AiBrain.ReserveGold(a); } catch { }
+                        if (dirReserve > 1f && WarEconomy.GoldOfPublic(a) < dirReserve) continue;
                         // v4.111: 军力碾压(≥2倍)+高鹰派(≥75) -> 允许对关系>0的弱邻"背刺"
                         bool crush = AiPersonality.AggressionOf(a) >= 75 && StrengthOf(a) >= StrengthOf(b) * 2f;
                         if (rel > 0 && !crush) continue;              // 默认只打关系 <=0 的
@@ -247,6 +263,20 @@ namespace FeudalInternalAffairs
                         // v4.117: 若目标是玩家且玩家明显更强, AI 敌意更高
                         if (pk != null && ReferenceEquals(b, pk) && StrengthOf(b) > StrengthOf(a) * 1.3f)
                             chance *= 1.25f;
+                        // v4.149: 玩家虚弱窗口(内战/合法性崩坏/破产/多线) -> 趁火打劫宣战欲望
+                        if (pk != null && ReferenceEquals(b, pk))
+                            chance *= 1f + AiOpportunism.PlayerWarWindowBonus() * 0.8f;
+                        // v5.x: 统一大脑外交战略(意愿/鹰派/指定目标/竞选期/集团协同)
+                        try
+                        {
+                            chance *= 0.7f + 0.6f * AiAgenda.Norm01(AiBrain.AggressionOf(a));
+                            if (!AiBrain.WantsWar(a)) chance *= 0.4f;
+                            string wantId = AiBrain.WarTargetId(a);
+                            if (wantId != null && wantId == b.StringId) chance *= 1.5f;
+                        }
+                        catch { }
+                        try { if (Elections.AiInCampaign(a)) chance *= 0.25f; } catch { }
+                        try { if (PowerBlocs.AiMateAtWarWith(a, b)) chance *= 1.6f; } catch { }
                         if (chance > bestChance || (Math.Abs(chance - bestChance) < 0.001f && rel < bestRel))
                         {
                             bestChance = chance; bestRel = rel; bestA = a; bestB = b;
@@ -408,6 +438,7 @@ namespace FeudalInternalAffairs
                             {
                                 MakePeaceAction.Apply(x, y);
                                 NotePeace(x, y);
+                                try { WarPlans.Clear(x, y); WarPlans.Clear(y, x); } catch { }   // v4.149: 清除战争计划
                                 pairs++;
                             }
                             catch (Exception ex) { DLog.Info("阵营停战失败 " + x.StringId + "/" + y.StringId + ": " + ex.Message); }
@@ -430,6 +461,7 @@ namespace FeudalInternalAffairs
                 try { if (a.IsAtWarWith(b)) MakePeaceAction.Apply(a, b); }
                 finally { AiActing = false; }
                 NotePeace(a, b);
+                try { WarPlans.Clear(a, b); WarPlans.Clear(b, a); } catch { }   // v4.149: 清除战争计划
                 DLog.Force("AI 和谈: " + a.Name + " <-> " + b.Name + " (战争 " + warDays + " 天, 多数条件达成)");
             }
             catch (Exception ex) { DLog.Force("AI 和谈失败: " + ex.Message); }
@@ -444,6 +476,9 @@ namespace FeudalInternalAffairs
                 finally { AiActing = false; }
                 _lastWarDay = Today();
                 NoteWar(a, b);
+                // v4.149: 开战即生成战争计划(目标驱动), 双方各一份
+                try { WarPlans.GetOrCreate(a, b, Today()); } catch { }
+                try { WarPlans.GetOrCreate(b, a, Today()); } catch { }
                 var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
                 if (a == pk || b == pk)
                     MapSelection.Message("宣战: " + a.Name + " 进攻 " + b.Name + "(AI 判定)");
@@ -497,6 +532,7 @@ namespace FeudalInternalAffairs
                 foreach (var kv in _warStart) sb.Append("W").Append(kv.Key).Append(',').Append(kv.Value).Append(';');
                 foreach (var kv in _peaceDay) sb.Append("P").Append(kv.Key).Append(',').Append(kv.Value).Append(';');
                 sb.Append("L").Append(_lastWarDay).Append(';');
+                sb.Append(AiAgenda.Save());   // v5.x: AI 政治议程状态(旧档无此段, Load 兼容)
                 return sb.ToString();
             }
             catch { return "v1;"; }
@@ -508,6 +544,8 @@ namespace FeudalInternalAffairs
             {
                 _warStart.Clear();
                 _peaceDay.Clear();
+                AiAgenda.Clear();   // v5.x: 读档重置 AI 议程
+                try { AiDirector.Reset(); } catch { }   // v5.x: 读档重置统一大脑
                 if (string.IsNullOrEmpty(data)) return;
                 var parts = data.Split(';');
                 for (int i = 1; i < parts.Length; i++)
@@ -516,6 +554,7 @@ namespace FeudalInternalAffairs
                     if (string.IsNullOrEmpty(s)) continue;
                     char tag = s[0];
                     var body = s.Substring(1);
+                    if (tag == 'A') { AiAgenda.LoadEntry(body); continue; }   // v5.x: AI 议程
                     if (tag == 'L')
                     {
                         int lv;
@@ -531,6 +570,604 @@ namespace FeudalInternalAffairs
                     else if (tag == 'P') _peaceDay[key] = day;
                 }
                 DLog.Force("AI 外交: 读档 战争记录=" + _warStart.Count + " 停战记录=" + _peaceDay.Count);
+            }
+            catch { }
+        }
+    }
+
+    // ================= v5.x: AI 政治议程与外交战略(统一大脑驱动) =================
+    //   读 AiDirector(GoalOf/ThreatOf/Aggression/WantsWar/WarTargetId/ReserveGold/BudgetFor);
+    //   让 AI 像玩家一样组合出牌: 立法议程 + 合法性(民怨)管理 + 竞选 + 均势外交 + 集团;
+    //   全部月结/周结; 每国每月最多 2 条 "AI 政治" + 2 条 "AI 外交" 日志; 读档重置。
+    internal class AiAgendaState
+    {
+        internal AiDirector.Goal CurGoal;
+        internal int LastMonth = -9999;
+        internal int LastDipMonth = -9999;
+        internal int Law0 = -1, Tier0 = -1, Law1 = -1, Tier1 = -1;   // 立法议程(1~2 部)
+        internal int Fail0, Fail1;
+        internal int Ban0 = -1, Ban1 = -1;                           // 连败后暂时不再盯的法律
+        internal int BanDay0 = -9999, BanDay1 = -9999;
+        internal int LastAppeaseDay = -9999;
+        internal int LastUnrestDay = -9999;
+        internal int LastAllyDay = -9999;
+        internal int LastRebelDay = -9999;
+        internal bool ElectionLost;
+        internal int ElectionLossDay = -9999;
+        internal int LogMonth = -9999;
+        internal int PolLogs, DipLogs;
+    }
+
+    internal static class AiAgenda
+    {
+        private static readonly Dictionary<string, AiAgendaState> Map = new Dictionary<string, AiAgendaState>();
+        private static int _lastDay = -1;
+
+        // 目标 -> 立法议程候选(只用通用法律; 特有法律不适用于 AI 议会)
+        private static readonly int[] EconomyLaws = { LawSystem.LTax, LawSystem.LEconomy, LawSystem.LTrade, LawSystem.LCharter, LawSystem.LCoinage, LawSystem.LLand };
+        private static readonly int[] MilitaryLaws = { LawSystem.LLevy, LawSystem.LSecurity, LawSystem.LPolity, LawSystem.LTax };
+        private static readonly int[] PoliticsLaws = { LawSystem.LFranchise, LawSystem.LSuccession, LawSystem.LJustice, LawSystem.LBureaucracy, LawSystem.LChurch, LawSystem.LPolity };
+        private static readonly int[] SurvivalLaws = { LawSystem.LSecurity, LawSystem.LPolicing, LawSystem.LSpeech, LawSystem.LLevy, LawSystem.LJustice };
+        private static readonly int[] ConsolidationLaws = { LawSystem.LRights, LawSystem.LWelfare, LawSystem.LEducation, LawSystem.LMigration, LawSystem.LLand, LawSystem.LAssoc };
+
+        internal static AiAgendaState Of(Kingdom k)
+        {
+            try
+            {
+                if (k == null || string.IsNullOrEmpty(k.StringId)) return null;
+                AiAgendaState st;
+                if (!Map.TryGetValue(k.StringId, out st)) { st = new AiAgendaState(); Map[k.StringId] = st; }
+                return st;
+            }
+            catch { return null; }
+        }
+
+        internal static void Clear() { Map.Clear(); _lastDay = -1; }
+
+        // 统一大脑数值口径归一化(兼容 0~1 / 0~100 两种标度)
+        internal static float Norm01(float v)
+        {
+            if (v > 1.5f) v = v / 100f;
+            if (v < 0f) v = 0f;
+            if (v > 1f) v = 1f;
+            return v;
+        }
+
+        private static int MonthKey(int day) { return day / 7; }
+
+        internal static AiDirector.Goal GoalOf(Kingdom k)
+        {
+            try { return AiBrain.GoalOf(k); } catch { return AiDirector.Goal.Economy; }
+        }
+
+        internal static int LawOf(Kingdom k, int slot)
+        {
+            try
+            {
+                var st = Of(k);
+                if (st == null) return -1;
+                return slot == 0 ? st.Law0 : st.Law1;
+            }
+            catch { return -1; }
+        }
+
+        internal static void LogPol(Kingdom k, string msg) { Log(k, "AI 政治: ", true, msg); }
+        internal static void LogDip(Kingdom k, string msg) { Log(k, "AI 外交: ", false, msg); }
+
+        private static void Log(Kingdom k, string tag, bool pol, string msg)
+        {
+            try
+            {
+                if (k == null || string.IsNullOrEmpty(msg)) return;
+                var st = Of(k);
+                if (st == null) return;
+                int mk = MonthKey(AiDiplomacy.Today());
+                if (st.LogMonth != mk) { st.LogMonth = mk; st.PolLogs = 0; st.DipLogs = 0; }
+                if (pol) { if (st.PolLogs >= 2) return; st.PolLogs++; }
+                else { if (st.DipLogs >= 2) return; st.DipLogs++; }
+                DLog.Force(tag + k.Name + " " + msg);
+            }
+            catch { }
+        }
+
+        // 月度: 计算议程(幂等; 游说/议会/法令/条约的 AI 段先 Ensure 再读目标)
+        internal static void Ensure(Kingdom k, int day)
+        {
+            try
+            {
+                if (k == null || k.IsEliminated) return;
+                if (day < _lastDay) Map.Clear();   // 新档/读档回溯 -> 重置
+                _lastDay = day;
+                var st = Of(k);
+                if (st == null || st.LastMonth == day) return;
+                st.LastMonth = day;
+                int mk = MonthKey(day);
+                if (st.LogMonth != mk) { st.LogMonth = mk; st.PolLogs = 0; st.DipLogs = 0; }
+                st.CurGoal = GoalOf(k);
+                ChooseLaws(k, st, day);
+            }
+            catch { }
+        }
+
+        // 月度: 政治管理 + 外交战略(每国每月只跑一次)
+        internal static void Month(Kingdom k, int day)
+        {
+            try
+            {
+                Ensure(k, day);
+                var st = Of(k);
+                if (st == null || st.LastDipMonth == day) return;
+                st.LastDipMonth = day;
+                PoliticalManagement(k, st, day);
+                DiploAgenda(k, st, day);
+            }
+            catch (Exception ex) { DLog.Info("AI 议程异常: " + ex.Message); }
+        }
+
+        // ---------- 立法议程: 按 Goal 选 1~2 部法 ----------
+        // 注意: AI 的法档在 Parliament.AiLaw 里, 不能用玩家侧的 LawSystem.Level/NextTier
+        private static int AiNextTier(Kingdom k, int law)
+        {
+            int lv = Parliament.AiLevelOf(k, law);
+            int max = LawSystem.TierCount(law) - 1;
+            return lv >= max ? max : lv + 1;
+        }
+
+        private static bool AiMaxed(Kingdom k, int law)
+        {
+            return Parliament.AiLevelOf(k, law) >= LawSystem.TierCount(law) - 1;
+        }
+
+        private static void ChooseLaws(Kingdom k, AiAgendaState st, int day)
+        {
+            try
+            {
+                if (st.Ban0 >= 0 && day - st.BanDay0 >= 56) st.Ban0 = -1;   // 封禁 56 天后可再试
+                if (st.Ban1 >= 0 && day - st.BanDay1 >= 56) st.Ban1 = -1;
+                if (st.Law0 >= 0 && (st.Law0 >= LawSystem.LawCount || AiMaxed(k, st.Law0) || st.Fail0 >= 2 || LawSystem.IsSpecial(st.Law0))) { if (st.Fail0 >= 2) { st.Ban0 = st.Law0; st.BanDay0 = day; } st.Law0 = -1; }
+                if (st.Law1 >= 0 && (st.Law1 >= LawSystem.LawCount || AiMaxed(k, st.Law1) || st.Fail1 >= 2 || LawSystem.IsSpecial(st.Law1))) { if (st.Fail1 >= 2) { st.Ban1 = st.Law1; st.BanDay1 = day; } st.Law1 = -1; }
+                if (st.Law0 >= 0 && st.Law1 >= 0) return;   // 每次只盯 1~2 部
+                int[] pool = PoolFor(st.CurGoal, Elections.AiInCampaign(k));
+                int best = -1, bestYes = -1;
+                for (int i = 0; i < pool.Length; i++)
+                {
+                    int law = pool[i];
+                    var d = LawSystem.Def(law);
+                    if (d == null || !string.IsNullOrEmpty(d.Scope)) continue;
+                    if (AiMaxed(k, law)) continue;
+                    if (law == st.Law0 || law == st.Law1) continue;
+                    if (law == st.Ban0 || law == st.Ban1) continue;   // 失败过的不再盯
+                    int yes = 0;
+                    try { yes = Parliament.AiYesSeatsOf(k, law, AiNextTier(k, law)); } catch { }
+                    if (d.Cat == "权力") yes += AiPersonality.AggressionOf(k) / 10;
+                    else if (d.Cat == "经济") yes += AiPersonality.CommerceOf(k) / 10;
+                    else yes += AiPersonality.DevelopmentOf(k) / 10;
+                    if (yes > bestYes) { bestYes = yes; best = law; }
+                }
+                if (best < 0) return;
+                if (st.Law0 < 0) { st.Law0 = best; st.Tier0 = AiNextTier(k, best); st.Fail0 = 0; st.Ban0 = -1; }
+                else { st.Law1 = best; st.Tier1 = AiNextTier(k, best); st.Fail1 = 0; st.Ban1 = -1; }
+            }
+            catch { }
+        }
+
+        private static int[] PoolFor(AiDirector.Goal g, bool campaign)
+        {
+            if (campaign) return PoliticsLaws;   // 竞选期: 推选举/合法性类
+            switch (g)
+            {
+                case AiDirector.Goal.Economy: return EconomyLaws;
+                case AiDirector.Goal.Military: return MilitaryLaws;
+                case AiDirector.Goal.Politics: return PoliticsLaws;
+                case AiDirector.Goal.Survival: return SurvivalLaws;
+                default: return ConsolidationLaws;
+            }
+        }
+
+        // 表决结果: 通过 -> 清目标; 差得远 -> 计数(2 次换目标); 接近 -> 保留继续攒票
+        internal static void NoteLawResult(Kingdom k, int law, bool passed, int yes)
+        {
+            try
+            {
+                var st = Of(k);
+                if (st == null || law < 0) return;
+                if (law == st.Law0)
+                {
+                    if (passed) { st.Law0 = -1; st.Tier0 = -1; st.Fail0 = 0; }
+                    else if (yes < 40) st.Fail0++;
+                }
+                else if (law == st.Law1)
+                {
+                    if (passed) { st.Law1 = -1; st.Tier1 = -1; st.Fail1 = 0; }
+                    else if (yes < 40) st.Fail1++;
+                }
+            }
+            catch { }
+        }
+
+        // 选举失利: 转向联盟/妥协 —— 改推胜选集团的诉求法
+        internal static void NoteElectionLoss(Kingdom k, int winnerGroup)
+        {
+            try
+            {
+                var st = Of(k);
+                if (st == null) return;
+                st.ElectionLost = true;
+                st.ElectionLossDay = AiDiplomacy.Today();
+                int best = -1, bestV = 8;
+                for (int i = 0; i < LawSystem.LawCount; i++)
+                {
+                    var d = LawSystem.Def(i);
+                    if (d == null || !string.IsNullOrEmpty(d.Scope) || AiMaxed(k, i)) continue;
+                    int v = LawSystem.AdvanceStance(i, winnerGroup);
+                    if (v > bestV) { bestV = v; best = i; }
+                }
+                st.Law0 = best;
+                st.Tier0 = best >= 0 ? AiNextTier(k, best) : -1;
+                st.Fail0 = 0;
+                st.Ban0 = -1;
+                st.Law1 = -1; st.Tier1 = -1; st.Fail1 = 0;
+                LogPol(k, "选举失利 -> 妥协: 改推胜选集团诉求《" + (best >= 0 ? LawSystem.NameOf(best) : "—") + "》");
+            }
+            catch { }
+        }
+
+        // ---------- 供游说/议会/法令/条约的 AI 段读取 ----------
+        internal static string LobbyIdFor(Kingdom k)
+        {
+            try
+            {
+                var st = Of(k);
+                if (st == null) return null;
+                int law = st.Law0 >= 0 ? st.Law0 : st.Law1;
+                if (law < 0) return null;
+                string cat = LawSystem.CatOf(law);
+                if (cat == "经济") return MBRandom.RandomFloat < 0.5f ? "fund_lobbies" : "appeasement";
+                if (cat == "权力") return MBRandom.RandomFloat < 0.5f ? "loyalist" : "pro_country";
+                return MBRandom.RandomFloat < 0.5f ? "pro_country" : "fund_lobbies";
+            }
+            catch { return null; }
+        }
+
+        internal static string LobbyCategoryFor(Kingdom k)
+        {
+            try
+            {
+                var st = Of(k);
+                if (st == null) return null;
+                int law = st.Law0 >= 0 ? st.Law0 : st.Law1;
+                return law >= 0 ? LawSystem.CatOf(law) : null;
+            }
+            catch { return null; }
+        }
+
+        internal static string DecreeIdFor(Kingdom k)
+        {
+            try
+            {
+                var st = Of(k);
+                if (st == null) return null;
+                float days = 99f;
+                try { WarEconomy.FoodDaysOf(k, out days); } catch { }
+                if (days < 10f) return "emergency_relief";
+                if (Elections.AiInCampaign(k)) return "promote_social_mobility";
+                switch (st.CurGoal)
+                {
+                    case AiDirector.Goal.Survival: return AiPersonality.AggressionOf(k) >= 60 ? "violent_suppression" : "emergency_relief";
+                    case AiDirector.Goal.Military: return MBRandom.RandomFloat < 0.6f ? "enlistment_efforts" : "violent_suppression";
+                    case AiDirector.Goal.Economy: return MBRandom.RandomFloat < 0.5f ? "encourage_manufacturing" : "encourage_resource";
+                    case AiDirector.Goal.Politics: return MBRandom.RandomFloat < 0.5f ? "promote_national_values" : "establish_missions";
+                    default: return MBRandom.RandomFloat < 0.5f ? "encourage_agriculture" : "road_maintenance";
+                }
+            }
+            catch { return null; }
+        }
+
+        internal static string TreatyTypeFor(Kingdom k)
+        {
+            try
+            {
+                var st = Of(k);
+                if (st == null) return null;
+                float days = 99f;
+                try { WarEconomy.FoodDaysOf(k, out days); } catch { }
+                if (days < 20f) return "trade";                    // 缺粮 -> 粮食/贸易条约
+                if (EngineStockOf(k) < 20f) return "invest";       // 缺引擎 -> 工业/投资条约
+                if (st.CurGoal == AiDirector.Goal.Military || st.CurGoal == AiDirector.Goal.Survival) return "nap";
+                if (st.CurGoal == AiDirector.Goal.Politics) return MBRandom.RandomFloat < 0.5f ? "ally" : "trade";
+                return MBRandom.RandomFloat < 0.6f ? "trade" : "invest";
+            }
+            catch { return null; }
+        }
+
+        private static float EngineStockOf(Kingdom k)
+        {
+            try
+            {
+                float n = 0f;
+                foreach (var s in k.Settlements)
+                {
+                    if (s == null) continue;
+                    var m = EconomyWorld.FindMarket(s.StringId);
+                    if (m == null) continue;
+                    var e = m.Get(FeudalGoods.Engines);
+                    if (e != null) n += e.Stock;
+                }
+                return n;
+            }
+            catch { return 999f; }
+        }
+
+        // ---------- 集团与合法性(民怨)管理: 镇压或妥协, 避免革命 ----------
+        private static void PoliticalManagement(Kingdom k, AiAgendaState st, int day)
+        {
+            try
+            {
+                float rad = RadicalOf(k);
+                bool crisis = WarEconomy.IsCrisis(k);
+                bool bankrupt = WarEconomy.DeficitDaysOf(k) >= 5;
+                float auth = Decrees.AiAuthOf(k);
+
+                // 1) 竞选期: 压税安抚 + 游说加票, 不做惹怒选民的事
+                if (Elections.AiInCampaign(k))
+                {
+                    if (st.LastAppeaseDay != day)
+                    {
+                        st.LastAppeaseDay = day;
+                        LowerTax(k);
+                        try { Parliament.AiLobbyPush(k, "民权"); } catch { }
+                        try { Parliament.AiLobbyPush(k, "权力"); } catch { }
+                        if (auth >= 60f) Decrees.AiEnact(k, "promote_social_mobility", day);
+                        LogPol(k, "竞选: 压税安抚+游说加票(推《" + LawName(st.Law0) + "》)");
+                    }
+                    return;
+                }
+
+                // 2) 民怨/饥荒/危机: 镇压或妥协(避免革命)
+                if ((rad >= 0.45f || crisis || bankrupt) && day - st.LastUnrestDay >= 14)
+                {
+                    st.LastUnrestDay = day;
+                    int agg = AiPersonality.AggressionOf(k);
+                    bool suppress = auth >= 150f && agg >= 60 && !crisis;
+                    if (suppress && Decrees.AiEnact(k, "violent_suppression", day))
+                    {
+                        RadicalShift(k, -0.02f);
+                        LogPol(k, "镇压: 民怨 " + (int)(rad * 100) + "%(军队满意, 暴政换稳定)");
+                    }
+                    else
+                    {
+                        bool ok = Decrees.AiEnact(k, "emergency_relief", day);
+                        LowerTax(k);
+                        try { AiEconomyDeep.ShiftPublicStance(k, new[] { 0, -1, 1, 2, 1, 1, 6, 0 }); } catch { }
+                        RadicalShift(k, -0.012f);
+                        LogPol(k, "妥协: " + (ok ? "开仓救济" : "减税安抚") + "(民怨 " + (int)(rad * 100) + "%)");
+                    }
+                }
+                // 3) 权威不足 / 关键集团情绪低: 定向安抚 + 攒票(政策 API: 法令/立场/游说)
+                else
+                {
+                    int worstG = -1;
+                    float worstMood = 1f;
+                    for (int g = 1; g < InterestGroups.GroupCount; g++)
+                    {
+                        float mood = 0.5f;
+                        try { mood = Parliament.AiGroupMood(k, g); } catch { }
+                        if (mood < worstMood) { worstMood = mood; worstG = g; }
+                    }
+                    if ((auth < 120f || worstMood < 0.35f) && day - st.LastAppeaseDay >= 28)
+                    {
+                        st.LastAppeaseDay = day;
+                        Decrees.AiEnact(k, "promote_national_values", day);
+                        if (worstG > 0)
+                        {
+                            var att = new int[InterestGroups.GroupCount];
+                            att[worstG] = 8;
+                            try { AiEconomyDeep.ShiftPublicStance(k, att); } catch { }
+                        }
+                        try { Parliament.AiLobbyPush(k, "权力"); } catch { }
+                        LogPol(k, "安抚 " + (worstG > 0 ? InterestGroups.NameOf(worstG) : "关键集团")
+                            + " + 攒票(权威 " + (int)auth + ", 情绪 " + (int)(worstMood * 100) + ")");
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private static string LawName(int law) { return law >= 0 ? LawSystem.NameOf(law) : "—"; }
+
+        // 竞选期不加税: 回退一档(安抚选民)
+        private static void LowerTax(Kingdom k)
+        {
+            try
+            {
+                int lv;
+                if (AiEconomyDeep.TaxLevel.TryGetValue(k.StringId, out lv) && lv > 1)
+                    AiEconomyDeep.TaxLevel[k.StringId] = lv - 1;
+            }
+            catch { }
+        }
+
+        internal static float RadicalOf(Kingdom k)
+        {
+            try
+            {
+                float num = 0f, den = 0f;
+                foreach (var s in k.Settlements)
+                {
+                    if (s == null) continue;
+                    var list = Pops.Of(s.StringId);
+                    if (list == null) continue;
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        var p = list[i];
+                        if (p == null || p.Size < 0.5f) continue;
+                        num += p.Radicalism * p.Size; den += p.Size;
+                    }
+                }
+                return den > 0f ? num / den : 0f;
+            }
+            catch { return 0f; }
+        }
+
+        internal static void RadicalShift(Kingdom k, float delta)
+        {
+            try
+            {
+                foreach (var s in k.Settlements)
+                {
+                    if (s == null) continue;
+                    var list = Pops.Of(s.StringId);
+                    if (list == null) continue;
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        var p = list[i];
+                        if (p == null || p.Size < 0.5f) continue;
+                        p.Radicalism = LawSystem.ClampF(p.Radicalism + delta, 0f, 1f);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        // ---------- 外交战略: 按 ThreatOf 构建均势 ----------
+        private static void DiploAgenda(Kingdom k, AiAgendaState st, int day)
+        {
+            try
+            {
+                try { PowerBlocs.AiMonthly(k, day); } catch { }   // 集团: 创建/加入/升级
+                float threat = 0f;
+                try { threat = Norm01(AiBrain.ThreatOf(k)); } catch { }
+                if (Elections.AiInCampaign(k)) return;     // 竞选期不做战争冒险
+                float gold = WarEconomy.GoldOfPublic(k);
+                if (threat >= 0.5f) ThreatResponse(k, st, day, threat);
+                else if (threat <= 0.25f) Opportunism(k, st, day, gold);
+            }
+            catch { }
+        }
+
+        // 威胁高 -> 拉同盟/靠近大国集团
+        private static void ThreatResponse(Kingdom k, AiAgendaState st, int day, float threat)
+        {
+            try
+            {
+                Kingdom best = null;
+                int bestRel = -101;
+                foreach (var b in Kingdom.All)
+                {
+                    if (b == null || b.IsEliminated || ReferenceEquals(b, k)) continue;
+                    if (Diplomacy.IsAlly(k, b)) continue;
+                    if (!AiDiplomacy.Borders(k, b)) continue;
+                    bool war = false;
+                    try { war = k.IsAtWarWith(b); } catch { }
+                    if (war) continue;
+                    int rel = Diplomacy.Get(k, b);
+                    if (rel > bestRel) { bestRel = rel; best = b; }
+                }
+                if (best == null || day - st.LastAllyDay < 14) return;
+                st.LastAllyDay = day;
+                // 外交预算: 预算紧且不富裕 -> 只攒关系, 不缔盟(用 BudgetFor "dip")
+                float dipBudget = 0f;
+                try { dipBudget = AiBrain.BudgetFor(k, "dip", WarEconomy.GoldOfPublic(k)); } catch { }
+                bool rich = WarEconomy.GoldOfPublic(k) > 8000f;
+                if (bestRel >= Diplomacy.AllyThreshold - 15 && (dipBudget <= 1f || dipBudget >= 400f || rich))
+                {
+                    if (Decrees.AiAuthSpend(k, 50f) && Diplomacy.StartAlliance(k, best))
+                        LogDip(k, "威胁 " + (int)(threat * 100) + "% -> 与 " + best.Name + " 缔结同盟");
+                    else Diplomacy.Change(k, best, 5);
+                }
+                else Diplomacy.Change(k, best, 5);   // 先攒关系
+            }
+            catch { }
+        }
+
+        // 威胁低 -> 机会主义扩张: 支持叛乱 / 断盟(开战由 AiDiplomacy 按 WarTargetId 选目标)
+        private static void Opportunism(Kingdom k, AiAgendaState st, int day, float gold)
+        {
+            try
+            {
+                if (day - st.LastRebelDay >= 56 && gold > 1500f && AiPersonality.AggressionOf(k) >= 50)
+                {
+                    Kingdom weak = null;
+                    float weakPow = float.MaxValue;
+                    foreach (var b in Kingdom.All)
+                    {
+                        if (b == null || b.IsEliminated || ReferenceEquals(b, k)) continue;
+                        if (Diplomacy.IsAlly(k, b)) continue;
+                        if (!AiDiplomacy.Borders(k, b)) continue;
+                        float pow = 0f;
+                        try { pow = b.CurrentTotalStrength; } catch { }
+                        if (pow < weakPow) { weakPow = pow; weak = b; }
+                    }
+                    if (weak != null)
+                    {
+                        st.LastRebelDay = day;
+                        WarEconomy.SpendPublic(k, 500f);
+                        RadicalShift(weak, 0.012f);   // 资助叛乱: 目标国人口激进化
+                        LogDip(k, "机会主义: 资助 " + weak.Name + " 叛乱(其民怨上升)");
+                    }
+                }
+                if (day - st.LastAllyDay >= 28)
+                {
+                    foreach (var b in Kingdom.All)
+                    {
+                        if (b == null || b.IsEliminated || ReferenceEquals(b, k)) continue;
+                        if (!Diplomacy.IsAlly(k, b)) continue;
+                        if (Diplomacy.Get(k, b) >= 15) continue;
+                        st.LastAllyDay = day;
+                        Diplomacy.EndAlliance(k, b);
+                        LogDip(k, "断盟: 与 " + b.Name + " 关系恶化, 解除同盟");
+                        break;
+                    }
+                }
+            }
+            catch { }
+        }
+
+        // ---------- 存档(由 AiDiplomacy 统一存取) ----------
+        internal static string Save()
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                foreach (var kv in Map)
+                {
+                    var st = kv.Value;
+                    if (st == null) continue;
+                    sb.Append('A').Append(kv.Key).Append(',')
+                      .Append((int)st.CurGoal).Append(',').Append(st.Law0).Append(',').Append(st.Tier0).Append(',').Append(st.Fail0).Append(',')
+                      .Append(st.Law1).Append(',').Append(st.Tier1).Append(',').Append(st.Fail1).Append(',')
+                      .Append(st.ElectionLost ? 1 : 0).Append(',').Append(st.ElectionLossDay).Append(',')
+                      .Append(st.Ban0).Append(',').Append(st.Ban1).Append(',')
+                      .Append(st.BanDay0).Append(',').Append(st.BanDay1).Append(';');
+                }
+                return sb.ToString();
+            }
+            catch { return ""; }
+        }
+
+        internal static void LoadEntry(string body)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(body)) return;
+                var f = body.Split(',');
+                if (f.Length < 10) return;
+                var st = new AiAgendaState();
+                int v;
+                if (int.TryParse(f[1], out v)) st.CurGoal = (AiDirector.Goal)v;
+                if (int.TryParse(f[2], out v)) st.Law0 = v;
+                if (int.TryParse(f[3], out v)) st.Tier0 = v;
+                if (int.TryParse(f[4], out v)) st.Fail0 = v;
+                if (int.TryParse(f[5], out v)) st.Law1 = v;
+                if (int.TryParse(f[6], out v)) st.Tier1 = v;
+                if (int.TryParse(f[7], out v)) st.Fail1 = v;
+                st.ElectionLost = f[8] == "1";
+                if (int.TryParse(f[9], out v)) st.ElectionLossDay = v;
+                if (f.Length > 10 && int.TryParse(f[10], out v)) st.Ban0 = v;
+                if (f.Length > 11 && int.TryParse(f[11], out v)) st.Ban1 = v;
+                if (f.Length > 12 && int.TryParse(f[12], out v)) st.BanDay0 = v;
+                if (f.Length > 13 && int.TryParse(f[13], out v)) st.BanDay1 = v;
+                Map[f[0]] = st;
             }
             catch { }
         }

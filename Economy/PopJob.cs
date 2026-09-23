@@ -238,7 +238,8 @@ namespace FeudalInternalAffairs
                         if (p == null || p.Size < 2f) continue;
                         if (p.Profession != PopDefs.Peasants && p.Profession != PopDefs.Unemployed) continue;
                         var def = PopDefs.Get(job);
-                        if (p.Literacy + 0.001f < def.MinLiteracy) continue;   // 资格门槛
+                        // v4.148 V3 官方: 转职门槛用"资格"(识字率×0.6 + 财富×0.4), 尺度按新识字率(教育机会上限)校准
+                        if (Pops.QualificationOf(p) + 0.001f < def.MinLiteracy * 0.3f) continue;
                     // missing 是"工作人口数"(岗位), 转职搬的是"总人数" -> 必须 ÷ 工作比例
                     // (原来按 1:1 搬人: 缺 7 个岗位只搬 7 个人 = 1.75 个劳动力, 到岗率永远卡在 ~21%)
                     float take = Math.Min(missing / PopDefs.WorkforceRatio, p.Size * 0.2f);

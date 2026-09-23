@@ -80,6 +80,14 @@ namespace FeudalInternalAffairs
         internal static int DevelopmentOf(Kingdom k) { var p = Of(k); return p != null ? p.Dev : 50; }
         internal static int CommerceOf(Kingdom k) { var p = Of(k); return p != null ? p.Com : 50; }
 
+        // v5.0: 工业倾向(基建狂/工业党) —— 由建设/商贸派生, 不落盘(旧档零影响; 供 AI 研究速度用)
+        internal static int IndustryOf(Kingdom k)
+        {
+            var p = Of(k);
+            if (p == null) return 50;
+            return Clamp((p.Dev * 2 + p.Com) / 3, 0, 100);
+        }
+
         // v4.116: 性格漂移(领土变化影响: 扩张->更鹰派/更重商, 失地->更保守)
         internal static void Drift(Kingdom k, int territoryDelta)
         {
@@ -92,6 +100,102 @@ namespace FeudalInternalAffairs
                 p.Com = Clamp(p.Com + territoryDelta, 5, 95);
             }
             catch { }
+        }
+
+        // ================= v4.149: 活体性格(事件驱动漂移) =================
+        //   战争胜负/攻城得失/破产/繁荣/孤立/统治者更替 -> 三轴动态调整, 性格不再是"开局标签"
+        internal static void Observe(Kingdom k, string kind, float weight)
+        {
+            try
+            {
+                var p = Of(k);
+                if (p == null || string.IsNullOrEmpty(kind)) return;
+                if (weight <= 0f) weight = 1f;
+                int w = (int)Math.Round(weight);
+                if (w < 1) w = 1;
+                switch (kind)
+                {
+                    case "battle_win":
+                        p.Agg = Clamp(p.Agg + 2 * w, 5, 95); p.Com = Clamp(p.Com + w, 5, 95);
+                        break;
+                    case "battle_loss":
+                        p.Agg = Clamp(p.Agg - 2 * w, 5, 95); p.Dev = Clamp(p.Dev + w, 5, 95);
+                        break;
+                    case "city_taken":
+                        p.Agg = Clamp(p.Agg + 3 * w, 5, 95); p.Dev = Clamp(p.Dev - w, 5, 95);
+                        break;
+                    case "city_lost":
+                        p.Agg = Clamp(p.Agg - 2 * w, 5, 95); p.Dev = Clamp(p.Dev + 2 * w, 5, 95);
+                        break;
+                    case "bankrupt":
+                        p.Dev = Clamp(p.Dev - 3 * w, 5, 95); p.Com = Clamp(p.Com + 3 * w, 5, 95);
+                        break;
+                    case "prosper":
+                        p.Dev = Clamp(p.Dev + 2 * w, 5, 95); p.Com = Clamp(p.Com + w, 5, 95);
+                        break;
+                    case "war_wear":
+                        p.Agg = Clamp(p.Agg - 2 * w, 5, 95);
+                        break;
+                    case "isolated":
+                        p.Agg = Clamp(p.Agg + w, 5, 95); p.Com = Clamp(p.Com - 2 * w, 5, 95);
+                        break;
+                    case "ruler_change":
+                        // 新君主 -> 性格小幅重掷(最多 ±10)
+                        p.Agg = Clamp(p.Agg + MBRandom.RandomInt(-10, 11), 5, 95);
+                        p.Dev = Clamp(p.Dev + MBRandom.RandomInt(-10, 11), 5, 95);
+                        p.Com = Clamp(p.Com + MBRandom.RandomInt(-10, 11), 5, 95);
+                        break;
+                }
+            }
+            catch { }
+        }
+
+        // 月度观察: 统治者更替 / 外交孤立 -> 漂移(由月结调用)
+        private static readonly Dictionary<string, string> _lastRuler = new Dictionary<string, string>();
+        internal static void MonthlyWatch(int day)
+        {
+            try
+            {
+                Ensure();
+                foreach (var k in Kingdom.All)
+                {
+                    if (k == null || k.IsEliminated) continue;
+                    // 统治者更替
+                    try
+                    {
+                        string rid = null;
+                        if (k.RulingClan != null && k.RulingClan.Leader != null) rid = k.RulingClan.Leader.StringId;
+                        string last;
+                        if (rid != null && _lastRuler.TryGetValue(k.StringId, out last))
+                        {
+                            if (last != rid)
+                            {
+                                _lastRuler[k.StringId] = rid;
+                                Observe(k, "ruler_change", 1f);
+                                DLog.Force("性格漂移: " + k.Name + " 统治者更替 -> " + Describe(k));
+                            }
+                        }
+                        else if (rid != null) _lastRuler[k.StringId] = rid;
+                    }
+                    catch { }
+                    // 外交孤立: 无盟友且敌国 >= 2
+                    try
+                    {
+                        int allies = 0, enemies = 0;
+                        foreach (var x in Kingdom.All)
+                        {
+                            if (x == null || x.IsEliminated || ReferenceEquals(x, k)) continue;
+                            if (Diplomacy.IsAlly(k, x)) allies++;
+                            if (k.IsAtWarWith(x)) enemies++;
+                        }
+                        if (allies == 0 && enemies >= 2 && day % 56 == 0) Observe(k, "isolated", 1f);
+                    }
+                    catch { }
+                    // 厌战
+                    try { if (WarWeariness.MaxWearOf(k) >= 70f && day % 56 == 0) Observe(k, "war_wear", 1f); } catch { }
+                }
+            }
+            catch (Exception ex) { DLog.Force("性格观察异常: " + ex.Message); }
         }
 
         private static int Clamp(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }

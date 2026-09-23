@@ -40,7 +40,7 @@ namespace FeudalInternalAffairs
                         delegate (float dt) { if (_vm != null) _vm.TickAnim(dt); OnTick(dt); },
                         delegate { if (_vm != null) _vm.ClosePanelAnim(780f); });
                     // 滚轮: 层收不到 -> 注册"滚一行"的回调, 由 PanelScreen 轮询触发
-                    PanelScreen.SetScrollHandler(Key, delegate (int dir) { if (_vm != null) _vm.ScrollStep(dir); });
+                    PanelScreen.SetScrollHandler(Key, delegate (int dir) { if (_vm != null) { _vm.ScrollStep(dir); RegisterSpots(); } });
                     RegisterSpots();
                 }
                 if (_vm != null) _vm.SetTown(townId);
@@ -70,12 +70,12 @@ namespace FeudalInternalAffairs
                     }
                     catch { }
                 }
-                // 悬停提示(每帧): 表格行区从 y=378 起(320 顶部区 + 28 表头 + 30 间距), 行高 68
+                // 悬停提示(每帧): 商品表行区从 y=350 起(320 顶部区 + 30 间距, 表头与列表同起点), 行高 68
                 if (_vm != null)
                 {
                     var m = TaleWorlds.InputSystem.Input.MousePositionPixel;
-                    if (PanelScreen.IsMouseOnPanel() && m.Y >= 378f)
-                        _vm.SetHover((int)((m.Y - 378f) / 68f), m.X, m.Y);   // 行高 68(第二行字号加大后)
+                    if (PanelScreen.IsMouseOnPanel() && m.Y >= 350f)
+                        _vm.SetHover((int)((m.Y - 350f) / 68f), m.X, m.Y);   // 行高 68(第二行字号加大后)
                     else
                         _vm.SetHover(-1, m.X, m.Y);
                 }
@@ -118,7 +118,7 @@ namespace FeudalInternalAffairs
                     for (int i = 0; i < _vm.TradeRows.Count; i++)
                     {
                         int idx = i;
-                        float ry = 310f + i * 48f;
+                        float ry = 282f + i * 48f;
                         if (ry > sh - 160f) break;
                         PanelScreen.AddSpot(14f, ry, 250f, 44f, delegate { _vm.FlyToTradeRow(idx); });
                     }
@@ -128,7 +128,7 @@ namespace FeudalInternalAffairs
                     for (int i = 0; i < _vm.FoodRows.Count; i++)
                     {
                         int idx = i;
-                        float ry = 310f + i * 48f;
+                        float ry = 282f + i * 48f;
                         if (ry > sh - 160f) break;
                         PanelScreen.AddSpot(14f, ry, 250f, 44f, delegate { _vm.FlyToFoodRow(idx); });
                     }
