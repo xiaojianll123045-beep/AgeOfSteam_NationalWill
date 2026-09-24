@@ -770,12 +770,17 @@ namespace FeudalInternalAffairs
             return "兵力 " + men + "/编制 " + expected;
         }
 
+        // v4.249: 军事总监调度一律"到城门外"(不再让军团进城)
+        //   用户反馈"部队莫名其妙进城了" —— 军事总监每周的休整/集结/防守会让军团直接开进城;
+        //   玩家自己点城镇(GoToSettlement)仍保留原版入城行为, 只是 AI 不再替玩家决定入城。
         private static void MoveTo(MobileParty p, Settlement s)
         {
             try
             {
-                p.SetMoveGoToSettlement(s, MobileParty.NavigationType.Default, false);
-                CommandTimeout.Touch(p, s.GatePosition);
+                if (p == null || s == null) return;
+                var gp = new CampaignVec2(s.GatePosition.ToVec2(), true);
+                p.SetMoveGoToPoint(gp, MobileParty.NavigationType.Default);
+                CommandTimeout.Touch(p, gp);
             }
             catch { }
         }

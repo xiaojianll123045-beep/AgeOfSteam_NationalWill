@@ -296,15 +296,43 @@ namespace FeudalInternalAffairs
                     }
 
                     // 右键点在某个部队上?
-                    var visual = screen.CurrentVisualOfTooltip as MobilePartyVisual;
-                    var party = visual != null && visual.MapEntity != null ? visual.MapEntity.MobileParty : null;
+                    // v4.246: 不再只依赖 CurrentVisualOfTooltip —— 它会滞后/被名板挡住, 导致"多选后右键"
+                    //   经常命中不到部队, 于是菜单弹不出来反而把选中取消了(用户: 组建军团的弹窗怎么没了)。
+                    //   现在先用"光标像素距离"找部队(与左键同一口径), 再退回悬停视觉。
+                    var party = MapBoxSelect.FindPartyAtCursor(60f);
+                    if (party == null)
+                    {
+                        var visual = screen.CurrentVisualOfTooltip as MobilePartyVisual;
+                        party = visual != null && visual.MapEntity != null ? visual.MapEntity.MobileParty : null;
+                    }
                     bool onOurParty = party != null && NationalWillOrders.IsOurs(party);
 
-                    if (onOurParty)
+                    // v4.246: 多选(且选中的都是我方的)时, 右键一律弹小队菜单 ——
+                    //   用户的意图本来就是"对选中的这几支下命令", 不该要求光标必须压在部队模型上
+                    bool multiOurs = false;
+                    try
                     {
-                        var army = party.Army;
+                        if (MapSelection.Count > 1)
+                        {
+                            multiOurs = true;
+                            var sl = MapSelection.SelectedList;
+                            for (int i = 0; i < sl.Count; i++)
+                            {
+                                var q = sl[i];
+                                if (q == null || !NationalWillOrders.IsOurs(q)) { multiOurs = false; break; }
+                            }
+                        }
+                    }
+                    catch { }
+
+                    if (onOurParty || multiOurs)
+                    {
+                        var army = party != null ? party.Army : null;
+                        bool armyMenu = army != null && army.Parties != null && army.Parties.Count > 1;
+                        DLog.Force("右键: 选中=" + MapSelection.Count + " 命中部队=" + (party != null)
+                            + " -> " + (armyMenu ? "军团成员菜单" : (MapSelection.Count > 1 ? "小队菜单(含建立军团)" : "国防军菜单/取消选中")));
                         // 在军团里 -> 军团成员菜单(可拆领主)
-                        if (army != null && army.Parties != null && army.Parties.Count > 1)
+                        if (armyMenu)
                         {
                             ArmyPicker.Show(army);
                             return;
@@ -478,28 +506,48 @@ namespace FeudalInternalAffairs
                         return;
                     }
 
-                    // 2) 点定居点(优先悬停视觉, 失败用地面坐标兜底 12 米内)
-                    var sv = vis as SettlementVisual;
-                    var st2 = sv != null && sv.MapEntity != null ? sv.MapEntity.Settlement : null;
+                    // 2) 点定居点(必须"光标确实落在城镇图标/名板上"才算, 否则一律走点地面移动)
+                    //    v4.246: 原来"悬停视觉命中"就直接前往, 但 CurrentVisualOfTooltip 会滞后(鼠标快速移开
+                    //    仍指向上一个聚落), 加上 12 米坐标兜底太宽 —— 于是点空地经常被判成"前往该城镇"。
+                    //    v4.248: 日志证明"点空地"时射线会打中城镇 3D 模型(返回的模型表面点离中心只有 5 米),
+                    //    所以改为三级判定: ①聚落名板屏幕距离 ≤90px(最准) ②悬停视觉+世界坐标 ≤3 米 ③坐标兜底 ≤3 米。
+                    var pt2 = MapBoxSelect.CaptureGroundPoint();
+                    bool pt2ok = pt2.z > -5000f;
+                    // v4.249: 名板判定 90 -> 45 像素(用户: 部队莫名其妙进城了 —— 90px 太宽, 点城镇旁边的空地
+                    //   也会落进判定圈, 于是被判成"前往该城镇"并进城; 45px ≈ 名板本身的范围)
+                    var st2 = MapBoxSelect.FindSettlementAtCursor(45f);
+                    string st2How = st2 != null ? "名板" : "";
                     if (st2 == null)
                     {
-                        var pt2 = MapBoxSelect.CaptureGroundPoint();
-                        if (pt2.z > -5000f)
+                        var sv = vis as SettlementVisual;
+                        var cand = sv != null && sv.MapEntity != null ? sv.MapEntity.Settlement : null;
+                        if (cand != null && pt2ok)
                         {
-                            float bd = 12f * 12f;
-                            foreach (var x in Settlement.All)
-                            {
-                                if (x == null) continue;
-                                float dx = x.Position.X - pt2.x, dy = x.Position.Y - pt2.y;
-                                float d = dx * dx + dy * dy;
-                                if (d < bd) { bd = d; st2 = x; }
-                            }
+                            float hx = cand.Position.X - pt2.x, hy = cand.Position.Y - pt2.y;
+                            if (hx * hx + hy * hy <= 3f * 3f) { st2 = cand; st2How = "悬停+3米"; }
                         }
+                    }
+                    if (st2 == null && pt2ok)
+                    {
+                        float bd = 3f * 3f;
+                        foreach (var x in Settlement.All)
+                        {
+                            if (x == null) continue;
+                            float dx = x.Position.X - pt2.x, dy = x.Position.Y - pt2.y;
+                            float d = dx * dx + dy * dy;
+                            if (d < bd) { bd = d; st2 = x; }
+                        }
+                        if (st2 != null) st2How = "坐标3米";
                     }
                     if (st2 != null)
                     {
                         var sel2 = MapSelection.Selected;
-                        if (sel2 != null && NationalWillOrders.IsOurs(sel2)) NationalWillOrders.GoToSettlement(st2);
+                        if (sel2 != null && NationalWillOrders.IsOurs(sel2))
+                        {
+                            DLog.Force("左键: 判定点中聚落 " + (st2.Name != null ? st2.Name.ToString() : st2.StringId)
+                                + "(来源=" + st2How + ")");
+                            NationalWillOrders.GoToSettlement(st2);
+                        }
                         else GarrisonPanel.Open(st2);   // v4.101: 弹驻军列表
                         return;
                     }

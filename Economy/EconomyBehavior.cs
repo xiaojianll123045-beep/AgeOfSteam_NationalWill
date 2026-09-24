@@ -52,6 +52,7 @@ namespace FeudalInternalAffairs
         private string _battle = "";         // v4.201: 战报
         private string _vet = "";            // v4.202: 军团老兵度
         private int _lastDay = -1;
+        private bool _seedDone;             // v4.252: 开局铺底库存是否已发过(一次)
         private const int StarterVer = 4;   // v4.66: 起步建筑版本(1=基础, 2=+炭窑, 3=+炼铁厂/工具坊/纺织厂, 4=+武器/盔甲作坊; 老档升级自动补新项)
         private int _starterVersion;        // 已补发到的版本(每档记录)
 
@@ -180,6 +181,7 @@ namespace FeudalInternalAffairs
                     SyncChunks.Save(dataStore, "FIA_Battle", _battle);   // v4.201: 战报
                     SyncChunks.Save(dataStore, "FIA_Vet", _vet);         // v4.202: 军团老兵度
                     dataStore.SyncData("FIA_EcoDay", ref _lastDay);   // 上次结算日(读档补结算用)
+                    dataStore.SyncData("FIA_SeedStock", ref _seedDone);   // v4.252: 开局铺底库存标记
                     dataStore.SyncData("FIA_StarterVer", ref _starterVersion);   // v4.64: 起步建筑补发版本
                 }
                 if (dataStore.IsLoading)
@@ -225,6 +227,7 @@ namespace FeudalInternalAffairs
                     _battle = SyncChunks.Load(dataStore, "FIA_Battle");  // v4.201: 战报
                     _vet = SyncChunks.Load(dataStore, "FIA_Vet");        // v4.202: 军团老兵度
                     dataStore.SyncData("FIA_EcoDay", ref _lastDay);
+                    dataStore.SyncData("FIA_SeedStock", ref _seedDone);  // v4.252: 开局铺底库存标记
                     dataStore.SyncData("FIA_StarterVer", ref _starterVersion);
                     EconomyWorld.LoadBuildings(_buildings);
                     EconomyWorld.LoadMarkets(_markets);
@@ -281,6 +284,8 @@ namespace FeudalInternalAffairs
                 EconomyWorld.EnsureContainers();
                 PresetBuildings();
                 InitTreasury();
+                // v4.252: 开局铺底库存(一次)
+                try { int sn = DailySettlement.SeedStartingStock(); _seedDone = true; DLog.Force("经济: 开局铺货 -> " + sn + " 座城镇"); } catch { }
                 Pops.EnsureInit("新战役");
                 Politics.Reset();
                 RailSystem.Reset();   // v4.161: 铁路(下帧重新建网)
@@ -304,14 +309,24 @@ namespace FeudalInternalAffairs
                     DLog.Force("经济: 旧存档无数据, 已自动初始化");
                 }
                 EnsureTownBaseline();   // 旧存档补建: 没有产业的城镇补市场+产业, 保证所有国家都跑经济
+                // v4.252: 老档也补一次开局铺底库存(原来完全没有初始库存, 新商品全世界为 0)
+                if (!_seedDone)
+                {
+                    try { int sn = DailySettlement.SeedStartingStock(); _seedDone = true; DLog.Force("经济: 补铺底库存 -> " + sn + " 座城镇"); } catch { }
+                }
                 TryStarterFill("读档");   // v4.62: 玩家国起步建筑补发(一次; 修复老档经济死锁)
-                // 读档后立即补结算一次(不管当天是否已结算过; 否则读档当天没有产出/财政变化)
+                // 读档后检查是否需要补结算
                 try
                 {
                     int today = (int)CampaignTime.Now.ToDays;
-                    _lastDay = today;
+                    int prev = _lastDay;
+                    // v4.252: 删掉原来的 `_lastDay = today;` —— 那一行让紧跟其后的 TickDay 立刻 return
+                    //   (TickDay 自带 `if (day == _lastDay) return;` 防重), 结果是"读档永远不补结算";
+                    //   而审计报告担心的"读档重复收税"因为那行防重其实并不会发生。现在交给 TickDay 判断:
+                    //   存档里记着上次已结算日(FIA_EcoDay), 只有真的漏了才补, 且天然不会重复。
                     TickDay(today);
-                    DLog.Force("经济: 读档补结算(第 " + today + " 天)");
+                    DLog.Force("经济: 读档结算检查(第 " + today + " 天, 上次已结算 " + prev
+                        + (prev >= today ? ", 无需补算" : ", 已补算 " + (today - prev) + " 天") + ")");
                 }
                 catch (Exception ex) { DLog.Force("读档补结算异常: " + ex.Message); }
                 DLog.Force("经济: 读档完成 -> " + EconomyWorld.Describe());
@@ -411,6 +426,10 @@ namespace FeudalInternalAffairs
                     else if (s.IsCastle)
                     {
                         sb.GetOrCreate("builder", BuildMode.Wood).Count += 1;
+                        // v4.252: 城堡补一座采石场 —— 审计发现"石料"唯一产地 `quarry` 限定在城堡,
+                        //   而城堡只预置建造部门、从不预置采石场 -> 开局全图石料恒为 0, 石造/铁造模式
+                        //   与建造部门的石/铁档直接缺料, 全图"建造推进 0 / 完工 0"。
+                        sb.GetOrCreate("quarry", BuildMode.Wood).Count += 1;
                         castles++;
                     }
                 }
@@ -470,6 +489,38 @@ namespace FeudalInternalAffairs
                 });
                 // 建筑产出 / 消耗 -> 本地市场(11.3 步骤 2~3)
                 DailyScheduler.Add("建筑产出", delegate { DailySettlement.Run(); });
+                // v4.251: 建筑维护费(玩家国, 从国库出) —— "完全不管经济就崩盘"缺的那条持续成本
+                DailyScheduler.Add("建筑维护", delegate
+                {
+                    int up = DailySettlement.ChargeUpkeep();
+                    if (up > 0 && DLog.Flag("econ"))
+                        DLog.Force("建筑维护: 本国 " + DailySettlement.LastUpkeepUnits + " 栋 -> -" + up + " 金/日");
+                });
+                // v4.252: 破产倒计时 —— 原来 NegativeDays/PenaltyDaysLeft 全仓没有自增点(死字段),
+                //   于是 WarEconomy 的"玩家破产"判定与 Construction 的"破产建造 -75%"永不触发。
+                //   现在国库见底就累加天数, 连续 7 天 -> 惩罚 30 天, 并且把破产次数记进账。
+                DailyScheduler.Add("破产倒计时", delegate
+                {
+                    try
+                    {
+                        var t = EconomyWorld.Treasury;
+                        if (t.Gold <= 0)
+                        {
+                            t.NegativeDays++;
+                            if (t.NegativeDays >= 7 && t.PenaltyDaysLeft <= 0)
+                            {
+                                t.PenaltyDaysLeft = 30;
+                                t.BankruptCount++;
+                                DLog.Force("破产: 国库连续 " + t.NegativeDays + " 天见底 -> 未来 30 天建造效率 -75%, 第 "
+                                    + t.BankruptCount + " 次");
+                                try { MapSelection.Message("国库已连续 " + t.NegativeDays + " 天见底: 进入破产状态 30 天(建造效率 -75%, 领主讨债, 军饷告急)"); } catch { }
+                            }
+                        }
+                        else t.NegativeDays = 0;
+                        if (t.PenaltyDaysLeft > 0) t.PenaltyDaysLeft--;
+                    }
+                    catch { }
+                });
                 // v4.2: 税制四税取代旧的单一"定居点税收"(文档 20.1 的"替换"); SettlementTax 类保留未启用
                 // v4.0: 税制四税 / 信贷利息 / 铸币权 / 经济统计(文档 20.1~20.3 / 20.9)
                 DailyScheduler.Add("税制", delegate { TaxPolicy.Daily(); });

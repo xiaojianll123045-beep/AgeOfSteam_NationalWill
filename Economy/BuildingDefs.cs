@@ -414,13 +414,16 @@ namespace FeudalInternalAffairs
         }
 
         // ---- 一次性建造材料(12.4) ----
+        // v4.252: 材料量按建筑产出的 1/6 缩放口径同步下调(20/30/40 -> 8/10/12)。
+        //   审计实测: 木制建筑要 20 木材 = 该城一座伐木场 30 天的产量, 加上材料必须在**同一座城**齐备
+        //   (调运此前又是死逻辑), 导致全图"建造推进 0 / 完工 0"、建筑永远建不成。
         internal static void BuildMaterials(BuildMode m, out float hardwood, out float stone, out float iron)
         {
             switch (m)
             {
-                case BuildMode.Stone: hardwood = 30f; stone = 20f; iron = 0f; break;
-                case BuildMode.Iron: hardwood = 40f; stone = 30f; iron = 20f; break;
-                default: hardwood = 20f; stone = 0f; iron = 0f; break;
+                case BuildMode.Stone: hardwood = 10f; stone = 8f; iron = 0f; break;
+                case BuildMode.Iron: hardwood = 12f; stone = 10f; iron = 6f; break;
+                default: hardwood = 8f; stone = 0f; iron = 0f; break;
             }
         }
 

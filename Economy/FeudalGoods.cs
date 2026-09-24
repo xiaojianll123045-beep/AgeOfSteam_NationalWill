@@ -172,8 +172,8 @@ namespace FeudalInternalAffairs
         internal static readonly List<GoodDef> Specialty = new List<GoodDef>
         {
             new GoodDef { Id = Grape,     ItemId = Grape,     Name = "葡萄", BasePrice = 20,  Sprite = "fia_goods_grain", IsSpecialty = true },
-            new GoodDef { Id = Olives,    ItemId = Olives,    Name = "橄榄", BasePrice = 30,  Sprite = "fia_goods_grain", IsSpecialty = true },
-            new GoodDef { Id = DateFruit, ItemId = DateFruit, Name = "枣",   BasePrice = 50,  Sprite = "fia_goods_grain", IsSpecialty = true },
+            new GoodDef { Id = Olives,    ItemId = Olives,    Name = "橄榄", BasePrice = 30,  Sprite = "fia_goods_grain", IsSpecialty = true, IsFood = true },
+            new GoodDef { Id = DateFruit, ItemId = DateFruit, Name = "枣",   BasePrice = 50,  Sprite = "fia_goods_grain", IsSpecialty = true, IsFood = true },
             new GoodDef { Id = Cotton,    ItemId = Cotton,    Name = "棉花", BasePrice = 80,  Sprite = "fia_goods_wool",  IsSpecialty = true },
             new GoodDef { Id = Flax,      ItemId = Flax,      Name = "亚麻", BasePrice = 15,  Sprite = "fia_goods_wool",  IsSpecialty = true },
             new GoodDef { Id = Salt,      ItemId = Salt,      Name = "盐",   BasePrice = 40,  Sprite = "fia_goods_clay",  IsSpecialty = true },
@@ -193,7 +193,7 @@ namespace FeudalInternalAffairs
             new GoodDef { Id = Paper,     ItemId = "fia_paper",     Name = "纸",   BasePrice = 30,  Sprite = "fia_goods_linen",    IsNew = true },
             new GoodDef { Id = Furniture, ItemId = "fia_furniture", Name = "家具", BasePrice = 30,  Sprite = "fia_goods_hardwood", IsNew = true },
             new GoodDef { Id = Clothes,   ItemId = "fia_clothes",   Name = "衣服", BasePrice = 30,  Sprite = "fia_goods_linen",    IsNew = true },
-            new GoodDef { Id = Groceries, ItemId = "fia_groceries", Name = "食品杂货", BasePrice = 30, Sprite = "fia_goods_grain", IsNew = true },
+            new GoodDef { Id = Groceries, ItemId = "fia_groceries", Name = "食品杂货", BasePrice = 30, Sprite = "fia_goods_grain", IsNew = true, IsFood = true },
             new GoodDef { Id = Fertilizer, ItemId = "fia_fertilizer", Name = "肥料", BasePrice = 30, Sprite = "fia_goods_stone", IsNew = true },
             new GoodDef { Id = Explosives, ItemId = "fia_explosives", Name = "炸药", BasePrice = 50, Sprite = "fia_goods_stone", IsNew = true },
             new GoodDef { Id = Engines,   ItemId = "fia_engines",   Name = "发动机", BasePrice = 60, Sprite = "fia_goods_iron",   IsNew = true },

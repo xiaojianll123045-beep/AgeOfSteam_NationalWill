@@ -106,6 +106,79 @@ namespace FeudalInternalAffairs
 
         // ==================== 每日结算 ====================
 
+        // v4.251: 建筑维护费(玩家国, 从国库出)
+        //   用户要求"过一段时间完全不管经济就该崩盘"。原来建筑只吃材料、搬砖不要钱: 玩家(和 AI)把材料
+        //   全变成建筑, 既没有维护费也没有工资, 国库只增不减 -> 不存在"不管就崩"。现在每栋建筑每日
+        //   收 1.5 金维护费(按栋, 停产也照收), 让"扩张建筑"有持续代价: 60 栋≈90/日(开局税收的 1/6 左右,
+        //   不破坏开局安稳), 堆到 400 栋≈600/日 就吃光全部税收, 必须提税/裁军/关停。
+        internal const float UpkeepPerBuilding = 1.5f;
+
+        internal static int ChargeUpkeep()
+        {
+            try
+            {
+                var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                if (pk == null) return 0;
+                int units = 0;
+                foreach (var kv in EconomyWorld.Buildings)
+                {
+                    var sb = kv.Value;
+                    if (sb == null || sb.Groups.Count == 0) continue;
+                    var st = FindSettlement(kv.Key);
+                    if (st == null || st.MapFaction != pk) continue;
+                    for (int i = 0; i < sb.Groups.Count; i++)
+                    {
+                        var g = sb.Groups[i];
+                        if (g != null && g.Count > 0) units += g.Count;
+                    }
+                }
+                if (units <= 0) return 0;
+                int cost = (int)Math.Ceiling(units * UpkeepPerBuilding);
+                if (cost <= 0) return 0;
+                EconomyWorld.TreasurySpend(cost);
+                Fiscal.AddUpkeep(cost);
+                LastUpkeepUnits = units;
+                return cost;
+            }
+            catch { return 0; }
+        }
+
+        internal static int LastUpkeepUnits;   // 供财政页显示"本国建筑 N 栋"
+
+        // v4.252: 开局铺底库存 —— 审计结论: 开局**完全没有**任何初始库存(设计文档 11.2 承诺的"市场初值"
+        //   从未实现), 而原版村庄产出已被 ProductionTakeover 关掉, 于是 mod 新商品全世界为 0:
+        //   铁链(木->炭->铁)要很多天才自举, 没有对应村庄的城镇永远起不来(实测缺料: 铁 228 次 / 木材 85 次 /
+        //   粮食 139 次)。这里给每座城镇市场按"约 3~5 日需求"铺一层底货。
+        internal static int SeedStartingStock()
+        {
+            int towns = 0;
+            try
+            {
+                string[] ids =
+                {
+                    FeudalGoods.Grain, FeudalGoods.Meat, FeudalGoods.Fish, FeudalGoods.Wool, FeudalGoods.Hides,
+                    FeudalGoods.Hardwood, FeudalGoods.IronOre, FeudalGoods.Charcoal, FeudalGoods.Clay,
+                    FeudalGoods.Linen, FeudalGoods.Leather, FeudalGoods.Tools, FeudalGoods.Stone,
+                    FeudalGoods.Beer, FeudalGoods.Pottery, FeudalGoods.Herbs, FeudalGoods.Weapons, FeudalGoods.Armor
+                };
+                int[] nums = { 40, 15, 15, 20, 20, 30, 20, 20, 15, 10, 10, 8, 25, 10, 10, 6, 8, 5 };
+                foreach (var t in TaleWorlds.CampaignSystem.Settlements.Town.AllTowns)
+                {
+                    if (t == null || t.Settlement == null || t.Settlement.ItemRoster == null) continue;
+                    var roster = t.Settlement.ItemRoster;
+                    for (int i = 0; i < ids.Length && i < nums.Length; i++)
+                    {
+                        var it = FeudalGoods.Item(ids[i]);
+                        if (it == null) continue;
+                        roster.AddToCounts(it, nums[i]);
+                    }
+                    towns++;
+                }
+            }
+            catch (Exception ex) { DLog.Force("开局铺货异常: " + ex.Message); }
+            return towns;
+        }
+
         internal static void Run()
         {
             int settlements = 0, built = 0, stalled = 0, produced = 0, consumed = 0;
@@ -326,13 +399,31 @@ namespace FeudalInternalAffairs
                         // 实物产出按到岗率缩放(文档 19.7.2: 与记账口径一致) + 行会加成 + 政治修正(第 21 章)
                         string catName = BuildDefs.CategoryName(def.Cat);
                         float guildMult = (1f + Guilds.OutputBonus(catName)) * Politics.OutputMult(catName) * Politics.SettlementOutputMult(s) * WarEconomy.OutputMultOf(s.StringId);   // v4.72: 焦土(被掠夺村庄产出-50% 30天)
+                        guildMult *= TaxPolicy.IndustryMult;   // v4.252: 税负对工商产出的压制(苛征全开 -20%) —— 原来这个效果只写在面板上, 产出链从不读它(死效果)
                         guildMult *= Infrastructure.AccessOf(s.StringId);   // v4.163: 市场准入(基建/用量) -> 建筑产出乘数(V3 官方)
-                        int got = MBRandom.RoundRandomized(outp.Value(mode) * g.Count * (g.Fill > 0.001f ? g.Fill : 1f) * guildMult);
+                        // 到岗率(v4.252): 无人到岗 = 停产(原来 Fill=0 时按满产 1.0 计算, 零工人的建筑照满产照吃料)
+                        if (g.Fill <= 0.001f)
+                        {
+                            g.Stalled = true;
+                            g.StallReason = "无人到岗";
+                            stalled++;
+                            continue;
+                        }
+                        int got = MBRandom.RoundRandomized(outp.Value(mode) * g.Count * g.Fill * guildMult);
                         if (got <= 0) continue;
                         // 库存上限(12.10)
                         int have = roster.GetItemNumber(it);
                         int room = limit - have;
-                        if (room <= 0) { g.StallReason = "库存已满"; continue; }
+                        if (room <= 0)
+                        {
+                            // v4.252: 原来这里只写 StallReason 不置 Stalled —— 于是它是个"僵尸分支":
+                            //   日志里"满仓"计数恒为 0, 建筑仍被算作在产(PopJob 照记销售收入、照发工资),
+                            //   而原料已经在上面被扣掉了, 等于每天白烧原料、产出被丢。
+                            g.Stalled = true;
+                            g.StallReason = "库存已满";
+                            stalled++;
+                            continue;
+                        }
                         if (got > room) got = room;
                         roster.AddToCounts(it, got);
                         produced += got;

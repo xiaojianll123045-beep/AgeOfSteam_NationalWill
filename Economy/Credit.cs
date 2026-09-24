@@ -87,19 +87,21 @@ namespace FeudalInternalAffairs
                         {
                             // 领主讨债: 强制清 30% 债 + 没收一处领主建筑
                             int bail = (int)(debt * 0.3f);
-                            if (bail > 0) { EconomyWorld.TreasuryAdd(bail); Fiscal.AddCourt(-bail); }
+                            // v4.252: 不再把免债记进"宫廷与外交"(Fiscal.AddCourt) —— 那会让财政页把破产
+                            //   显示成一笔收入。这里只做真实的债务减免 + 惩罚。
+                            if (bail > 0) EconomyWorld.TreasuryAdd(bail);
                             Ownership.ConfiscateOneLord();
-                            Pops.ShiftRadicals(0.03f);
+                            Pops.ShiftRadicals(0.05f);
                             DLog.Force("信贷: 领主讨债 清债 " + bail + " 并没收一处领主建筑");
                         }
                         else if (OverdueDays >= 14)
                         {
                             // 破产: 清债; 激进飙升; 建筑储备清零; 铸币权降档
                             int d2 = Debt;
-                            if (d2 > 0) { EconomyWorld.TreasuryAdd(d2); Fiscal.AddCourt(-d2); }
+                            if (d2 > 0) EconomyWorld.TreasuryAdd(d2);
                             BankruptCount++;
                             CleanDays = 0;
-                            Pops.ShiftRadicals(0.10f);
+                            Pops.ShiftRadicals(0.20f);       // v4.252: 0.10 -> 0.20(破产代价加重)
                             Ownership.ClearAllCash();
                             MintRight.Downgrade();
                             Politics.OnBankruptcy();   // 第 21 章: 破产 -> 领主愤怒/合法性

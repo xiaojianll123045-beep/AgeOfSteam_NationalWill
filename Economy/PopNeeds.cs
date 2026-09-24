@@ -38,9 +38,11 @@ namespace FeudalInternalAffairs
         internal static readonly List<NeedDef> All = new List<NeedDef>
         {
             new NeedDef { Id = "basic_food", Name = "基本食物", Curve = 0, Start = 1, Peak = 19, End = 29, V1 = 90f, V2 = 168f, Conv = 13f / 20f, Goods = {
-                E(FeudalGoods.Grain, 0.85f, 0f, 0.9f), E(FeudalGoods.Fish, 1f, 0f, 0.9f),
-                E(FeudalGoods.Meat, 1f, 0f, 0.9f), E(FeudalGoods.DateFruit, 1f, 0f, 0.9f), E(FeudalGoods.Olives, 1.15f, 0f, 0.9f),
-                E(FeudalGoods.Groceries, 1.1f, 0f, 0.9f) } },
+                // v4.252: 给非粮食主食加"最小份额" 0.05 —— 原来 MinShare 全 0, 加上"份额=当日产量"的算法,
+                //   某城只要有一座农田就会把整个主食买包砸在粮食上, 鱼/肉/枣/橄榄一条也卖不出去
+                E(FeudalGoods.Grain, 0.85f, 0f, 0.9f), E(FeudalGoods.Fish, 1f, 0.05f, 0.9f),
+                E(FeudalGoods.Meat, 1f, 0.05f, 0.9f), E(FeudalGoods.DateFruit, 1f, 0.05f, 0.9f), E(FeudalGoods.Olives, 1.15f, 0.05f, 0.9f),
+                E(FeudalGoods.Groceries, 1.1f, 0.05f, 0.9f) } },
             new NeedDef { Id = "luxury_food", Name = "奢侈食物", Curve = 2, Start = 20, End = 0, V1 = 8f, V2 = 3859f, Conv = 30f / 30f, Goods = {
                 E(FeudalGoods.Meat, 1.25f, 0.1f, 0.75f), E(FeudalGoods.DateFruit, 0.75f, 0.1f, 0.75f),
                 E(FeudalGoods.Spice, 1.5f, 0f, 1f), E(FeudalGoods.Salt, 0.5f, 0f, 0.5f) } },

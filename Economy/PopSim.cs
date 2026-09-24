@@ -451,11 +451,22 @@ namespace FeudalInternalAffairs
                 {
                     var e = need.Goods[i];
                     var me = m.Get(e.Good);
-                    float s = me != null ? me.DailyProduction : 0f;
+                    // v4.252: 份额 = **库存 + 当日产量**。原来只看"当日产量" -> 昨天进的货/仓里的鱼和肉
+                    //   份额为 0 -> 权重被清零 -> 卖不掉(D6 赢家通吃: 有农田的城只买粮食, 市场里的肉鱼烂在仓里,
+                    //   而粮食需求被整包砸中, 永远补不上)
+                    float s = me != null ? (me.Stock + me.DailyProduction) : 0f;
                     sum += s;
                     if (e.Good == goodId) self = s;
                 }
-                if (sum <= 0.0001f) return 1f;
+                if (sum <= 0.0001f)
+                {
+                    // v4.252: 本地完全不产这类商品时: 带"最小份额"的必买商品仍按权重买(保持原语义),
+                    //   其余一律返回 0 —— 原来一律返回 1f, 于是"本国根本不产的商品"(收音机/电话/汽车/黄金/丝绸)
+                    //   也照样产生买单, 制造永久性的"幽灵净销毁"从国库扣钱(经济审计认定的开局失血主因之一)
+                    for (int i = 0; i < need.Goods.Count; i++)
+                        if (need.Goods[i] != null && need.Goods[i].MinShare > 0f) return 1f;
+                    return 0f;
+                }
                 return self / sum;
             }
             catch { return 1f; }

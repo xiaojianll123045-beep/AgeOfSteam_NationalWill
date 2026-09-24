@@ -855,8 +855,13 @@ namespace FeudalInternalAffairs
                         DLog.Force("政治: 同意减税请愿 -> 四税各降一档");
                         break;
                     case "compensation":
-                        if (EconomyWorld.Treasury.Gold >= 3000) { EconomyWorld.TreasurySpend(3000); Fiscal.AddCourt(3000); }
-                        Ownership.LordPool += 3000f;
+                        // v4.252: 原来 LordPool += 3000 写在 if 之外 —— 国库不足时也凭空造出 3000 领主私产
+                        if (EconomyWorld.Treasury.Gold >= 3000)
+                        {
+                            EconomyWorld.TreasurySpend(3000);
+                            Fiscal.AddCourt(3000);
+                            Ownership.LordPool += 3000f;
+                        }
                         if (p.ClanId != null) TouchLord(p.ClanId, 15, -15);
                         DLog.Force("政治: 同意赔偿请愿(3000)");
                         break;

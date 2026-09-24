@@ -28,10 +28,19 @@ namespace FeudalInternalAffairs
             return (pop != null && IncomeCache.TryGetValue(pop, out v)) ? v : 0f;
         }
 
+        // v4.252: 未登记职业表的建筑用兜底配方 —— 审计实测有 30 个建筑定义(含**每个村庄都预置的炭窑**、
+        //   8 个种植园、钢铁厂/发电厂/军械工业/造船厂/铁路/港口等新工业)不在 Specs 里, 原来 SpecOf 返回 null
+        //   就让它们: 不雇人、不发工资、不记维护、不参与倒闭、且 g.Fill 恒为 1(满产)。现在兜底为"劳工 2 人"。
+        private static JobSpec _fallbackSpec;
         internal static JobSpec SpecOf(string defId)
         {
             JobSpec s;
-            return (defId != null && Specs.TryGetValue(defId, out s)) ? s : null;
+            if (defId != null && Specs.TryGetValue(defId, out s)) return s;
+            if (_fallbackSpec == null)
+            {
+                _fallbackSpec = new JobSpec { Prof = new[] { "laborers" }, Num = new[] { 2 } };
+            }
+            return _fallbackSpec;
         }
 
         internal static void RunDaily()

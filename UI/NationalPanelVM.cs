@@ -468,8 +468,10 @@ namespace FeudalInternalAffairs
                 catch { }
                 try
                 {
-                    int inc = Fiscal.LastTax + Fiscal.LastTariff + Fiscal.LastMint + Fiscal.LastExport + Fiscal.LastDividend;
-                    int exp = Fiscal.LastInterest + Fiscal.LastFee + Fiscal.LastMilitary + Fiscal.LastCourt + Fiscal.LastBurn;
+                    // v4.252: 关税(Fiscal.LastTariff)是**支出**(进口关税由国库承担, 见 MarketSim.SpendGold),
+                    //   原来放在收入侧 -> 与国家面板/财政页的净额相差 2×关税。现在两边口径统一。
+                    int inc = Fiscal.LastTax + Fiscal.LastMint + Fiscal.LastExport + Fiscal.LastDividend;
+                    int exp = Fiscal.LastInterest + Fiscal.LastFee + Fiscal.LastMilitary + Fiscal.LastCourt + Fiscal.LastBurn + Fiscal.LastTariff + Fiscal.LastUpkeep;
                     int net = inc - exp;
                     BudgetText = (net >= 0 ? "+" : "") + net.ToString("N0") + " / 日";
                     int pu = MintRight.Purity < 0 ? 0 : (MintRight.Purity > 2 ? 2 : MintRight.Purity);

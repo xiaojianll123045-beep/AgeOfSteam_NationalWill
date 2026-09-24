@@ -145,16 +145,24 @@ namespace FeudalInternalAffairs
                 Fiscal.AddCourt(cost);
 
                 // 抽库存(推高价格)
+                // v4.252: 原来按"想买的量"记账(Stock += amount), 而逐市场扣减时很多市场库存不足只能扣到一部分
+                //   -> 差额凭空变成实物(经济审计: 破坏守恒)。现在只把**实际扣到的量**入库。
                 float per = amount / Math.Max(1f, EconomyWorld.Markets.Count);
+                float got = 0f;
                 foreach (var kv in EconomyWorld.Markets)
                 {
                     var e = kv.Value != null ? kv.Value.GetOrCreate(good) : null;
                     if (e == null) continue;
-                    e.Stock = Math.Max(0f, e.Stock - per);
+                    float take = Math.Min(e.Stock, per);
+                    if (take <= 0f) continue;
+                    e.Stock = Math.Max(0f, e.Stock - take);
+                    got += take;
                 }
-                Stock[kind] += amount;
-                DLog.Force("战略储备: 购入 " + KindNames[kind] + " " + amount + "(费 " + cost + ") 存量 " + (int)Stock[kind]);
-                return "已购入 " + KindNames[kind] + " " + amount + "(费 " + cost + " 第纳尔, 存量 " + (int)Stock[kind] + ")";
+                int gotI = (int)got;
+                if (gotI <= 0) return "市面无货可购(" + KindNames[kind] + " 已耗尽)";
+                Stock[kind] += gotI;
+                DLog.Force("战略储备: 购入 " + KindNames[kind] + " " + gotI + "(费 " + cost + ") 存量 " + (int)Stock[kind]);
+                return "已购入 " + KindNames[kind] + " " + gotI + "(费 " + cost + " 第纳尔, 存量 " + (int)Stock[kind] + ")";
             }
             catch (Exception ex) { DLog.Force("战略储备采购失败: " + ex.Message); return "采购失败, 见日志"; }
         }

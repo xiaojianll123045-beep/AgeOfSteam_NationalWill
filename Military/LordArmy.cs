@@ -261,6 +261,9 @@ namespace FeudalInternalAffairs
                 {
                     var p = c.MobileParties[i];
                     if (!IsLordArmy(p)) continue;
+                    // v4.252: 玩家主队由原版收家族工资(Clan.Gold = 家族领袖 = 玩家金币), 这里不再重复收一遍
+                    //   (经济审计: 玩家主队被原版 + mod 各扣一次工资, 只有国防军做了豁免)
+                    if (p.IsMainParty) continue;
                     try { PayOne(p, day); }
                     catch (Exception ex) { DLog.Force("领主军饷: 「" + MapSelection.NameOf(p) + "」结算异常 " + ex.Message); }
                 }

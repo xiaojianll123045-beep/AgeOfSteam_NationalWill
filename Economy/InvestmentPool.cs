@@ -83,6 +83,13 @@ namespace FeudalInternalAffairs
                         if (div <= 1f) continue;
                         g.Cash -= div;
                         groups++;
+                        // v4.252: 只有**玩家国**的建筑分红才进玩家国库/投资池。
+                        //   原来这里对全世界(含 AI 与敌国)的建筑调 PayDividend, 而 PayDividend 的
+                        //   王室/领主/教会份额全部 TreasuryAdd 进玩家国库 —— 实测每座外国农田每月给玩家
+                        //   送 ≈600 金(全图 130 村 -> 月 1e5 量级, 是税收的十倍以上), 等于无上限刷钱。
+                        //   现在非玩家国的分红只是离开建筑现金(由该国自己的经济体系消化), 不进玩家账。
+                        bool ours = PlayerKingdom() != null && s.MapFaction == PlayerKingdom();
+                        if (!ours) continue;
                         if (s.MapFaction != null && s.MapFaction == PlayerKingdom()) toTreasury += div * 0.3f;
                         else toPool += div * 0.4f;
                         toPops += div * 0.3f;
@@ -91,6 +98,15 @@ namespace FeudalInternalAffairs
                 }
                 if (groups > 0) built = PrivateBuild();
                 MonthlyAiSeed();   // 别国也要发展(用户): AI 王国每月按规模积累资本 -> 私人建造替他们盖房
+                // v4.252: 教会池/行会基金原来**只进不出**(全仓只有 += 没有 -=), 于是
+                //   ChurchClout = 池/20 与 BurgerClout 随月份单调无限增长, 中期政治数值失控。
+                //   现在每月按 15% 消耗(教会维持/行会运营), 池子自动趋于稳态。
+                try
+                {
+                    Ownership.ChurchPool *= 0.85f;
+                    Ownership.GuildFund *= 0.85f;
+                }
+                catch { }
                 DLog.Force("投资池月结: 分红组=" + groups + " 入国库≈" + ((int)toTreasury) + " 入池≈" + ((int)toPool)
                     + " 入个人≈" + ((int)toPops) + " 私人新建=" + built + " 池=" + Describe());
             }
@@ -172,6 +188,10 @@ namespace FeudalInternalAffairs
                             var def = BuildDefs.All[i];
                             if (def == null || def.IsEffect) continue;
                             if (!BuildDefs.AllowedAt(def, s.IsVillage, s.IsCastle, s.IsTown)) continue;
+                            // v4.252: 私人资本不得替国家造国有建筑(铸币厂/城墙/港口/税务局等) ——
+                            //   原来这里不检查 CanBePrivate, 私人池能造出铸币厂, 而铸币厂一存在就会把
+                            //   国家收入口径从"市场净创造"(可上万/日)切成"铸币公式"(个位数), 无声无息砍掉收入
+                            if (!BuildDefs.CanBePrivate(def, s.IsCastle)) continue;
                             var existing = sb.Find(def.Id);
                             if (existing != null && existing.Count >= 6) continue;   // 单建筑上限 6 级(防刷)
                             float cost = def.Work[0] * 8f;                            // 池子出资口径: 木档工时 × 8(文档 19.8.2 的简化口径)

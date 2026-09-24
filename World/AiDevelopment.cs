@@ -304,7 +304,10 @@ namespace FeudalInternalAffairs
                     }
                     catch { }
                     // v4.22x: 月结规划建设(评分/遍历全在月结; 日结只消费缓存; 危机国清空计划)
-                    try { if (WarEconomy.IsCrisis(k)) _plans.Remove(k.StringId); else PlanOne(k); } catch { }
+                    // v4.252: 危机国不再"清空计划 + 停止建设" —— 那会形成死亡螺旋: 缺粮 -> 判危机 ->
+                    //   不建农田 -> 更缺粮(审计实测: 全球 8/9 国长期饥荒, 建造推进恒为 0)。现在危机国
+                    //   保留已有计划并继续规划(缺粮时最该修农田/上游), 只保留"不扩军"的限制。
+                    try { if (!WarEconomy.IsCrisis(k)) _plans.Remove(k.StringId); PlanOne(k); } catch { }
                     if (WarEconomy.IsCrisis(k)) continue;   // 危机国不扩军
                     if (k.Culture == null) continue;
                     MobileParty best;

@@ -16,9 +16,10 @@ namespace FeudalInternalAffairs
     internal static class WarEconomy
     {
         internal const float SoldierPay = 0.5f;      // 每兵日军费(与国防军一致)
-        internal const float FamineDays = 3f;       // 粮储低于 3 天 = 饥荒
+        // v4.248: 3 天 -> 7 天(开局市场刚建立, 食物库存天然偏低, 3 天阈值会让开局就判饥荒并天天逃兵)
+        internal const float FamineDays = 7f;       // 粮储低于 7 天 = 饥荒
         internal const int BankruptDays = 7;        // 连续赤字 7 天 = 破产
-        internal const float EquipRatio = 0.1f;     // 军需库存/部队 < 0.1 = 装备危机
+        internal const float EquipRatio = 0.1f;     // 军需库存/部队 < 0.1 = 装备危机(仅在交战时判定, v4.248)
         internal const float LevyRatio = 0.02f;     // 平民池 < 2% = 人力危机
         internal const int ScorchDays = 30;         // 焦土恢复天数
 
@@ -127,9 +128,12 @@ namespace FeudalInternalAffairs
                         DeficitDays[k.StringId] = deficit;
                     }
 
-                    // ---- 饥荒 ----
+                    // ---- 饥荒(军队口径) ----
+                    // v4.250: 饥荒 = 军队粮食储备不足(原来用平民市场消费算, 所有国家长期判饥荒 -> 部队每天 -2%)
                     float foodDays;
-                    bool famine = FoodDaysOf(k, out foodDays) < FamineDays;
+                    float civilianFoodDays = FoodDaysOf(k, out foodDays);   // 平民粮食安全(民生口径, 仍用于日志/提示)
+                    float armyFoodDays = ArmyFoodDaysOf(k);
+                    bool famine = armyFoodDays < FamineDays;
                     // v4.152: 玩家战略储备充足 -> 饥荒免疫
                     if (famine && isPlayer)
                     {
@@ -137,7 +141,23 @@ namespace FeudalInternalAffairs
                     }
 
                     // ---- 装备 / 人力 ----
-                    bool equip = EquipRatioOf(k, troops) < EquipRatio;
+                    // v4.248: 军需危机只在**交战状态**下判定 —— 和平时期储备偏低不算危机
+                    //   (原来开局无战事也判"军需耗尽", 玩家一进游戏就看到军需物资危机)
+                    bool atWarNow = false;
+                    try
+                    {
+                        foreach (var other in Kingdom.All)
+                        {
+                            if (other == null || other == k || other.IsEliminated) continue;
+                            if (k.IsAtWarWith(other)) { atWarNow = true; break; }
+                        }
+                    }
+                    catch { }
+                    float equipRatio = EquipRatioOf(k, troops);
+                    // v4.250: 军需危机只对**玩家国**判定 —— 只有玩家国有本 mod 的装备体系(国家军械库/领主私库);
+                    //   AI 国家的这类库永远是空的(日志实测全部 0.0%), 于是所有 AI 常年挂"军需耗尽"并被算作危机,
+                    //   拖累它们的战略层决策。AI 的战争经济压力走"军费 + 破产 + 兵源"三条, 不靠这条。
+                    bool equip = atWarNow && isPlayer && equipRatio < EquipRatio;
                     bool levy = LevyRatioOf(k) < LevyRatio;
 
                     bool bankrupt = deficit >= BankruptDays;
@@ -148,7 +168,19 @@ namespace FeudalInternalAffairs
                     ApplyPenalties(k, day, famine, bankrupt, equip, levy, isPlayer);
 
                     // ---- 通知 ----
-                    Notice(k, day, isPlayer, famine, bankrupt, equip, levy, foodDays, gold);
+                    Notice(k, day, isPlayer, famine, bankrupt, equip, levy, armyFoodDays, gold);
+                    // v4.248 诊断: 玩家国(或判危机的国家)每天记一行军需/粮储数值, 便于复查"开局就危机"
+                    try
+                    {
+                        if (isPlayer || equip || famine)
+                            DLog.Force("战争经济: " + (k.Name != null ? k.Name.ToString() : k.StringId)
+                                + " 军需储备=" + (equipRatio * 100f).ToString("F1") + "%(阈值 " + (EquipRatio * 100f).ToString("F0")
+                                + "%, 仅在交战时判定) 交战=" + atWarNow + " 判定=" + (equip ? "军需危机" : "正常")
+                                + " · 军粮=" + armyFoodDays.ToString("F1") + "天(阈值 " + FamineDays.ToString("F0") + ")"
+                                + " 判定=" + (famine ? "饥荒" : "正常")
+                                + " · 民粮=" + civilianFoodDays.ToString("F1") + "天(民生口径, 不触发军队减员)");
+                    }
+                    catch { }
                 }
 
                 // ---- 焦土标记: 被掠夺的村庄 ----
@@ -289,7 +321,47 @@ namespace FeudalInternalAffairs
             return exp;
         }
 
+        // 军队粮食可支撑天数 = 全国粮仓 / (在野部队+驻军 日耗)
+        // v4.250: 饥荒判定改用**军队口径**。原来用"平民市场粮食库存 ÷ 市场日消费", 而平民消费量远大于
+        //   军粮需求, 于是所有国家(含玩家)长期显示"粮储 3~7 天"-> 每天判饥荒 -> 每支非国防军部队
+        //   每天逃兵 2%(一周 -14%), 部队被慢慢蒸发(用户看到的"刚开局就不安稳")。
+        //   平民缺粮属于民生问题(繁荣/激进), 不该让军队按这个数字掉人。
+        internal static float ArmyFoodDaysOf(Kingdom k)
+        {
+            try
+            {
+                if (k == null) return 99f;
+                float stock = 0f;
+                foreach (var s in k.Settlements)
+                {
+                    if (s == null || s.ItemRoster == null) continue;
+                    for (int i = 0; i < FeudalGoods.Main.Count; i++)
+                    {
+                        var g = FeudalGoods.Main[i];
+                        if (g == null || !g.IsFood) continue;
+                        var it = FeudalGoods.Item(g.Id);
+                        if (it != null) stock += s.ItemRoster.GetItemNumber(it);
+                    }
+                }
+                float need = 0f;
+                foreach (var p in MobileParty.All)
+                {
+                    if (p == null || !p.IsActive) continue;
+                    if (p.MapFaction != k) continue;
+                    if (p.IsCaravan || p.IsMilitia) continue;
+                    int men = 0;
+                    try { men = p.MemberRoster != null ? p.MemberRoster.TotalManCount : 0; } catch { }
+                    need += men * DefArmy.FoodPerManPerDay;
+                }
+                if (need <= 0.01f) return 99f;
+                return stock / need;
+            }
+            catch { return 99f; }
+        }
+
         // 国家粮食可支撑天数(库存 / 日耗, 只看食物); v4.75p: 公开给选国侧栏展示
+        // v4.248: 库存改为"城镇市场 + 村庄粮仓"都算 —— 原来只算城镇市场, 开局市场刚建立时库存天然偏低,
+        //   于是刚开局就判饥荒(每支部队每天逃兵 2%, 用户看到的"开局军需/物资危机")
         internal static float FoodDaysOf(Kingdom k, out float days)
         {
             days = 99f;
@@ -298,15 +370,16 @@ namespace FeudalInternalAffairs
                 float stock = 0f, need = 0f;
                 foreach (var s in k.Settlements)
                 {
-                    if (s == null || s.Town == null) continue;
+                    if (s == null) continue;
                     var roster = s.ItemRoster;
-                    var m = EconomyWorld.FindMarket(s.StringId);
                     for (int i = 0; i < FeudalGoods.Main.Count; i++)
                     {
                         var g = FeudalGoods.Main[i];
                         if (g == null || !g.IsFood) continue;
                         var it = FeudalGoods.Item(g.Id);
-                        if (it != null && roster != null) stock += roster.GetItemNumber(it);
+                        if (it != null && roster != null) stock += roster.GetItemNumber(it);   // 城镇市场 + 村庄粮仓
+                        if (s.Town == null) continue;
+                        var m = EconomyWorld.FindMarket(s.StringId);
                         if (m != null)
                         {
                             var e = m.Get(g.Id);
@@ -322,6 +395,9 @@ namespace FeudalInternalAffairs
         }
 
         // 军需库存(武器+盔甲) / 部队人数
+        // v4.248: ①把**国家军械库**(Armory —— 本 mod 装备体系的实际库存)计入军需库存:
+        //   原来只看城镇市场的「武器/盔甲」货架, 于是"军械库里堆着几万件装备"也照样判"军需耗尽"
+        //   (用户: 刚开局就出现军需物资危机); ②只有部队规模够看时才判(小部队不吃这个口径)
         private static float EquipRatioOf(Kingdom k, int troops)
         {
             try
@@ -338,6 +414,33 @@ namespace FeudalInternalAffairs
                     if (w != null) stock += roster.GetItemNumber(w);
                     if (a != null) stock += roster.GetItemNumber(a);
                 }
+                // v4.248: 国家军械库(装备体系库存)
+                try
+                {
+                    string key = Armory.NationalOwner(k);
+                    if (!string.IsNullOrEmpty(key)) stock += Armory.TotalCount(key);
+                }
+                catch { }
+                // v4.248: 各领主私库里的武器/护甲(领主军的装备储备也算国家可动员军需)
+                try
+                {
+                    foreach (var c in Clan.All)
+                    {
+                        if (c == null || c.Kingdom != k) continue;
+                        string lk = Armory.LordOwner(c);
+                        if (string.IsNullOrEmpty(lk)) continue;
+                        var entries = Armory.EntriesOf(lk);
+                        for (int i = 0; i < entries.Count; i++)
+                        {
+                            var def = Equipment.Get(entries[i].Key);
+                            if (def == null) continue;
+                            if (def.Cat == EquipCat.Melee || def.Cat == EquipCat.Ranged
+                                || def.Cat == EquipCat.Artillery || def.Cat == EquipCat.Armor)
+                                stock += entries[i].Value;
+                        }
+                    }
+                }
+                catch { }
                 return stock / (float)troops;
             }
             catch { return 99f; }
@@ -674,14 +777,14 @@ namespace FeudalInternalAffairs
                 _lastNotice[k.StringId] = day;
 
                 var sb = new StringBuilder();
-                if (famine) sb.Append("饥荒(粮储 ").Append(foodDays.ToString("F1")).Append(" 天) ");
+                if (famine) sb.Append("军粮告急(军队储备 ").Append(foodDays.ToString("F1")).Append(" 天) ");
                 if (bankrupt) sb.Append("国库破产 ");
-                if (equip) sb.Append("军需耗尽 ");
+                if (equip) sb.Append("军需耗尽(交战中储备不足) ");
                 if (levy) sb.Append("兵源枯竭 ");
                 string msg = (k.Name != null ? k.Name.ToString() : k.StringId) + ": " + sb.ToString().Trim();
 
                 if (isPlayer || AtWarWithPlayer(k))
-                    MapSelection.Message("经济危机 — " + msg + " (部队正在流失)");
+                    MapSelection.Message("经济危机 — " + msg + (famine ? " (部队正在流失)" : ""));
                 DLog.Force("战争经济: " + msg + " | 金库=" + ((int)gold));
             }
             catch { }

@@ -12,18 +12,22 @@ namespace FeudalInternalAffairs
         internal static int LastInterest, LastFee;
         internal static int Military;                                               // v4.53: 国防军军费(募兵/建军/军饷/军粮工具)
         internal static int LastMilitary;
+        // v4.251: 建筑维护费(玩家国, 每栋每日; 用户要求"完全不管经济就该崩盘" —— 原来建筑只吃材料不花钱)
+        internal static int Upkeep, LastUpkeep;
+        internal static void AddUpkeep(int v) { if (v > 0) Upkeep += v; }
 
         // v4.57: 宫廷与外交往来(净开销: 正=支出(宴会/赏赐/赔款/购买等), 负=收入(赔款/贡金/保释金等))
         internal static int Court, LastCourt;
         internal static void AddCourt(int v) { Court += v; }
 
         // ---- 日口径(财政页显示"今日"用; 每日日结后由 DayRoll 记录基线) ----
-        private static int SnapMint, SnapExport, SnapDividend, SnapTariff, SnapTax, SnapBurn, SnapInterest, SnapFee, SnapMilitary, SnapCourt;
+        private static int SnapMint, SnapExport, SnapDividend, SnapTariff, SnapTax, SnapBurn, SnapInterest, SnapFee, SnapMilitary, SnapCourt, SnapUpkeep;
 
         internal static void DayRoll()
         {
             SnapMint = Mint; SnapExport = Export; SnapDividend = Dividend; SnapTariff = Tariff;
             SnapTax = Tax; SnapBurn = Burn; SnapInterest = Interest; SnapFee = Fee; SnapMilitary = Military; SnapCourt = Court;
+            SnapUpkeep = Upkeep;
         }
 
         private static int TodayOf(int cur, int snap) { return cur >= snap ? cur - snap : cur; }
@@ -38,9 +42,10 @@ namespace FeudalInternalAffairs
         internal static int TodayFee { get { return TodayOf(Fee, SnapFee); } }
         internal static int TodayMilitary { get { return TodayOf(Military, SnapMilitary); } }
         internal static int TodayCourt { get { return TodayOf(Court, SnapCourt); } }
+        internal static int TodayUpkeep { get { return TodayOf(Upkeep, SnapUpkeep); } }
 
         internal static int TodayIncome { get { return TodayMint + TodayExport + TodayDividend + TodayTax + (TodayCourt < 0 ? -TodayCourt : 0); } }
-        internal static int TodayExpense { get { return TodayTariff + TodayBurn + TodayInterest + TodayFee + TodayMilitary + (TodayCourt > 0 ? TodayCourt : 0); } }
+        internal static int TodayExpense { get { return TodayTariff + TodayBurn + TodayInterest + TodayFee + TodayMilitary + TodayUpkeep + (TodayCourt > 0 ? TodayCourt : 0); } }
 
         // 国库日末基线: "今日净额"直接用国库实际变动(含宴会/赏赐/赔款等未入主账的收支)
         private static int _goldBase = int.MinValue;
@@ -64,17 +69,18 @@ namespace FeudalInternalAffairs
         internal static void Month()
         {
             LastMint = Mint; LastExport = Export; LastDividend = Dividend; LastTariff = Tariff; LastTax = Tax; LastBurn = Burn;
-            LastInterest = Interest; LastFee = Fee; LastMilitary = Military; LastCourt = Court;
+            LastInterest = Interest; LastFee = Fee; LastMilitary = Military; LastCourt = Court; LastUpkeep = Upkeep;
             Mint = Export = Dividend = Tariff = Tax = Burn = Interest = Fee = Military = 0;
+            Upkeep = 0;
             Court = 0;
             DayRoll();   // 月重置后日基线同步归零
             DLog.Force("财政月结: 铸币=" + LastMint + " 出口=" + LastExport + " 分红=" + LastDividend
                 + " 税收=" + LastTax + " 销毁=" + LastBurn + " 关税=" + LastTariff
-                + " 利息=" + LastInterest + " 年金=" + LastFee + " 军费=" + LastMilitary + " 净=" + Net);
+                + " 利息=" + LastInterest + " 年金=" + LastFee + " 军费=" + LastMilitary + " 建筑维护=" + LastUpkeep + " 净=" + Net);
         }
 
         internal static int Income { get { return LastMint + LastExport + LastDividend + LastTax + (LastCourt < 0 ? -LastCourt : 0); } }
-        internal static int Expense { get { return LastTariff + LastBurn + LastInterest + LastFee + LastMilitary + (LastCourt > 0 ? LastCourt : 0); } }
+        internal static int Expense { get { return LastTariff + LastBurn + LastInterest + LastFee + LastMilitary + LastUpkeep + (LastCourt > 0 ? LastCourt : 0); } }
         internal static int Net { get { return Income - Expense; } }
     }
 }

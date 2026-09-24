@@ -64,7 +64,9 @@ namespace FeudalInternalAffairs
         internal const int MaxLegionMen = 1000000;      // v4.89: 取消单军上限(100万≈无上限, 避免原版数值溢出)
         internal const float SpeedLock = 3.0f;          // 速度锁死
         internal const float WagePerManPerDay = 0.5f;   // 军饷/兵/日
-        internal const float FoodPerManPerDay = 0.02f;  // 军粮/兵/日
+        // v4.252: 军粮/兵/日 0.02 -> 0.006 —— 审计实测: 按 0.02 算, 全球军队日耗是粮食产出的 4~5 倍,
+        //   于是所有国家长期判"饥荒"-> 部队每天 -2% 且 AI 进危机后**停止建设**(死亡螺旋)。
+        internal const float FoodPerManPerDay = 0.006f;  // 军粮/兵/日
         internal const int RecruitCost = 20;            // 募兵/兵
         internal const int ConscriptCost = 5;           // 征兵/兵
         internal const int LegionFormCost = 200;       // 建军
@@ -1834,6 +1836,8 @@ namespace FeudalInternalAffairs
                 PayWages();
                 FeedLegions();
                 try { for (int i = 0; i < Legions.Count; i++) StanceDaily(Legions[i]); } catch { }   // v4.243: 军团状态日结
+                try { SpeedAudit(); } catch { }                                                     // v4.248: 速度诊断
+                try { SettlementAudit(); } catch { }                                                // v4.249: 进出城诊断
                 LogLegionChanges();   // v4.89: 人数变动诊断
                 Reconcile();
                 ConscriptTick(day);
@@ -2080,6 +2084,69 @@ namespace FeudalInternalAffairs
             catch { }
         }
 
+        // ==================== v4.248: 速度诊断 ====================
+        //   用户反复反馈"人多的国防军部队速度快, 人少的又慢"; 速度锁补丁之外还有 铁路/王国特性 两个
+        //   CalculateFinalSpeed 补丁, 为确认实测值, 每天把每个军团的速度/人数/识别状态记一行(变化时才记)
+        private static readonly Dictionary<string, float> _lastSpeedSeen = new Dictionary<string, float>();
+
+        private static void SpeedAudit()
+        {
+            try
+            {
+                for (int i = 0; i < Legions.Count; i++)
+                {
+                    var lg = Legions[i];
+                    var p = LegionParty(lg);
+                    if (p == null || !p.IsActive) continue;
+                    float spd = 0f;
+                    try { spd = p.Speed; } catch { }
+                    float prev;
+                    if (_lastSpeedSeen.TryGetValue(lg.PartyId, out prev) && Math.Abs(prev - spd) < 0.05f) continue;
+                    _lastSpeedSeen[lg.PartyId] = spd;
+                    DLog.Force("速度诊断: 第" + lg.Number + "军团 速度=" + spd.ToString("F2")
+                        + " 人数=" + RegularsOf(p)
+                        + " 识别=" + (IsDefArmyParty(p) ? "是" : "否")
+                        + " 在城=" + (p.CurrentSettlement != null ? "是" : "否")
+                        + " 铁路=" + (ArmyDoctrine.IsRailTransport(p) ? "开" : "关")
+                        + " 状态=" + StanceNameOf(lg));
+                }
+            }
+            catch { }
+        }
+
+        // ==================== v4.249: 进出城诊断 ====================
+        //   用户反馈"部队莫名其妙进城了": 这里每天记录军团的进出城事件与当时的上下文
+        //   (接管标志/任务/是否被指挥), 用来定位到底是谁把它弄进城的。
+        private static readonly Dictionary<string, bool> _inSettlementSeen = new Dictionary<string, bool>();
+
+        private static void SettlementAudit()
+        {
+            try
+            {
+                for (int i = 0; i < Legions.Count; i++)
+                {
+                    var lg = Legions[i];
+                    var p = LegionParty(lg);
+                    if (p == null || !p.IsActive) continue;
+                    bool inSt = p.CurrentSettlement != null;
+                    bool was;
+                    if (_inSettlementSeen.TryGetValue(lg.PartyId, out was) && was != inSt)
+                    {
+                        string where = inSt && p.CurrentSettlement != null && p.CurrentSettlement.Name != null
+                            ? p.CurrentSettlement.Name.ToString() : "";
+                        DLog.Force("军团" + (inSt ? "进城" : "出城") + ": 第" + lg.Number + "军团"
+                            + (inSt ? " -> " + where : "")
+                            + " 接管=" + lg.PlayerHold
+                            + " 任务=" + (lg.Task ?? "-")
+                            + " 被指挥=" + CommandTimeout.IsCommanded(p)
+                            + " 状态=" + StanceNameOf(lg));
+                    }
+                    _inSettlementSeen[lg.PartyId] = inSt;
+                }
+            }
+            catch { }
+        }
+
         // 征粮: 就地抽粮(代价: 该城忠诚 -0.4/日, 民怨 +0.2/日)
         private static void ForageAt(DefLegion lg, MobileParty p, int men)
         {
@@ -2113,20 +2180,11 @@ namespace FeudalInternalAffairs
                 {
                     EconomyWorld.TreasurySpend(cost);
                     Fiscal.AddMilitary(cost);
-                    // v4.89: 原版按"家族金库 = 家族领袖(玩家)个人金币"给家族部队发工资
-                    // (实测 Clan.Gold → get_Leader().get_Gold()), 玩家金库被扣空后会欠薪逃兵
-                    // (用户反馈: 国防军莫名其妙减少人)。本系统已从国库扣过军饷, 这里给原版侧兜底:
-                    // 把玩家金库补到至少 30 天军饷, 原版发薪不再欠薪
-                    try
-                    {
-                        var hero = Hero.MainHero;
-                        if (hero != null)
-                        {
-                            int need = cost * 30;
-                            if (hero.Gold < need) hero.Gold = need;
-                        }
-                    }
-                    catch { }
+                    // v4.252: 删除"把玩家金币补到 30 日军饷"的兜底 —— 那是直接改 Hero.Gold(不走
+                    //   TreasuryAdd/账本), 而国库每天又与 Hero.Gold 对齐, 等于**每天凭空印钱**,
+                    //   国防军实际免费(经济审计报告实测: 有军团时国库永久 ≥30 日饷, 永不破产)。
+                    //   原版重复扣薪的问题改从源头解决: DefArmyPatches.DefArmyNoNativeWagePatch
+                    //   让原版算国防军工资时返回 0(mod 自己收军饷, 不再被原版按家族金库扣第二遍)。
                     UnpaidDays = 0;
                     MutinyWarned = false;
                 }
@@ -3779,10 +3837,12 @@ namespace FeudalInternalAffairs
                 {
                     var e = Equipment.All[i];
                     if (e == null || string.IsNullOrEmpty(e.Id)) continue;
-                    Armory.AddKey(kk, e.Id, 100000);
-                    Armory.AddKey(ll, e.Id, 100000);
+                    // v4.252: 原来每型号塞 10 万件(共 780 万件) —— 会让"军需储备"算成 40 万%(军需体系失效),
+                    //   现在改成够用不注水的量(每型号 200 件), 只是让玩家开局有装备可用
+                    Armory.AddKey(kk, e.Id, 200);
+                    Armory.AddKey(ll, e.Id, 200);
                 }
-                DLog.Force("TEMP: 玩家国家与家族已获全套装备各 10 万");
+                DLog.Force("TEMP: 玩家国家与家族已获全套装备各 200 件");
             }
             catch (Exception ex) { DLog.Force("TEMP 装备失败: " + ex.Message); }
         }

@@ -8,7 +8,11 @@ namespace FeudalInternalAffairs
     {
         internal string GoodId;
         internal float Stock;             // 库存
-        internal float Price;             // 本地价
+        internal float Price;             // 本地价(MAPI 混合价: 价格面板/市场税/结算都用它, 语义不变)
+        // v4.252: 纯本地目标价(未经 MAPI 混合, 只含本地买卖单 + 市场建筑改善)。
+        //   只给跨城调运/进口/出口的判定用 —— 混合价被 MAPI(0.75~1.0)压平后城际价差只剩 ~15%,
+        //   三项判定在数学上永远达不到阈值。不进存档(SaveMarkets 不写它), 每天由 LocalPrices() 重算。
+        internal float LocalPrice;
         internal float PrevPrice;         // 昨日本地价(算变化%)
         internal float DailyProduction;   // 日产出(本地建筑)
         internal float DailyConsumption; // 日消耗(建筑 + 军队 + 民生)

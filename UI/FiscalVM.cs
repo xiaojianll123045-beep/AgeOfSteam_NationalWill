@@ -187,6 +187,8 @@ namespace FeudalInternalAffairs
                 if (Fiscal.TodayInterest != 0) ExpenseRows.Add(new FiscalRowVM("信贷利息(钱庄/债主)", Fiscal.TodayInterest, false));
                 if (Fiscal.TodayFee != 0) ExpenseRows.Add(new FiscalRowVM("行会年金(特许状)", Fiscal.TodayFee, false));
                 if (Fiscal.TodayMilitary != 0) ExpenseRows.Add(new FiscalRowVM("国防军军费(募兵/军饷/建军)", Fiscal.TodayMilitary, false));
+                // v4.251: 建筑维护费(本国建筑数 × 1.5 金/栋/日)
+                if (Fiscal.TodayUpkeep != 0) ExpenseRows.Add(new FiscalRowVM("建筑维护(" + DailySettlement.LastUpkeepUnits + " 栋 × 1.5 金/日)", Fiscal.TodayUpkeep, false));
                 if (Fiscal.TodayCourt > 0) ExpenseRows.Add(new FiscalRowVM("宫廷与外交往来(宴会/赏赐/赔款/购买)", Fiscal.TodayCourt, false));
                 if (ExpenseRows.Count == 0) ExpenseRows.Add(new FiscalRowVM("今日暂无支出", 0, false));
                 _researchCost = Institutions.MaintenanceFee.ToString("N0") + " 金/月";

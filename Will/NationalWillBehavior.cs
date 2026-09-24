@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
@@ -396,8 +396,11 @@ namespace FeudalInternalAffairs
             // v4.82: 接管时玩家国库 = 该国战经金库(与选国侧栏"国库"显示一致, 各国不同)
             try
             {
-                float kg;
-                if (WarEconomy.Gold.TryGetValue(kingdom.StringId, out kg) && kg > 0f)
+                // v4.252: 原来用 TryGetValue, 若该国在 WarEconomy 里还没有记录就整段跳过 -> 玩家国库
+                //   仍是战役创建的 1000 金(经济审计实测口径: 2000+0.3×城镇繁荣+0.1×村庄户数, 小国也 3800+)。
+                //   现在改用 GoldOfPublic(内部按规模初始化), 保证"无论选哪个国家开局都安稳"。
+                float kg = WarEconomy.GoldOfPublic(kingdom);
+                if (kg > 0f)
                 {
                     int gold = (int)kg;
                     if (Hero.MainHero != null) Hero.MainHero.Gold = gold;

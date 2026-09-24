@@ -122,6 +122,8 @@ namespace FeudalInternalAffairs
                 try
                 {
                     // v4.100: 恢复原行为(允许进城); 敌国仍直接围城
+                    // v4.249: 保持"点城镇 = 进城"(用户明确要求不要改成城外驻扎); 但要保证进城只发生在
+                    //   "玩家真的点了这个城镇"时 —— 误判来源已另行收紧(名板判定 90->45 像素 + 世界坐标 3 米)。
                     if (hostile)
                         p.SetMoveBesiegeSettlement(settlement, MobileParty.NavigationType.Default);
                     else

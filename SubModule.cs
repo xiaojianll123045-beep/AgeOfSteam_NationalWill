@@ -93,6 +93,7 @@ namespace FeudalInternalAffairs
                     typeof(NoAiControlPatches.BlockDeclareWar),
                     typeof(NoAiControlPatches.BlockMakePeace),
                     typeof(DefArmyPatches.PartySizeLimitPatch),
+                    typeof(DefArmyPatches.DefArmyNoNativeWagePatch),   // v4.252: 国防军不吃原版军饷(军饷由 mod 收)
                     typeof(DefArmyPatches.SpeedLockPatch),
                     typeof(DiplomacyPatches.AlwaysCanDeclareWar),
                     typeof(DiplomacyPatches.DeclareWarDirectly),

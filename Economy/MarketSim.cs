@@ -87,7 +87,15 @@ namespace FeudalInternalAffairs
                 else n.PrevBasePrice.Add(g.Id, cur);
                 n.SetPrice(g.Id, MoveTowards(cur, target, MarketRules.MaxDailyPriceMove));
                 // 铸币成色 -> 物价通胀(文档 20.3: 成色越低物价涨得越快)
-                if (MintRight.DailyInflation > 0f) n.SetPrice(g.Id, n.PriceOf(g.Id) * (1f + MintRight.DailyInflation));
+                // v4.252: ①必须有铸币厂才生效(原来没铸币厂也能靠调成色让全球物价复利上涨);
+                //   ②给通胀设一条绝对上限(基础价 4 倍) —— 原来通胀乘在 MoveTowards 之后, 可以无限复利顶破价格带
+                if (MintRight.HasMint && MintRight.DailyInflation > 0f)
+                {
+                    float np = n.PriceOf(g.Id) * (1f + MintRight.DailyInflation);
+                    float hi = g.BasePrice * 4f;
+                    if (np > hi) np = hi;
+                    n.SetPrice(g.Id, np);
+                }
                 if (n.BuyVolume.ContainsKey(g.Id)) n.BuyVolume[g.Id] = buy; else n.BuyVolume.Add(g.Id, buy);
                 if (n.SellVolume.ContainsKey(g.Id)) n.SellVolume[g.Id] = sell; else n.SellVolume.Add(g.Id, sell);
                 // 铸币/烧钱账本(文档 19.9.3): 卖>买 市场净创造货币, 买>卖 净销毁
@@ -145,6 +153,9 @@ namespace FeudalInternalAffairs
                         if (lt > 1f) lt = 1f;
                         if (lt < -1f) lt = -1f;
                         float localPrice = g.BasePrice * (1f + 0.75f * lt) * (1f + bonus);
+                        // v4.252: 先落下"纯本地价"再混合。混合价被 MAPI(0.75~1.0)压平, 城际价差上限
+                        //   只剩 (1-mapi)*1.5 ≈ 15%; 调运/进口/出口判定改用 e.LocalPrice, e.Price 语义不变。
+                        e.LocalPrice = localPrice;
                         float basePrice = EconomyWorld.National.PriceOf(g.Id);
                         float mapi = MapiOf(m.TownId);
                         float target = mapi * basePrice + (1f - mapi) * localPrice;
@@ -261,11 +272,11 @@ namespace FeudalInternalAffairs
                         }
                         if (list.Count < 2) continue;
 
-                        // 按本地价升序(便宜的先当卖方)
+                        // 按本地价升序(便宜的先当卖方; v4.252: 用纯本地价排序, 与下面的价差判定同源)
                         list.Sort(delegate (Town a, Town b)
                         {
-                            float pa = EconomyWorld.FindMarket(a.Settlement.StringId).Get(g.Id).Price;
-                            float pb = EconomyWorld.FindMarket(b.Settlement.StringId).Get(g.Id).Price;
+                            float pa = EconomyWorld.FindMarket(a.Settlement.StringId).Get(g.Id).LocalPrice;
+                            float pb = EconomyWorld.FindMarket(b.Settlement.StringId).Get(g.Id).LocalPrice;
                             return pa.CompareTo(pb);
                         });
 
@@ -280,8 +291,10 @@ namespace FeudalInternalAffairs
                                 if (mc == null || md == null) continue;
                                 var ec = mc.Get(g.Id);
                                 var ed = md.Get(g.Id);
-                                if (ec == null || ed == null || ec.Price <= 0.01f) continue;
-                                float gap = (ed.Price - ec.Price) / ec.Price;
+                                if (ec == null || ed == null || ec.LocalPrice <= 0.01f) continue;
+                                // v4.252: 价差改用纯本地价 —— 原来用 MAPI 混合价, 两城价差被压到 ~15% 以下,
+                                //   始终低于 TransferTrigger(20%), 跨城调运在数学上从未触发
+                                float gap = (ed.LocalPrice - ec.LocalPrice) / ec.LocalPrice;
                                 if (gap < MarketRules.TransferTrigger) continue;   // 价差 < 20% 不调运
 
                                 int cap = TradeCapacityOf(dear.Settlement.StringId);      // 买方城市的贸易容量
@@ -369,7 +382,9 @@ namespace FeudalInternalAffairs
                         var e = m.Get(g.Id);
                         if (e == null) continue;
                         float basePrice = EconomyWorld.National.PriceOf(g.Id);
-                        if (e.Price > basePrice * 0.85f) continue;    // 价差 <15% -> 路线自动取消
+                        // v4.252: 本地价一侧改用纯本地价(全国价仍用 National.PriceOf) —— 混合价最低只到
+                        //   ~0.925×全国价, 永远高于 0.85×全国价, 出口从未触发
+                        if (e.LocalPrice > basePrice * 0.85f) continue;    // 价差 <15% -> 路线自动取消
                         var item = FeudalGoods.Item(g.Id);
                         if (item == null) continue;
                         int have = roster.GetItemNumber(item);
@@ -418,17 +433,24 @@ namespace FeudalInternalAffairs
                         if (item == null) continue;
                         // 本地价高于全国基准 30% 以上 -> 进口有利可图(价差不足则路线自动取消)
                         float basePrice = EconomyWorld.National.PriceOf(g.Id);
-                        if (e.Price < basePrice * (1f + MarketRules.ImportPremium)) continue;
+                        // v4.252: 判定改用纯本地价 —— 混合价最高只到 ~1.075×全国价, 达不到 1.30×,
+                        //   进口在数学上从未触发
+                        if (e.LocalPrice < basePrice * (1f + MarketRules.ImportPremium)) continue;
                         int room = cap;
                         int stock = roster.GetItemNumber(item);
                         int limit = (int)MarketRules.BaseStockLimit;
                         if (stock >= limit) continue;
                         int can = Math.Min(room, limit - stock);
                         if (can <= 0) continue;
-                        roster.AddToCounts(item, can);
                         // 关税(19.9.4): |价差| 的 20% 由国库承担
-                        int cost = (int)Math.Round(can * Math.Abs(e.Price - basePrice) * 0.20f);
+                        // v4.252: 价差同样取纯本地价一侧(与上面的触发判定同源); 原来用混合价, 价差≈0,
+                        //   关税永远掉进下面 5% 的兜底分支, 与"价差 20%"的设计不符
+                        int cost = (int)Math.Round(can * Math.Abs(e.LocalPrice - basePrice) * 0.20f);
                         if (cost <= 0) cost = (int)Math.Round(can * basePrice * 0.05f);
+                        // v4.252: 国库付不起就不进这批货 —— 原来无校验地 SpendGold, 靠 Credit 的免债兜底,
+                        //   等于"零成本进口"(每 14 天一次破产核销), 货却已经进市场可以再出口换钱
+                        if (cost > 0 && EconomyWorld.Treasury.Gold < cost) continue;
+                        roster.AddToCounts(item, can);
                         SpendGold(cost);
                         Fiscal.AddTariff(cost);
                         imported += can;

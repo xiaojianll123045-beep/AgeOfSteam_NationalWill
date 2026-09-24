@@ -26,6 +26,7 @@ namespace FeudalInternalAffairs
         private static bool _pilotLogged;
         private static bool _pilotDiag;
         private static bool _arriveLogged;
+        private static float _speedLogTimer;   // v4.246: 指挥诊断节流(每 3 秒)
         private static readonly List<MobileParty> Finished = new List<MobileParty>();
 
         // 每次下命令时刷新计时
@@ -59,6 +60,31 @@ namespace FeudalInternalAffairs
             if (Timers.Count == 0) return;
             try
             {
+                // v4.246 诊断: 指挥期间每 3 秒打印一次各部队的"速度值 + 驱动方式 + 人数",
+                //   用于确认国防军速度是否恒为 3.0(用户反馈"人多的快、人少的慢")
+                try
+                {
+                    _speedLogTimer += dt;
+                    if (_speedLogTimer >= 3f && Points.Count > 0)
+                    {
+                        _speedLogTimer = 0f;
+                        var sb = new System.Text.StringBuilder("指挥诊断: ");
+                        foreach (var kv in Points)
+                        {
+                            var pp = kv.Key;
+                            if (pp == null || !pp.IsActive) continue;
+                            int men = 0;
+                            try { men = pp.MemberRoster != null ? pp.MemberRoster.TotalManCount : 0; } catch { }
+                            float spd = 0f;
+                            try { spd = pp.Speed; } catch { }
+                            sb.Append(MapSelection.NameOf(pp)).Append(" 速度=").Append(spd.ToString("F2"))
+                              .Append(Piloting.Contains(pp) ? "[手动驾驶]" : "[native]")
+                              .Append(" 人数=").Append(men).Append("  |  ");
+                        }
+                        DLog.Force(sb.ToString());
+                    }
+                }
+                catch { }
                 Finished.Clear();
                 foreach (var kv in Timers)
                 {
@@ -190,8 +216,28 @@ namespace FeudalInternalAffairs
                                 DLog.Force("移动兜底: 0.5秒未动, 已接管驾驶 " + MapSelection.NameOf(p));
                             }
                         }
-                        // 手动推进
-                        float step = Math.Max(0.5f, DefArmy.SpeedLock * dt);
+                        else
+                        {
+                            // v4.246: 已被我们接管后每帧仍要检查 native 是否恢复驱动 ——
+                            //   原来接管后不再检查, native 一恢复就变成"native + 手动"双倍速度
+                            //   (用户: 人多的国防军部队速度快, 人少的又慢)
+                            float moved2 = -1f;
+                            CampaignVec2 last2;
+                            if (LastPos.TryGetValue(p, out last2)) moved2 = cur.ToVec2().Distance(last2.ToVec2());
+                            LastPos[p] = cur;
+                            if (moved2 > 0.002f)
+                            {
+                                Piloting.Remove(p);   // native 已恢复 -> 交回驾驶权, 不叠加
+                                Still[p] = 0f;
+                                continue;
+                            }
+                        }
+                        // 手动推进: 严格按 3.0/秒 × 帧时间
+                        // (原来写成 Math.Max(0.5f, SpeedLock*dt) —— 每帧至少 0.5 米, 60fps 下等于 30 米/秒,
+                        //  被接管的部队会"飞快", 没被接管的按 3.0/秒, 这就是速度看起来不一致的另一半原因)
+                        float step = DefArmy.SpeedLock * dt;
+                        if (step > 3f) step = 3f;      // dt 异常时也不许瞬移
+                        if (step <= 0f) continue;
                         if (step > dist) step = dist;
                         var d = target.ToVec2() - cur.ToVec2();
                         float len = d.Length;

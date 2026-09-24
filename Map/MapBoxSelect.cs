@@ -269,10 +269,10 @@ namespace FeudalInternalAffairs
             try
             {
                 var screen = SandBox.View.Map.MapScreen.Instance;
-                if (screen == null) return Vec3.Zero;
+                if (screen == null) return InvalidGround;
                 var sv = screen.SceneLayer != null ? screen.SceneLayer.SceneView : null;
                 var scene = screen.MapScene;
-                if (sv == null || scene == null) return Vec3.Zero;
+                if (sv == null || scene == null) return InvalidGround;
                 Vec3 near = Vec3.Zero, far = Vec3.Zero;
                 sv.TranslateMouse(ref near, ref far, -1f);
                 float dist;
@@ -282,8 +282,56 @@ namespace FeudalInternalAffairs
                     return point;
             }
             catch { }
-            return Vec3.Zero;
+            // v4.246: 射线没命中时必须返回"无效点"(z 远小于 -5000)。
+            //   原来返回 Vec3.Zero=(0,0,0), 而所有调用点的判据都是 z > -5000f -> (0,0) 被当成有效地面点,
+            //   于是"在空地/天空上点一下"会变成"在坐标原点附近点了点什么"(用户: 点空地却说前往最近的城镇)
+            return InvalidGround;
         }
+
+        // v4.248: 按光标像素距离找聚落(用聚落名板的屏幕坐标; 与"点部队"同一口径)
+        //   只有"光标确实落在城镇图标/名板上"才算点中聚落 —— 修"点空地却被判成前往最近的城镇"
+        //   (原来只按世界坐标 12 米兜底, 而射线打中城镇 3D 模型时返回的模型表面点离中心只有几米)
+        internal static TaleWorlds.CampaignSystem.Settlements.Settlement FindSettlementAtCursor(float maxPx)
+        {
+            try
+            {
+                var vm = SettlementNameplatesVMMixin.Instance;
+                if (vm == null) return null;
+                var m = TaleWorlds.InputSystem.Input.MousePositionPixel;
+                float bestD = maxPx * maxPx;
+                TaleWorlds.CampaignSystem.Settlements.Settlement best = null;
+                ScanNameplates(vm.LargeNameplates, m, ref bestD, ref best);
+                ScanNameplates(vm.MediumNameplates, m, ref bestD, ref best);
+                ScanNameplates(vm.SmallNameplates, m, ref bestD, ref best);
+                return best;
+            }
+            catch { return null; }
+        }
+
+        private static void ScanNameplates(
+            IEnumerable<SandBox.ViewModelCollection.Nameplate.SettlementNameplateVM> list,
+            Vec2 m, ref float bestD, ref TaleWorlds.CampaignSystem.Settlements.Settlement best)
+        {
+            try
+            {
+                if (list == null) return;
+                foreach (var np in list)
+                {
+                    if (np == null || np.Settlement == null) continue;
+                    var pos = np.Position;
+                    // 名板锚点在左上角: 取"锚点"与"锚点+右下偏移"两处里更近的一个(名板本身有尺寸)
+                    float d1 = (pos.X - m.X) * (pos.X - m.X) + (pos.Y - m.Y) * (pos.Y - m.Y);
+                    float cx = pos.X + 60f, cy = pos.Y + 24f;
+                    float d2 = (cx - m.X) * (cx - m.X) + (cy - m.Y) * (cy - m.Y);
+                    float d = Math.Min(d1, d2);
+                    if (d < bestD) { bestD = d; best = np.Settlement; }
+                }
+            }
+            catch { }
+        }
+
+        // v4.246: 无效地面点标记(所有调用点都用 z > -5000f 判定有效性)
+        internal static readonly Vec3 InvalidGround = new Vec3(0f, 0f, -99999f);
         // 中键是否已进入"拖动"状态
         internal static bool MiddleDragging { get { return _middleDragging; } }
 
