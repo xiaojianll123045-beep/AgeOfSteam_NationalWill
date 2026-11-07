@@ -54,6 +54,7 @@ namespace FeudalInternalAffairs
             internal List<string> Stages = new List<string>();   // 逐阶段明细
             internal string Verdict = "";
             internal bool Staged;
+            internal bool OurSideWon;      // v4.255(P0-1): 本场我方(玩家国)一方的胜负(按分阶段真实减员判定)
         }
 
         // v27: 单侧快照(27.6 分阶段结算输入)
@@ -98,6 +99,9 @@ namespace FeudalInternalAffairs
             internal Kingdom Kingdom;
             internal IFaction Faction;
             internal bool Crashed;
+            // v4.255(P0-1): 本方的参战部队(开战快照, 战斗结束后 MapEventSide.Parties 可能已被清空)
+            internal List<MobileParty> Parties = new List<MobileParty>();
+            internal bool IsOurs;                                // 本方是否含我方(玩家国)部队
 
             internal int Total { get { return Inf + Shoot + Cav + HCav; } }
             internal int RangedMen { get { return Shoot + HCav; } }
@@ -119,13 +123,23 @@ namespace FeudalInternalAffairs
             // 归档上一批已结束的战斗(超过 1 天没更新的)
             try
             {
+                // v4.255(P0-10): 先取 key 快照再删 —— Archive 会改 _states, 若在遍历字典时改会抛
+                //   InvalidOperationException(被 catch 吞掉 -> 每次只清一条, 陈旧状态越积越多)
                 var stale = new List<string>();
-                foreach (var kv in _states) if (kv.Value != null && Politics.Today() - kv.Value.Day >= 1) stale.Add(kv.Key);
+                foreach (var key in new List<string>(_states.Keys))
+                {
+                    State sv;
+                    if (_states.TryGetValue(key, out sv) && sv != null && Politics.Today() - sv.Day >= 1) stale.Add(key);
+                }
                 for (int i = 0; i < stale.Count; i++)
                 {
-                    State old;
-                    if (_states.TryGetValue(stale[i], out old) && old != null && old.Ref != null) Archive(old.Ref);
-                    else _states.Remove(stale[i]);
+                    try
+                    {
+                        State old;
+                        if (_states.TryGetValue(stale[i], out old) && old != null && old.Ref != null) Archive(old.Ref);
+                        else _states.Remove(stale[i]);
+                    }
+                    catch { }
                 }
             }
             catch { }
@@ -156,6 +170,13 @@ namespace FeudalInternalAffairs
             }
             catch { }
             st.Width = (float)Math.Ceiling((5f + 0.5f * infra) * (st.Terrain == "城镇" ? 1.3f : (st.Terrain == "城堡" ? 1.5f : (st.Terrain == "村庄" ? 0.9f : 1f))));
+            // v4.255(P0-12): 泥泞的"战斗宽度 -30%"落实(原来只写在战报文案里, 没进公式)
+            try
+            {
+                float cw = CondOf(st.CondIdx).Width;
+                if (cw < 0.999f) st.Width = Math.Max(1f, (float)Math.Ceiling(st.Width * cw));
+            }
+            catch { }
             // v27: 开战快照(分阶段结算的输入; 战斗结束时一次性算完)
             try
             {
@@ -312,9 +333,26 @@ namespace FeudalInternalAffairs
                 catch { }
 
                 // ⑤ 战斗条件
-                if (ours)
+                //   v4.255(P0-8): 按"这一击是谁打的"判定 —— 原来只要 ours 就乘 cond.Kill,
+                //   于是"突袭"(攻方 +25%)被我方当守方时也白吃, "暴风"(双方 -20%)又只罚我方
+                if (cond.Kill != 1f)
                 {
-                    if (cond.Kill != 1f) { mult *= cond.Kill; notes.Add(cond.Name + "杀伤 ×" + cond.Kill.ToString("F2")); }
+                    if (cond.Name == "突袭")
+                    {
+                        bool strikerIsAttacker = false;
+                        try { strikerIsAttacker = battle != null && sp != null && sp.MapEventSide != null && ReferenceEquals(sp.MapEventSide, battle.AttackerSide); } catch { }
+                        if (strikerIsAttacker)
+                        {
+                            mult *= cond.Kill;
+                            notes.Add("突袭(攻方)杀伤 ×" + cond.Kill.ToString("F2"));
+                        }
+                    }
+                    else
+                    {
+                        // 暴风等"双方同减"的条件: 敌我同口径
+                        mult *= cond.Kill;
+                        notes.Add(cond.Name + "杀伤 ×" + cond.Kill.ToString("F2"));
+                    }
                 }
 
                 // ⑥ 战斗宽度参与率(兵力超过宽度 -> 后排无法输出)
@@ -334,11 +372,13 @@ namespace FeudalInternalAffairs
                 catch { }
 
                 // ⑦ 统计(战报用)
+                //   v4.255(P0-1): 只统计"有我方参与"的攻防 —— 原来 AI 互殴时双方伤害全进 TheirDmg,
+                //   而 OurDmg 恒 0, 战报与胜负判定一律变成"玩家惨败"
                 try
                 {
                     float baseDmg = 10f * mult;      // 伤害量级仅用于战报估算
                     if (ours) { st.OurDmg += baseDmg; st.OurHits++; st.OurTierSum += tier; }
-                    else { st.TheirDmg += baseDmg; st.TheirHits++; st.TheirTierSum += tier; }
+                    else if (IsOurParty(tp)) { st.TheirDmg += baseDmg; st.TheirHits++; st.TheirTierSum += tier; }
                 }
                 catch { }
 
@@ -374,6 +414,13 @@ namespace FeudalInternalAffairs
             }
             catch { }
             return false;
+        }
+
+        // v4.255(P0-1): 玩家自建军团(fia_def_)同样算"我方" —— 万一家族/王国归属判定异常,
+        //   也不能把我方参战的战斗当成 AI 互殴而漏结算
+        private static bool IsLegionParty(MobileParty mp)
+        {
+            try { return mp != null && DefArmy.LegionOf(mp) != null; } catch { return false; }
         }
 
         internal static int MilitaryTechCount()
@@ -432,6 +479,11 @@ namespace FeudalInternalAffairs
                 else if (cond.Name == "暴风") { a.CondKill = cond.Kill; b.CondKill = cond.Kill; }
                 if (cond.Name == "堑壕战") b.CasTaken = cond.CasTaken;
                 else if (cond.Name == "泥泞") { a.CasTaken = cond.CasTaken; b.CasTaken = cond.CasTaken; }
+                // v4.255(P0-12): 补齐条件效果 —— 堑壕战守方"士气伤害 +30%" / 暴风双方 +20%
+                //   (原来 Cond.MoraleDmg 全程未用, 战报却写着这两个数字)
+                float morA = 1f, morB = 1f;
+                if (cond.Name == "堑壕战") morB = cond.MoraleDmg;
+                else if (cond.Name == "暴风") { morA = cond.MoraleDmg; morB = cond.MoraleDmg; }
 
                 st.Stages.Add("遭遇: 地形 " + terrain + " · 天气 " + (rain ? "雨天" : (mud ? "泥泞" : "晴"))
                     + " · " + a.Name + "(" + a.Total + "人) vs " + b.Name + "(" + b.Total + "人)");
@@ -449,10 +501,12 @@ namespace FeudalInternalAffairs
                     int kb = BombardKills(b, a, rain, forest, mountain);
                     ApplyLoss(b, ka);
                     ApplyLoss(a, kb);
-                    a.Org = ClampF(a.Org - 8f);
-                    b.Org = ClampF(b.Org - 8f);
-                    MoraleOrgTick(a, kb);
-                    MoraleOrgTick(b, ka);
+                    // v4.255(P0-5②): 组织度惩罚以"真实炮数"为前提 —— 原来 0 门炮也每轮 -8(两轮共 -16),
+                    //   直接把组织度打到 ≤15 触发崩溃判定
+                    if (a.Cannons > 0) b.Org = ClampF(b.Org - 8f);
+                    if (b.Cannons > 0) a.Org = ClampF(a.Org - 8f);
+                    MoraleOrgTick(a, kb, morA);
+                    MoraleOrgTick(b, ka, morB);
                     if (ka + kb > 0)
                         st.Stages.Add("炮击第" + r + "/2轮: " + a.Name + " 杀 " + ka + " · " + b.Name + " 杀 " + kb);
                     if (CrashCheck(a, st) | CrashCheck(b, st)) break;
@@ -477,8 +531,8 @@ namespace FeudalInternalAffairs
                         ArmyDoctrine.ConsumeVolley(b.AmmoParty, b.RangedMen * b.FirearmShare);
                     if (aBroken) a.Morale = ClampF(a.Morale - 2f);   // 断供每轮士气 -2
                     if (bBroken) b.Morale = ClampF(b.Morale - 2f);
-                    MoraleOrgTick(a, kb);
-                    MoraleOrgTick(b, ka);
+                    MoraleOrgTick(a, kb, morA);
+                    MoraleOrgTick(b, ka, morB);
                     string mgNote = "";
                     try
                     {
@@ -499,8 +553,8 @@ namespace FeudalInternalAffairs
                     int kb = MeleeKills(b, a, mountain);
                     ApplyLoss(b, ka);
                     ApplyLoss(a, kb);
-                    MoraleOrgTick(a, kb);
-                    MoraleOrgTick(b, ka);
+                    MoraleOrgTick(a, kb, morA);
+                    MoraleOrgTick(b, ka, morB);
                     st.Stages.Add("近战第" + r + "轮: " + a.Name + " 杀 " + ka + " · " + b.Name + " 杀 " + kb);
                     if (CrashCheck(a, st) | CrashCheck(b, st)) break;
                     if (a.Total <= 0 || b.Total <= 0) break;
@@ -508,6 +562,10 @@ namespace FeudalInternalAffairs
 
                 // ④ 追击 / 撤退 / 全歼 + 缴获
                 ResolvePursuit(battle, st, a, b);
+
+                // v4.255(P0-5④): 非军团(AI)部队的组织度写回持久值, 与军团用同一口径
+                PersistSideOrg(a);
+                PersistSideOrg(b);
             }
             catch (Exception ex) { DLog.Force("分阶段结算异常: " + ex.Message); }
         }
@@ -516,6 +574,24 @@ namespace FeudalInternalAffairs
         private static float PierceCoef(float targetArmor, float pierce)
         {
             return ClampF2(1f - targetArmor * (1f - pierce / 150f) / 200f, 0.25f, 1f);
+        }
+
+        // v4.255(P0-5④): 该方(非军团部队, 通常是 AI)战斗后的组织度写回持久值;
+        //   我方军团的持久组织度由 ArmyDoctrine.OnBattle 统一结算(避免重复扣)
+        private static void PersistSideOrg(SideSnap s)
+        {
+            try
+            {
+                if (s == null || s.Parties == null || s.Parties.Count == 0) return;
+                if (s.Org >= 99.5f) return;                  // 没掉组织度就不落记录
+                for (int i = 0; i < s.Parties.Count; i++)
+                {
+                    var mp = s.Parties[i];
+                    if (mp == null) continue;
+                    ArmyDoctrine.PersistBattleOrg(mp, s.Org);
+                }
+            }
+            catch { }
         }
 
         private static int BombardKills(SideSnap shooter, SideSnap target, bool rain, bool forest, bool mountain)
@@ -626,13 +702,15 @@ namespace FeudalInternalAffairs
         }
 
         // 27.6.2 每轮: 士气 -= 伤亡率×120; 组织度 -= 伤亡率×80(伤亡率按开战兵力)
-        private static void MoraleOrgTick(SideSnap s, int killed)
+        //   v4.255(P0-12): 增加 moraleMult —— 堑壕战守方 +30% / 暴风双方 +20%(条件 Cond.MoraleDmg)
+        private static void MoraleOrgTick(SideSnap s, int killed, float moraleMult = 1f)
         {
             try
             {
                 if (s == null || s.InitialMen <= 0 || killed <= 0) return;
                 float rate = killed / (float)s.InitialMen;
-                s.Morale = ClampF(s.Morale - rate * 120f);
+                if (moraleMult < 0.1f) moraleMult = 0.1f;
+                s.Morale = ClampF(s.Morale - rate * 120f * moraleMult);
                 s.Org = ClampF(s.Org - rate * 80f);
             }
             catch { }
@@ -740,18 +818,27 @@ namespace FeudalInternalAffairs
             CaptureGear(st, winner, loser, pursuit);
         }
 
-        // 退路(27.6.2): 存在距离 ≤ 当前行军×1.5 的本国/同盟城; 被围 -> 无
+        // 退路(27.6.2): 存在 3 天行程内的本国/同盟城; 真被围 -> 无
+        //   v4.255(P0-9): 原 limit = 1.5×速度 ≈ 15 地图单位(远小于城镇间距), 且"发生在定居点"就直接判无退路,
+        //   于是 196 场里 185 场判"全歼"、0 场"胶着"
         private static bool HasRetreat(SideSnap loser, MapEvent battle, out string townName)
         {
             townName = "";
             try
             {
-                if (battle != null && battle.MapEventSettlement != null) return false;
                 if (loser == null || loser.Faction == null) return false;
                 MobileParty from = loser.LeaderParty != null ? loser.LeaderParty : loser.AmmoParty;
                 if (from == null) return false;
+                // 发生在定居点: 只有真被围(BesiegedSettlement != null)才算无退路
+                if (battle != null && battle.MapEventSettlement != null)
+                {
+                    bool besieged = false;
+                    try { besieged = from.BesiegedSettlement != null; } catch { }
+                    if (besieged) return false;
+                }
                 CampaignVec2 pos = from.Position;
-                float limit = 1.5f * Math.Max(10f, loser.Speed);
+                // v4.255: 按行军尺度取 3 天行程(原版 Speed 为"地图单位/小时"口径)
+                float limit = Math.Max(60f, Math.Max(1f, loser.Speed) * 72f);
                 float best = float.MaxValue;
                 Settlement bestS = null;
                 foreach (var s in Settlement.All)
@@ -817,8 +904,10 @@ namespace FeudalInternalAffairs
                 int qty = (int)Math.Floor(pool * rate * hussar);
                 if (qty <= 0) return;
                 string model = Armory.PickModelFor(tier, firearm);
-                // TODO(装备目录): 目录未就绪时用层级桶占位型号; PickModelFor 就绪后自动换真实型号
-                if (string.IsNullOrEmpty(model)) model = "T" + tier + (firearm ? "_火器" : "_冷兵器");
+                // v4.255(P0-3③): 目录里没有对应型号 -> 直接放弃这件缴获。
+                //   原来写占位 id("T2_火器"/"T2_冷兵器"), 这类型号不存在、无法列装,
+                //   却照样计入 Armory.TotalCount -> 抬高军需率(日志出现 31 次)
+                if (string.IsNullOrEmpty(model)) return;
                 Armory.AddKey(ownerKey, model, qty);
                 st.Stages.Add("缴获: " + model + " ×" + qty + " (可用率 " + ((int)(rate * 100f)) + "%)");
             }
@@ -945,6 +1034,20 @@ namespace FeudalInternalAffairs
             try
             {
                 if (side == null) return s;
+                // v4.255(P0-1): 记录本方参战部队与"是否含我方部队"
+                //   (战斗结束时 MapEventSide.Parties 可能已被清空, 只能用开战快照做参战过滤)
+                try
+                {
+                    for (int pi = 0; pi < side.Parties.Count; pi++)
+                    {
+                        var mepP = side.Parties[pi];
+                        var pbP = mepP != null ? mepP.Party : null;
+                        if (pbP == null) continue;
+                        if (pbP.MobileParty != null) s.Parties.Add(pbP.MobileParty);
+                        if (!s.IsOurs && (IsOurParty(pbP) || IsLegionParty(pbP.MobileParty))) s.IsOurs = true;
+                    }
+                }
+                catch { }
                 s.Faction = side.MapFaction;
                 s.Kingdom = side.MapFaction as Kingdom;
                 if (side.LeaderParty != null)
@@ -955,6 +1058,12 @@ namespace FeudalInternalAffairs
                 float dmgSum = 0f, pierceSum = 0f, armorSum = 0f, trainSum = 0f, wAll = 0f;
                 float rlSum = 0f, acSum = 0f, rgSum = 0f, fireSum = 0f, wRanged = 0f;
                 float morSum = 0f, orgSum = 0f, spdSum = 0f, wParty = 0f, legSum = 0f;
+                // v4.255(P0-7): 军团状态/训练度/特质改为"按兵力加权平均 + 每种特质只生效一次"的累加器
+                float trainSum2 = 0f, trainW = 0f, stanceSum = 0f, meleeSum = 0f, siegeSum = 0f, traitW = 0f;
+                bool tPol = false, tArt = false, tInf = false, tTre = false, tCav = false, tLog = false;
+                // v4.267: 本场快照内共用一份"AI 部队兵种构成"折算缓存 —— AI 不再建逐人表(存档膨胀),
+                //   但一次快照里每支部队会被查 5~6 次占比, 用 call-local 缓存摊掉重复折算(快照结束即释放)
+                var aiUnitCache = new Dictionary<string, Dictionary<int, int>>(StringComparer.Ordinal);
                 for (int i = 0; i < side.Parties.Count; i++)
                 {
                     var mep = side.Parties[i];
@@ -1030,30 +1139,36 @@ namespace FeudalInternalAffairs
                                 DefArmy.CannonStatsOf(mp0, out cd, out cp);
                                 if (cd > s.CannonDmg) s.CannonDmg = cd;
                                 if (cp > s.CannonPen) s.CannonPen = cp;
-                                float gren = DefArmy.ShareOf(mp0, Equipment.UGrenadier);
-                                float cui = DefArmy.ShareOf(mp0, Equipment.UCuirassier);
-                                float sie = DefArmy.ShareOf(mp0, Equipment.USiegeArtillery);
-                                s.MeleeTrait *= 1f + 0.20f * gren + 0.40f * cui;
-                                s.SiegeTrait *= 1f + 0.25f * gren + 0.50f * sie;
+                                float gren = DefArmy.ShareOfCached(mp0, Equipment.UGrenadier, aiUnitCache);
+                                float cui = DefArmy.ShareOfCached(mp0, Equipment.UCuirassier, aiUnitCache);
+                                float sie = DefArmy.ShareOfCached(mp0, Equipment.USiegeArtillery, aiUnitCache);
+                                // v4.255(P0-7): 改为按兵力加权平均(下面统一结算), 不再逐军团连乘 ——
+                                //   原来 10 支训练度 100 的军团 = 1.2^10 = 6.19 倍直接乘进杀伤公式,
+                                //   拆成 N 支小军团就能指数放大输出
+                                s.MeleeTrait = 1f; s.SiegeTrait = 1f;   // 占位(下面按兵力加权统一赋值)
+                                meleeSum += (1f + 0.20f * gren + 0.40f * cui) * partyMen;
+                                siegeSum += (1f + 0.25f * gren + 0.50f * sie) * partyMen;
+                                traitW += partyMen;
                                 if (mp0.BesiegedSettlement != null) s.Sieging = true;
                                 // v4.243: 军团状态 / 将军特质 / 训练度
                                 var lg0 = DefArmy.LegionOf(mp0);
                                 if (lg0 != null)
                                 {
-                                    s.TrainMult *= DefArmy.TrainMultOf(lg0);
+                                    trainSum2 += DefArmy.TrainMultOf(lg0) * partyMen;
+                                    trainW += partyMen;
                                     int st0 = DefArmy.StanceOf(lg0);
-                                    if (st0 == DefArmy.StanceStandby) s.StanceMult *= 1.05f;
-                                    else if (st0 == DefArmy.StanceRest) s.StanceMult *= 0.90f;
-                                    if (DefArmy.HasTrait(lg0, DefArmy.TraitPolitical)) s.TraitMult *= 0.95f;
-                                    if (DefArmy.HasTrait(lg0, DefArmy.TraitArtillery)) s.BombardMult *= 1.20f;
-                                    if (DefArmy.HasTrait(lg0, DefArmy.TraitInfantry)) s.MeleeMult *= 1.10f;
-                                    if (DefArmy.HasTrait(lg0, DefArmy.TraitTrench)) s.LossTakenMult *= 0.85f;
-                                    if (DefArmy.HasTrait(lg0, DefArmy.TraitCavalry)) s.LootMult *= 1.25f;
-                                    if (DefArmy.HasTrait(lg0, DefArmy.TraitLogistics)) s.FoodHalf = true;
+                                    stanceSum += (st0 == DefArmy.StanceStandby ? 1.05f : (st0 == DefArmy.StanceRest ? 0.90f : 1f)) * partyMen;
+                                    // 每种特质全局只生效一次(原来每个军团都乘一遍)
+                                    if (DefArmy.HasTrait(lg0, DefArmy.TraitPolitical)) tPol = true;
+                                    if (DefArmy.HasTrait(lg0, DefArmy.TraitArtillery)) tArt = true;
+                                    if (DefArmy.HasTrait(lg0, DefArmy.TraitInfantry)) tInf = true;
+                                    if (DefArmy.HasTrait(lg0, DefArmy.TraitTrench)) tTre = true;
+                                    if (DefArmy.HasTrait(lg0, DefArmy.TraitCavalry)) tCav = true;
+                                    if (DefArmy.HasTrait(lg0, DefArmy.TraitLogistics)) tLog = true;
                                 }
                                 // v4.241: 轻步兵/骠骑兵原来按原版兵种名认(我军逐人表里的兵种名对不上) -> 补逐人表口径
-                                if (DefArmy.ShareOf(mp0, Equipment.ULightInf) >= 0.05f) s.TerrainAdapt = true;
-                                if (DefArmy.ShareOf(mp0, Equipment.UHussar) >= 0.05f) s.Hussars += Math.Max(1, (int)(partyMen * 0.05f));
+                                if (DefArmy.ShareOfCached(mp0, Equipment.ULightInf, aiUnitCache) >= 0.05f) s.TerrainAdapt = true;
+                                if (DefArmy.ShareOfCached(mp0, Equipment.UHussar, aiUnitCache) >= 0.05f) s.Hussars += Math.Max(1, (int)(partyMen * 0.05f));
                             }
                         }
                         catch { }
@@ -1077,8 +1192,23 @@ namespace FeudalInternalAffairs
                     s.Dmg = dmgSum / wAll;
                     s.Pierce = pierceSum / wAll;
                     s.Armor = armorSum / wAll;
+                    // v4.255(P0-7): 训练度系数按兵力加权平均并 clamp(0.8~1.2), 不再逐军团连乘
+                    if (trainW > 0f) s.TrainMult = ClampF2(trainSum2 / trainW, 0.8f, 1.2f);
                     s.Training = trainSum / wAll * s.TrainMult;   // v4.243: 训练度系数(0.8~1.2)
                 }
+                // v4.255(P0-7): 状态/兵种特性按兵力加权平均; 将军特质每种全局只生效一次
+                if (traitW > 0f)
+                {
+                    s.MeleeTrait = ClampF2(meleeSum / traitW, 1f, 1.6f);
+                    s.SiegeTrait = ClampF2(siegeSum / traitW, 1f, 1.75f);
+                }
+                if (trainW > 0f) s.StanceMult = ClampF2(stanceSum / trainW, 0.90f, 1.05f);
+                if (tPol) s.TraitMult *= 0.95f;
+                if (tArt) s.BombardMult *= 1.20f;
+                if (tInf) s.MeleeMult *= 1.10f;
+                if (tTre) s.LossTakenMult *= 0.85f;
+                if (tCav) s.LootMult *= 1.25f;
+                if (tLog) s.FoodHalf = true;
                 if (wRanged > 0f)
                 {
                     s.Reload = rlSum / wRanged;
@@ -1118,7 +1248,9 @@ namespace FeudalInternalAffairs
         {
             internal void OnEnded(MapEvent me)
             {
-                try { Archive(me); } catch { }
+                // v4.267: 战斗归档是关键路径, 原来静默 -> 结算失败时战报/缴获/经验会凭空消失且无从查起
+                try { Archive(me); }
+                catch (Exception ex) { DLog.Force("战斗归档异常(结束钩子): " + ex.Message); }
             }
         }
 
@@ -1150,7 +1282,20 @@ namespace FeudalInternalAffairs
                 sb.Append(cond.Desc).Append('\n');
                 sb.Append("战斗宽度 ").Append((int)st.Width).Append("  ·  我方输出 ").Append((int)st.OurDmg)
                   .Append("  ·  敌方输出 ").Append((int)st.TheirDmg).Append('\n');
-                float ratio = st.TheirDmg > 1f ? st.OurDmg / st.TheirDmg : (st.OurDmg > 1f ? 9.99f : 1f);
+                // v4.255(P0-11): 交换比改用"真实损失比"(SideSnap.Lost) —— 原来用伤害点数,
+                //   与分阶段判定(全歼/撤退)口径不同, 战报会出现"惨败"与"全歼敌方"同行
+                float ratio = -1f;
+                SideSnap rMine = null, rFoe = null;
+                if (st.SnapA != null && st.SnapA.IsOurs) { rMine = st.SnapA; rFoe = st.SnapB; }
+                else if (st.SnapB != null && st.SnapB.IsOurs) { rMine = st.SnapB; rFoe = st.SnapA; }
+                if (rMine != null && rFoe != null && rMine.InitialMen > 0 && rFoe.InitialMen > 0
+                    && (rMine.Lost > 0 || rFoe.Lost > 0))
+                {
+                    float ourLost = rMine.Lost / (float)rMine.InitialMen;
+                    float foeLost = rFoe.Lost / (float)rFoe.InitialMen;
+                    ratio = ourLost > 0.0001f ? foeLost / ourLost : (foeLost > 0.0001f ? 9.99f : 1f);
+                }
+                if (ratio < 0f) ratio = st.TheirDmg > 1f ? st.OurDmg / st.TheirDmg : (st.OurDmg > 1f ? 9.99f : 1f);
                 sb.Append("交换比 ").Append(ratio.ToString("F2")).Append("  ·  ");
                 if (ratio >= 1.5f) sb.Append("大胜(我军火力占优)");
                 else if (ratio >= 1.1f) sb.Append("小胜");
@@ -1158,6 +1303,12 @@ namespace FeudalInternalAffairs
                 else if (ratio > 0.6f) sb.Append("不利");
                 else sb.Append("惨败");
                 sb.Append('\n');
+                // v4.255(P0-1): 我方未参战时不结算军团(避免战报被误读成"玩家战败")
+                if (OurSideInBattle(battle, st))
+                    sb.Append("本方判定: ").Append(st.OurSideWon ? "胜" : "败").Append(" (老兵 ")
+                      .Append(st.OurSideWon ? "+6" : "-4").Append(" / 组织度 -25)\n");
+                else
+                    sb.Append("(本场我方未参战: 不结算军团老兵/组织度/伤员)\n");
                 // v27: 分阶段结算明细(27.6) + 判定/缴获(27.6.2 / 27.7)
                 if (st.Stages.Count > 0)
                 {
@@ -1195,52 +1346,85 @@ namespace FeudalInternalAffairs
                 string id = BattleIdOf(battle);
                 State st;
                 if (!_states.TryGetValue(id, out st) || st == null) return;
-                // v4.202: 结算老兵度(按交换比判定胜负)
-                try
+
+                // v4.255(P0-7): 玩家"亲自指挥"的战斗由原版战场结算, mod 侧坐镇结算整体跳过
+                //   (原来两边同时结算: 一边打真实战场, 一边又拿参战前残留的 OurDmg/TheirDmg 判胜负/发缴获)
+                if (IsCommandedBattle(battle))
                 {
-                    bool win = st.OurDmg >= st.TheirDmg;
-                    ArmyDoctrine.OnBattle(win);
+                    LogShortReport("玩家亲自指挥 · " + st.Terrain + " · mod 侧坐镇结算已跳过(采用原版战场结果)");
+                    ClearCommanded(battle);   // 打标由本处消费后清除(不依赖 MapEventEnded 的监听顺序)
+                    _states.Remove(id);
+                    return;
+                }
+
+                // v4.255(P0-3①): 同一对部队在同一游戏小时内只结算一次
+                //   (原来同一对部队几秒内被反复判"全歼", 每次各入库一次缴获)
+                string duelKey = DuelKeyOf(st);
+                if (!string.IsNullOrEmpty(duelKey))
+                {
+                    float hour = GameHourNow();
+                    float last;
+                    if (_duelSettled.TryGetValue(duelKey, out last) && hour - last < DuelDedupeHours)
+                    {
+                        LogShortReport(st.Terrain + " · 与同一对手的重复遭遇(同一游戏小时内已结算), 未重复结算/未重复缴获");
+                        _states.Remove(id);
+                        return;
+                    }
+                    _duelSettled[duelKey] = hour;
+                    if (_duelSettled.Count > 256) PruneDuels(hour);
+                }
+
+                // v27: 战斗结束时一次性跑完 遭遇->炮击->远程->近战->追击(缴获同时入库)
+                //   v4.255: 提前到老兵/经验结算之前 —— 胜负与个人击杀都要用分阶段算出的真实减员
+                //   v4.267: 关键路径, 失败不再静默(否则战斗会"没有战报也没有缴获"却毫无线索)
+                try { StagedResolve(battle, st); }
+                catch (Exception ex) { DLog.Force("战斗分阶段结算异常: " + ex.Message); }
+
+                // v4.255(P0-1): 只有"我方(玩家国)参战"的战斗才结算军团; 纯 AI 互殴直接跳过
+                bool ours = OurSideInBattle(battle, st);
+                bool win = ours && OurSideWon(st);
+                st.OurSideWon = win;
+                if (ours)
+                {
+                    // v4.202: 结算老兵度; v4.255(P0-1): 只对实际参战的部队
+                    var participants = ParticipantsOf(battle, st);
+                    try { ArmyDoctrine.OnBattle(win, participants); } catch { }
                     // v4.243: 战斗经验(熟练度成长) + 个人击杀累计 + 训练度因伤亡下滑
                     try
                     {
-                        SideSnap mine = null;
-                        try { mine = st.AttackerIsPlayer ? st.SnapA : st.SnapB; } catch { }
+                        SideSnap mine = null, theirs = null;
+                        if (st.SnapA != null && st.SnapA.IsOurs) { mine = st.SnapA; theirs = st.SnapB; }
+                        else if (st.SnapB != null && st.SnapB.IsOurs) { mine = st.SnapB; theirs = st.SnapA; }
+                        // v4.255(P0-4): 个人击杀用"我方造成的击杀"(= 敌方真实减员);
+                        //   原来传 st.TheirDmg(敌方打出的伤害), 口径完全反了
+                        int ourKills = theirs != null ? theirs.Lost : 0;
+                        int ourMenTotal = mine != null ? mine.InitialMen : 0;
                         float ourLossRatio = 0f;
                         if (mine != null && mine.InitialMen > 0)
-                            ourLossRatio = Math.Min(0.5f, (float)st.TheirDmg / mine.InitialMen);
+                            ourLossRatio = Math.Min(0.5f, mine.Lost / (float)mine.InitialMen);
                         for (int li = 0; li < DefArmy.Legions.Count; li++)
                         {
                             var lgv = DefArmy.Legions[li];
                             var lpv = DefArmy.LegionParty(lgv);
                             if (lgv == null || lpv == null || !lpv.IsActive) continue;
-                            if (!PartyInBattle(battle, lpv)) continue;   // 只有参战军团吃经验
+                            if (!PartyInBattle(battle, st, lpv)) continue;   // 只有参战军团吃经验
                             Soldiers.BattleExp(lpv, win ? 1.2f : 0.8f);
-                            Soldiers.AddKills(lpv, (int)st.TheirDmg);
+                            if (ourKills > 0)
+                            {
+                                int men = 0; try { men = lpv.Party.NumberOfRegularMembers; } catch { }
+                                int k2 = ourMenTotal > 0 ? (int)Math.Round(ourKills * (men / (float)ourMenTotal)) : 0;
+                                if (k2 < 1) k2 = 1;
+                                if (k2 > ourKills) k2 = ourKills;
+                                Soldiers.AddKills(lpv, k2);
+                            }
                             if (ourLossRatio > 0.01f && lgv.Train > 0f)
                                 lgv.Train = Math.Max(0f, lgv.Train - ourLossRatio * 40f);
                         }
                     }
                     catch { }
-                    // v4.207: 把估计伤亡按文化比例摊到 pop 上(V3)
-                    try
-                    {
-                        ArmyDoctrine.BeginBattleLosses();
-                        for (int li = 0; li < DefArmy.Legions.Count; li++)
-                        {
-                            var lg = DefArmy.Legions[li];
-                            var lp = DefArmy.LegionParty(lg);
-                            if (lg == null || lp == null) continue;
-                            int men = 0; try { men = lp.Party.NumberOfRegularMembers; } catch { }
-                            if (men <= 0) continue;
-                            float ratio = win ? 0.05f : 0.12f;
-                            ArmyDoctrine.ApplyPopLoss(lg, men * ratio, Politics.Today());
-                        }
-                    }
-                    catch { }
+                    // v4.255(P0-2): 人口扣减只在真实减员处发生一次(DefArmy.RemoveSoldiersPop);
+                    //   这里原来又对"全部军团"按当前兵力 5%/12% 调用 ApplyPopLoss —— 重复扣减且与参战无关
                 }
-                catch { }
-                // v27: 战斗结束时一次性跑完 遭遇->炮击->远程->近战->追击(缴获同时入库)
-                try { StagedResolve(battle, st); } catch { }
                 string rep = BuildReport(battle);
                 try { LastDetail = st.Detail.Count > 0 ? string.Join(" · ", st.Detail.ToArray()) : ""; } catch { }
                 if (!string.IsNullOrEmpty(rep))
@@ -1252,21 +1436,260 @@ namespace FeudalInternalAffairs
                 }
                 _states.Remove(id);
             }
-            catch { }
+            // v4.267: 战斗归档整体失败原来完全静默 -> 必须进正式日志(哪怕只留下"哪场战斗炸了")
+            catch (Exception ex) { DLog.Force("战斗归档异常: " + ex.Message); }
         }
 
-        // v4.243: 该部队是否参加了这场战斗(只有参战军团吃战斗经验)
-        private static bool PartyInBattle(MapEvent battle, MobileParty p)
+        // ==================== v4.255: P0-1/P0-3/P0-7 辅助 ====================
+        private static MapEvent _commandedEvent;   // P0-7: 玩家亲自指挥中的战斗
+        // P0-3①: 同一对部队的重复遭遇去重(键 = 双方主队 id 对, 值 = 上次结算时的游戏小时)
+        private static readonly Dictionary<string, float> _duelSettled = new Dictionary<string, float>(StringComparer.Ordinal);
+        private const float DuelDedupeHours = 1f;   // 同一游戏小时内同双方只结算一次
+
+        // v4.255(P0-7): 由 BattleCommand 在"亲自指挥"开始时打标
+        internal static void MarkCommanded(MapEvent me)
+        {
+            try { _commandedEvent = me; } catch { }
+        }
+
+        // v4.255(P0-7): 指挥结束/读档时清除打标
+        internal static void ClearCommanded(MapEvent me)
+        {
+            try { if (me == null || IsCommandedBattle(me)) _commandedEvent = null; } catch { }
+        }
+
+        private static bool IsCommandedBattle(MapEvent me)
         {
             try
             {
-                if (battle == null || p == null || p.Party == null) return false;
-                var atk = battle.AttackerSide;
-                if (atk != null && atk.Parties != null)
-                    foreach (var s in atk.Parties) if (s != null && s.Party == p.Party) return true;
-                var def = battle.DefenderSide;
-                if (def != null && def.Parties != null)
-                    foreach (var s in def.Parties) if (s != null && s.Party == p.Party) return true;
+                if (me == null) return false;
+                // ① 显式打标(玩家走 mod 的"亲自指挥"入口)
+                if (_commandedEvent != null)
+                {
+                    if (ReferenceEquals(me, _commandedEvent)) { FixProbe.CmdByFlag++; return true; }
+                    if (me.Id != null && _commandedEvent.Id != null && me.Id.Equals(_commandedEvent.Id)) { FixProbe.CmdByFlag++; return true; }
+                }
+                // ② v4.290 兜底判据: 玩家亲自挂着这场真实战场, 也算"已由真实战场结算过"。
+                //   背景: 打标只有一处(Battle\BattleCommand.cs:259, 即地图右键"亲自指挥"),
+                //   而从原版遭遇菜单点"攻击"、加入进行中的战斗/围城、藏身处、村庄战斗、
+                //   以及内嵌 RTSCamera 的 "(RTS Camera)Command the battle."(主英雄受伤时出现)
+                //   全都不打标 —— 这些入口进的都是真实战场, 事件结束时 Archive 会再跑一遍
+                //   StagedResolve, 造成缴获入库/个人击杀/老兵度·经验·组织度/战报判定重复。
+                //   判据: 主队仍挂在这场事件的某一侧(PlayerEncounter.FinalizeBattle 是先
+                //   FinalizeEvent() 再清 _mapEvent, 所以 MapEventEnded 触发时玩家还在),
+                //   且它不是"送兵坐镇"模拟器 —— IsPlayerSimulation 只在 BattleSimulation 构造
+                //   坐镇时置真, 那条路本来就该由 mod 结算, 不能被误杀。
+                if (!me.IsPlayerSimulation)
+                {
+                    var mp = PartyBase.MainParty;
+                    if (mp != null && ReferenceEquals(mp.MapEvent, me)) { FixProbe.CmdByPresence++; return true; }
+                }
+                return false;
+            }
+            catch { return false; }
+        }
+
+        private static float GameHourNow()
+        {
+            try { return (float)CampaignTime.Now.ToHours; } catch { return 0f; }
+        }
+
+        // P0-3①: 双方主队 id 对(与 MapEvent 实例无关, 因为同一对部队会被拆成多个 MapEvent)
+        private static string DuelKeyOf(State st)
+        {
+            try
+            {
+                if (st == null) return null;
+                string a = SideKeyOf(st.SnapA), b = SideKeyOf(st.SnapB);
+                if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return null;
+                return string.CompareOrdinal(a, b) <= 0 ? a + "|" + b : b + "|" + a;
+            }
+            catch { return null; }
+        }
+
+        private static string SideKeyOf(SideSnap s)
+        {
+            try
+            {
+                if (s == null) return null;
+                if (s.LeaderParty != null && !string.IsNullOrEmpty(s.LeaderParty.StringId)) return s.LeaderParty.StringId;
+                if (s.AmmoParty != null && !string.IsNullOrEmpty(s.AmmoParty.StringId)) return s.AmmoParty.StringId;
+                if (s.Parties != null && s.Parties.Count > 0 && s.Parties[0] != null) return s.Parties[0].StringId;
+            }
+            catch { }
+            return null;
+        }
+
+        private static void PruneDuels(float hour)
+        {
+            try
+            {
+                var stale = new List<string>();
+                foreach (var kv in _duelSettled) if (hour - kv.Value > 24f) stale.Add(kv.Key);
+                for (int i = 0; i < stale.Count; i++) _duelSettled.Remove(stale[i]);
+            }
+            catch { }
+        }
+
+        private static void LogShortReport(string text)
+        {
+            try
+            {
+                string rep = "【战报】" + text;
+                _lastReport = rep;
+                Recent.Insert(0, rep);
+                while (Recent.Count > 8) Recent.RemoveAt(Recent.Count - 1);
+                DLog.Force(rep);
+            }
+            catch { }
+        }
+
+        // v4.255(P0-1): 本场是否有我方(玩家国)部队参战
+        //   开战快照为准, 补上"战斗结束时仍在场的双方"(增援部队可能没进快照)
+        private static bool OurSideInBattle(MapEvent battle, State st)
+        {
+            try
+            {
+                if (st != null)
+                {
+                    if (st.SnapA != null && st.SnapA.IsOurs) return true;
+                    if (st.SnapB != null && st.SnapB.IsOurs) return true;
+                    // 快照缺失时兜底: 有"我方输出/我方承受"的统计即说明我方参战
+                    if (st.SnapA == null && st.SnapB == null && (st.OurDmg > 0f || st.TheirDmg > 0f)) return true;
+                }
+                if (battle != null)
+                {
+                    if (LiveSideHasOurParty(battle.AttackerSide)) return true;
+                    if (LiveSideHasOurParty(battle.DefenderSide)) return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static bool LiveSideHasOurParty(MapEventSide side)
+        {
+            try
+            {
+                if (side == null || side.Parties == null) return false;
+                for (int i = 0; i < side.Parties.Count; i++)
+                {
+                    var mep = side.Parties[i];
+                    var pb = mep != null ? mep.Party : null;
+                    if (pb == null) continue;
+                    if (IsOurParty(pb) || IsLegionParty(pb.MobileParty)) return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        // v4.255(P0-1): 胜负按"这场战斗里我们这一方"判定(不再拿全局 OurDmg/TheirDmg 硬比)
+        private static bool OurSideWon(State st)
+        {
+            try
+            {
+                if (st == null) return false;
+                SideSnap mine = null, foe = null;
+                if (st.SnapA != null && st.SnapA.IsOurs) { mine = st.SnapA; foe = st.SnapB; }
+                else if (st.SnapB != null && st.SnapB.IsOurs) { mine = st.SnapB; foe = st.SnapA; }
+                if (mine != null && foe != null)
+                {
+                    if (mine.Crashed && !foe.Crashed) return false;
+                    if (foe.Crashed && !mine.Crashed) return true;
+                    if (mine.InitialMen > 0 && foe.InitialMen > 0)
+                    {
+                        float rm = mine.Total / (float)mine.InitialMen;
+                        float rf = foe.Total / (float)foe.InitialMen;
+                        if (Math.Abs(rm - rf) > 0.02f) return rm > rf;
+                    }
+                }
+                return st.OurDmg >= st.TheirDmg;   // 兜底: 两个统计都只含"我方相关"的攻防
+            }
+            catch { return false; }
+        }
+
+        // v4.255(P0-1): 本场参战部队(开战快照 + 战斗结束时仍在场的双方)
+        private static List<MobileParty> ParticipantsOf(MapEvent battle, State st)
+        {
+            var list = new List<MobileParty>();
+            try
+            {
+                if (st != null && st.SnapA != null && st.SnapA.Parties != null) list.AddRange(st.SnapA.Parties);
+                if (st != null && st.SnapB != null && st.SnapB.Parties != null) list.AddRange(st.SnapB.Parties);
+                if (battle != null)
+                {
+                    AddLiveParties(battle.AttackerSide, list);
+                    AddLiveParties(battle.DefenderSide, list);
+                }
+            }
+            catch { }
+            return list;
+        }
+
+        private static void AddLiveParties(MapEventSide side, List<MobileParty> list)
+        {
+            try
+            {
+                if (side == null || side.Parties == null || list == null) return;
+                for (int i = 0; i < side.Parties.Count; i++)
+                {
+                    var mep = side.Parties[i];
+                    var mp = mep != null && mep.Party != null ? mep.Party.MobileParty : null;
+                    if (mp != null && !list.Contains(mp)) list.Add(mp);
+                }
+            }
+            catch { }
+        }
+
+        // v4.255(P0-1): 该部队是否参加了这场战斗(只有参战军团吃战斗经验)
+        private static bool PartyInBattle(MapEvent battle, State st, MobileParty p)
+        {
+            try
+            {
+                if (p == null) return false;
+                if (SideHasParty(st != null ? st.SnapA : null, p)) return true;
+                if (SideHasParty(st != null ? st.SnapB : null, p)) return true;
+                if (battle != null)
+                {
+                    if (LiveSideHasParty(battle.AttackerSide, p)) return true;
+                    if (LiveSideHasParty(battle.DefenderSide, p)) return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static bool LiveSideHasParty(MapEventSide side, MobileParty p)
+        {
+            try
+            {
+                if (side == null || side.Parties == null || p == null) return false;
+                for (int i = 0; i < side.Parties.Count; i++)
+                {
+                    var mep = side.Parties[i];
+                    var pb = mep != null ? mep.Party : null;
+                    if (pb == null) continue;
+                    if (pb.MobileParty == p) return true;
+                    if (!string.IsNullOrEmpty(pb.MobileParty != null ? pb.MobileParty.StringId : null)
+                        && pb.MobileParty.StringId == p.StringId) return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static bool SideHasParty(SideSnap s, MobileParty p)
+        {
+            try
+            {
+                if (s == null || s.Parties == null || p == null) return false;
+                for (int i = 0; i < s.Parties.Count; i++)
+                {
+                    var q = s.Parties[i];
+                    if (q == null) continue;
+                    if (q == p || (!string.IsNullOrEmpty(q.StringId) && q.StringId == p.StringId)) return true;
+                }
             }
             catch { }
             return false;
@@ -1303,7 +1726,8 @@ namespace FeudalInternalAffairs
                 for (int i = 0; i < Recent.Count; i++) sb.Append(Recent[i].Replace('\n', (char)1)).Append((char)2);
                 return sb.ToString();
             }
-            catch { return ""; }
+            // v4.267: 战斗归档落盘是关键路径, 原来静默返回空串(= 战报全丢)无从查起
+            catch (Exception ex) { DLog.Force("战报落盘异常: " + ex.Message); return ""; }
         }
 
         internal static void Load(string data)
@@ -1312,6 +1736,9 @@ namespace FeudalInternalAffairs
             {
                 Recent.Clear();
                 LastDetail = "";
+                // v4.255: 读档清理会话级状态(重复遭遇去重表 / 亲自指挥打标)
+                _duelSettled.Clear();
+                _commandedEvent = null;
                 if (string.IsNullOrEmpty(data)) return;
                 foreach (var seg in data.Split((char)2))
                 {
@@ -1321,7 +1748,8 @@ namespace FeudalInternalAffairs
                 }
                 if (Recent.Count > 0) _lastReport = Recent[0];
             }
-            catch { }
+            // v4.267: 战斗归档读档是关键路径, 原来静默
+            catch (Exception ex) { DLog.Force("战报读档异常: " + ex.Message); }
         }
     }
 }

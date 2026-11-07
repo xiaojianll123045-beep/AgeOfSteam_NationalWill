@@ -475,6 +475,40 @@ namespace FeudalInternalAffairs
             }
         }
 
+        // ===== v4.290: mod 接管玩家王国的定居点收入 =====
+        //   原版这三笔(与 mod 的 TaxPolicy.Daily() 同时在跑、都进玩家金币):
+        //     · 城镇税  DefaultSettlementTaxModel.CalculateTownTax = 0.35 × Prosperity / 天
+        //     · 关  税  CalculateTownIncomeFromTariffs = Town.TradeTaxAccumulated / 5
+        //     · 村庄收入 CalculateVillageIncome        = Village.TradeTaxAccumulated / 5
+        //     · 项目收入 CalculateTownIncomeFromProjects
+        //   它们不是"被算了两遍"(mod 用自己的公式, 不读 TradeTaxAccumulated), 而是**叠加了一层独立税**:
+        //   代入 2 城 5 村的典型早期王国约 2700/天, 而 mod 默认档国库侧约 150~500/天,
+        //   即多收原版的 5%~20%(四税全推苛征可到 100%+), 且 mod 的 Fiscal.AddTax 只记自己那一份,
+        //   **账面上完全看不出**。修法是让原版这一整段对玩家氏族不存在。
+        //   ★ 必须**只对玩家氏族**生效: AI 王国也走这个方法, 一起零化会让 AI 失去全部定居点收入而破产。
+        //   ★ 连带影响: 本文件 :426 的阿塞莱"商路"关税 +25% 挂在这条链上, 零化后不再被调用 ——
+        //     已把它搬进 TaxPolicy 的市场税(见 TaxPolicy.AseraiTariffMult)。
+        [HarmonyPatch(typeof(DefaultClanFinanceModel), "AddSettlementIncome")]
+        internal static class PlayerSettlementIncomeTakeover
+        {
+            private static void Prepare()
+            {
+                DLog.Force("财政: 补丁已应用 —— DefaultClanFinanceModel.AddSettlementIncome 对玩家氏族整条跳过"
+                    + "(定居点收入改由 TaxPolicy 单独收, 不再与原版叠加)");
+            }
+
+            private static bool Prefix(Clan clan)
+            {
+                try
+                {
+                    if (clan == null) return true;
+                    if (ReferenceEquals(clan, Clan.PlayerClan)) { FixProbe.HitSettlementIncomeSkip++; return false; }
+                    return true;
+                }
+                catch { return true; }
+            }
+        }
+
         // ===== 瓦兰迪亚: 雇佣军收入 +30% =====
         [HarmonyPatch(typeof(DefaultClanFinanceModel), "CalculateClanIncome")]
         internal static class VlandiaMercenaryIncome

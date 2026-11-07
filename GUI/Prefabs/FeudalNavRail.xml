@@ -6,7 +6,7 @@
       <Children>
 
         <!-- 左侧导航栏(参照左侧图标栏); 点击由 NavRail.cs 轮询处理, 这里只管画 -->
-        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="56" SuggestedHeight="864"
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="56" SuggestedHeight="918"
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="4" MarginTop="146"
                 Sprite="BlankWhiteSquare" Color="#00000044" />
 
@@ -42,6 +42,9 @@
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="906" Sprite="fia_mode_stone" />
         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
                 HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="960" Sprite="fia_mode_wood" />
+        <!-- v4.268: 第 17 格 = 海军(y = 150 + 54*16 = 1014) -->
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="6" MarginTop="1014" Sprite="fia_cat_navy" />
 
         <!-- v4.60: 常驻名称(小字半透明白 + 黑描边; 行高 54 与图标对齐, 悬停大提示框保留) -->
         <ListPanel DataSource="{Labels}" WidthSizePolicy="Fixed" SuggestedWidth="120" HeightSizePolicy="CoverChildren"

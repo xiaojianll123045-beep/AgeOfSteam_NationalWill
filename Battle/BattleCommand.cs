@@ -26,6 +26,8 @@ namespace FeudalInternalAffairs
         private static bool _savedValid;
         private static CampaignVec2 _savedPos;
         private static TroopRoster _savedRoster;     // 参战期间暂存的玩家部队兵员
+        // v4.255(P0-6): 上次存档时未归位的暂存兵员(存档字符串), 读档后补放回
+        private static string _pendingRestore;
 
         // 找光标附近的战斗(只认本国参战、未结束的)
         internal static MapEvent FindNearCursor(float maxPixels)
@@ -225,6 +227,22 @@ namespace FeudalInternalAffairs
                 if (me == null || kingdom == null || main == null) return;
                 if (me.IsFinalized) { MapSelection.Message("战斗已经结束了"); return; }
 
+                // v4.255(P0-6): 去重 —— 指挥中再次右键确认会用"只剩英雄"的名册覆盖 _savedRoster,
+                //   第一次暂存的兵就永久丢了
+                if (InCommandBattle)
+                {
+                    bool stale = false;
+                    try { stale = _commandingBattle == null || _commandingBattle.IsFinalized; } catch { stale = true; }
+                    if (!stale)
+                    {
+                        MapSelection.Message("已在亲自指挥中，无需重复进入");
+                        DLog.Force("亲自指挥: 已在指挥中, 忽略重复进入请求");
+                        return;
+                    }
+                    DLog.Force("亲自指挥: 上一场指挥状态已失效, 先归位再重新进入");
+                    RestoreParty();
+                }
+
                 var attacker = me.AttackerSide != null ? me.AttackerSide.LeaderParty : null;
                 var defender = me.DefenderSide != null ? me.DefenderSide.LeaderParty : null;
                 if (attacker == null || defender == null)
@@ -238,6 +256,7 @@ namespace FeudalInternalAffairs
                 _savedValid = true;
                 InCommandBattle = true;
                 _commandingBattle = me;
+                try { BattleSim.MarkCommanded(me); } catch { }   // v4.255(P0-7): 告诉 BattleSim 别再结算这场
 
                 // 1) 到场: 挪到战场, 并解除"忽略"和隐藏
                 //    (国家意志模式下玩家部队平时被 IgnoreForHours 忽略, 不解开的话遭遇系统根本不认它)
@@ -246,13 +265,19 @@ namespace FeudalInternalAffairs
                 try { main.IsVisible = true; } catch { }
 
                 // 国家意志没有私人部队: 参战期间把玩家部队的普通兵暂时移出(只留英雄), 结束后恢复
+                //   v4.255(P0-6): 只暂存普通兵 —— 原来整份名册(含英雄)都存, 归位时会把英雄再加一遍
+                //   并且带伤兵数量, 归位后伤员不丢
                 try
                 {
                     var roster = main.MemberRoster;
                     if (roster != null)
                     {
                         _savedRoster = TroopRoster.CreateDummyTroopRoster();
-                        _savedRoster.Add(roster);
+                        foreach (var e in roster.GetTroopRoster())
+                        {
+                            if (e.Character == null || e.Character.IsHero || e.Number <= 0) continue;
+                            _savedRoster.AddToCounts(e.Character, e.Number, false, e.WoundedNumber, 0, false, -1);
+                        }
                         roster.RemoveIf(e => !e.Character.IsHero);
                         DLog.Force("亲自指挥: 已暂时移出玩家部队的普通兵(" + _savedRoster.TotalManCount + "人)");
                     }
@@ -301,20 +326,138 @@ namespace FeudalInternalAffairs
                 _savedValid = false;
                 _commandingBattle = null;
                 InCommandBattle = false;
+                // v4.255(P0-7): 这里**不**解除 BattleSim 的"亲自指挥"打标 —— MapEventEnded 的监听顺序上
+                //   本行为(NationalWillBehavior, 开局注册) 早于 BattleSim 的归档钩子(战斗中懒注册),
+                //   过早解除会让 Archive 错过跳过判定。打标由 BattleSim.Archive 消费后自行清除。
                 BattleRtsCamera.Reset();
                 _postBattleLeaveTries = 10;   // 战后把玩家部队从战斗记录里摘掉
             // 把暂时移出的兵还回去
+            //   v4.255(P0-6): 只有真的放回去了才清空暂存名单 —— 原来 MobileParty.MainParty == null
+            //   时直接把 _savedRoster 置 null, 兵就永久消失了
             if (_savedRoster != null)
             {
+                bool back = false;
                 try
                 {
                     var main = MobileParty.MainParty;
-                    if (main != null && main.MemberRoster != null) main.MemberRoster.Add(_savedRoster);
+                    if (main != null && main.MemberRoster != null)
+                    {
+                        main.MemberRoster.Add(_savedRoster);
+                        back = true;
+                    }
                 }
                 catch { }
-                _savedRoster = null;
+                if (back)
+                {
+                    DLog.Force("亲自指挥: 暂存兵员已归位 " + _savedRoster.TotalManCount + " 人");
+                    _savedRoster = null;
+                    _pendingRestore = null;
+                }
+                else
+                {
+                    // 放回失败: 保留名单(存档时落盘), 读档后由 OnGameLoadedRestore 补放回
+                    _pendingRestore = SerializeRoster(_savedRoster);
+                    DLog.Force("亲自指挥: 玩家部队暂不可用, 暂存兵员转为待归位(" + (_pendingRestore != null ? _pendingRestore.Length : 0) + " 字节)");
+                }
             }
             try { NationalWillParty.Freeze(true); } catch { }
+        }
+
+        // ==================== v4.255(P0-6): 暂存兵员的存档接线 ====================
+        //   战斗中存档/退出/崩溃时, 名册已经删进存档而静态暂存名单随进程消失 -> 兵永久丢失。
+        //   这里把暂存名单写成字符串交给 SoldiersBehavior 落盘, 读档后补放回。
+        private static string SerializeRoster(TroopRoster r)
+        {
+            try
+            {
+                if (r == null) return "";
+                var sb = new System.Text.StringBuilder();
+                foreach (var e in r.GetTroopRoster())
+                {
+                    if (e.Character == null || e.Number <= 0) continue;
+                    string tid = e.Character.StringId;
+                    if (string.IsNullOrEmpty(tid)) continue;
+                    sb.Append(tid).Append(':').Append(e.Number).Append(':').Append(e.WoundedNumber).Append(';');
+                }
+                return sb.ToString();
+            }
+            catch { return ""; }
+        }
+
+        // 存档时调用: 返回"未归位的暂存兵员"
+        internal static string SavePendingRoster()
+        {
+            try
+            {
+                if (_savedRoster != null) return SerializeRoster(_savedRoster);
+                return _pendingRestore != null ? _pendingRestore : "";
+            }
+            catch { return ""; }
+        }
+
+        // 读档时调用: 记下待归位名单(真正放回要等游戏加载完, 见 OnGameLoadedRestore)
+        internal static void LoadPendingRoster(string data)
+        {
+            try
+            {
+                _savedRoster = null;
+                InCommandBattle = false;
+                _commandingBattle = null;
+                _savedValid = false;
+                try { BattleSim.ClearCommanded(null); } catch { }
+                _pendingRestore = string.IsNullOrEmpty(data) ? null : data;
+                if (!string.IsNullOrEmpty(_pendingRestore))
+                    DLog.Force("亲自指挥: 读档发现未归位的暂存兵员, 稍后补放回");
+            }
+            catch { }
+        }
+
+        // 游戏加载完成: 把上次没来得及放回的兵还给玩家部队
+        internal static void OnGameLoadedRestore()
+        {
+            try
+            {
+                InCommandBattle = false;
+                _commandingBattle = null;
+                _savedValid = false;
+                try { BattleSim.ClearCommanded(null); } catch { }
+                TryFinishPendingRestore();
+            }
+            catch (Exception ex) { DLog.Force("亲自指挥读档归位异常: " + ex.Message); }
+        }
+
+        // 真正执行"补放回"; 成功返回 true。读档时 MobileParty.MainParty 可能还没就绪,
+        //   所以 OnGameLoaded 之外还由 TickPostBattleLeave 每帧兜底重试一次。
+        private static bool TryFinishPendingRestore()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_pendingRestore)) return true;
+                var main = MobileParty.MainParty;
+                if (main == null || main.MemberRoster == null) return false;   // 还没就绪 -> 留着下次机会
+                int back = 0;
+                foreach (var seg in _pendingRestore.Split(';'))
+                {
+                    if (string.IsNullOrEmpty(seg)) continue;
+                    var f = seg.Split(':');
+                    if (f.Length < 2) continue;
+                    int n, w = 0;
+                    if (!int.TryParse(f[1], out n) || n <= 0) continue;
+                    if (f.Length > 2) int.TryParse(f[2], out w);
+                    CharacterObject c = null;
+                    try { c = Game.Current != null && Game.Current.ObjectManager != null ? Game.Current.ObjectManager.GetObject<CharacterObject>(f[0]) : null; } catch { c = null; }
+                    if (c == null) continue;
+                    try { main.MemberRoster.AddToCounts(c, n, false, w, 0, false, -1); back += n; } catch { }
+                }
+                _pendingRestore = null;
+                if (back > 0)
+                {
+                    DLog.Force("亲自指挥: 读档补放回暂存兵员 " + back + " 人");
+                    MapSelection.Message("亲自指挥中断的部队已归位: " + back + " 人");
+                }
+                return true;
+            }
+            catch (Exception ex) { DLog.Force("亲自指挥补归位异常: " + ex.Message); return false; }
         }
 
         // 反射调用原版"攻击"处理函数, 真正打开战场任务
@@ -358,6 +501,8 @@ namespace FeudalInternalAffairs
 
         internal static void TickPostBattleLeave(float dt)
         {
+            // v4.255(P0-6): 读档补放回的兜底重试(OnGameLoaded 时 MainParty 可能还没就绪)
+            if (!string.IsNullOrEmpty(_pendingRestore)) { try { TryFinishPendingRestore(); } catch { } }
             if (_postBattleLeaveTries <= 0) return;
             _postBattleLeaveTries--;
             try

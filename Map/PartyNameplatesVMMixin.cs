@@ -356,11 +356,20 @@ namespace FeudalInternalAffairs
             catch { }
         }
 
-        // 选圈配色: 国防军=绿, 本国领主私兵=蓝(其余保留白色兜底)
+        // 选圈配色: 国防军=绿, 本国领主私兵=蓝, **海军舰队=海军青**, 其余保留白色兜底
+        //   v4.279(第 9 项): 舰队实体化(v4.276)之后, `fia_navy_` 部队在地图上的选中圈落到**默认白色**,
+        //   和普通领主部队一模一样 —— 玩家框选/点选时看不出哪一支是自己的舰队(而两者的可用命令、
+        //   能去的地方完全不同: 舰队只能走海面/港口, 陆军点了敌城是围城)。
+        //   【为什么选这个青色】项目里"海军"语义的既有色值就是 `#8FD8E8FF`(海军页的运输队行/舰队开销
+        //   汇总行、财政页的海军维护费行都用它), 所以舰队圈用同色系不会与现有配色打架:
+        //     国防军 绿 #66FF66FF | 本国领主 蓝 #66B2FFFF | **舰队 青 #8FD8E8FF** | 其它 白 #CCFFFFFF
+        //   这三个"我方"色相(绿/青/蓝)彼此可辨, 且都明显区别于中立方/敌方的白圈。
+        //   ★ 判定顺序: 舰队**先判**(它是 fia_navy_ 前缀的独立系统), 再国防军, 最后我方领主。
         private static string RingColorOf(MobileParty p)
         {
             try
             {
+                if (NavalTaskForce.IsTaskForce(p)) return "#8FD8E8FF";
                 if (DefArmy.IsDefArmyParty(p)) return "#66FF66FF";
                 if (NationalWillOrders.IsOurs(p)) return "#66B2FFFF";
             }

@@ -96,7 +96,9 @@ namespace FeudalInternalAffairs
                         sw.Stop();
                         if (_atlasOk)
                             DLog.Force("图标: 就绪 " + _names.Count + " 个(后台读包 " + _result.ReadMs + "ms/拼图 "
-                                + _result.BuildMs + "ms; 主线程建纹理 " + sw.ElapsedMilliseconds + "ms)");
+                                + _result.BuildMs + "ms; 主线程建纹理 " + sw.ElapsedMilliseconds + "ms)"
+                                // v4.291: 九宫格生效数 —— 恒 0 说明 UI 边框仍旧整张拉伸
+                                + " 九宫格: 应用 " + UiNinePatch.Applied + " 个");
                         else
                             DLog.Force("图标: 精灵表失败, 退回逐张注册");
                     }
@@ -365,14 +367,11 @@ namespace FeudalInternalAffairs
                 part.SheetX = plan.Xs[i];
                 part.SheetY = plan.Ys[i];
                 part.UpdateInitValues();
-                var nine = SpriteNinePatchParameters.Empty;
-                if (d.ML > 0 || d.MR > 0 || d.MT > 0 || d.MB > 0)
-                {
-                    int ml = Math.Min(d.ML, d.W - 2), mr = Math.Min(d.MR, d.W - 2);
-                    int mt = Math.Min(d.MT, d.H - 2), mb = Math.Min(d.MB, d.H - 2);
-                    if (ml + mr < d.W && mt + mb < d.H)
-                        nine = new SpriteNinePatchParameters(ml, mr, mt, mb);
-                }
+                // v4.291: 九宫格(九宫拉伸)参数。
+                //   原来只读喷图包自带边距, 而 FeudalIcons.bin 里 16 个 fia_ui_* 的边距**全是 0**
+                //   (逐条解析实测), 于是 nine = Empty -> 裸 Sprite 整张拉伸、四角被拉变形。
+                //   现在缺省值由 UiNinePatch 的内置表补齐(边距取自 128x128 原图的实测边框厚度)。
+                var nine = UiNinePatch.Resolve(d.Name, d.W, d.H, d.ML, d.MR, d.MT, d.MB);
                 var sp = new SpriteGeneric(d.Name, part, nine);
                 _names.Add(d.Name);
                 _sprites.Add(sp);
@@ -417,6 +416,19 @@ namespace FeudalInternalAffairs
                 var sprite = Activator.CreateInstance(spriteType, new object[] { tdTex, d.W, d.H }) as Sprite;
                 if (sprite == null) return false;
                 nameField.SetValue(sprite, d.Name);
+                // v4.291: 这条兜底路径用的是 SpriteFromTexture, 它的构造函数把九宫格写成 Empty,
+                //   而 Sprite.NinePatchParameters 只有私有 setter -> 只能反射回填,
+                //   否则精灵表失败时 UI 边框又会退化成整张拉伸。
+                try
+                {
+                    var nine = UiNinePatch.Resolve(d.Name, d.W, d.H, d.ML, d.MR, d.MT, d.MB);
+                    if (nine.IsValid)
+                    {
+                        var nf = AccessTools.Field(typeof(Sprite), "<NinePatchParameters>k__BackingField");
+                        if (nf != null) nf.SetValue(sprite, nine);
+                    }
+                }
+                catch { }
                 sprites[d.Name] = sprite;
                 return true;
             }

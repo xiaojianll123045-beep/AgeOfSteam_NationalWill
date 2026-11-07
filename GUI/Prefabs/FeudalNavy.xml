@@ -1,0 +1,559 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+        <!-- ============================================================================
+             海军页(v4.268 自建页; v4.271 布局改版; **v4.282 重构**)  宽 860
+
+             ======================== 版面分层(v4.282 重构; v4.284 加总览条/构成条; **v4.286 按新字号重排**) ========================
+               y14  标题栏(红底条 + 图标 + 标题 + 状态行)
+               y84  资源总览条(v4.284 第 1 项; v4.286 数值 y84 h24 / 标签 y108 h20): 六个数字全页签可见
+               y130 本页头部 Header(由两行压成**一行** 17 号, 让位给总览条)
+               y150 本页怎么用 HelpLine(**固定 3 行**, 17 号灰字; 见 v4.286 第 3 项)
+               y228 战报页的已研究科技 TechText
+               y260 分隔线
+               y300 【页签】五页: 舰队 / 造船 / 封锁 / 战报 / 海运(选中 = 金底金字 + 底部金线)
+               y356 【控制条】"这一页现在在看哪一处": ◀ ▶ 循环 + [选择城市]/[进驻城市] 地图点选 + 本页动作键
+               y408 【本页状态行】两行: 选中项的**关键数值**(战力/维护/载员/收益/驻泊状态), 带色
+               y458 【列头】四个数值列的右边缘与行内数值严格对齐
+               y496 【数据区】行高 112, 每页 3 行(496..832, 让开列头 458..490); 战报页为可变高列表
+               y836 舰队页"选中舰队构成条"(h52, 两段) / y840 演训·整备两枚
+               y896 海运页判语带 / y896 操作结果行(两者互斥, 都在列表底 832 之下)
+               底部   [出击] [装船出发](两者同位互斥) + 页脚说明(单行, 底距 80); [关闭] 已删(右上角 X 即可)
+               ★ 与旧版的差别(为什么这样改): 旧版把"选择条"放在**页签上方**(y240) —— 页签还没选,
+                 下面就先要求你选港口, 层级是反的。现在"页签 -> 控制条 -> 状态行 -> 列头 -> 数据"
+                 自上而下, 一眼看得出哪一层在管什么。
+
+             ======================== v4.286: 字号放大后的版面重排(用户 5 条反馈) ========================
+               【症状 1】行内四个数值叠成一坨、与列头对不上
+                 根因: 行内 D1..D4 四个数值列**全部** MarginLeft=68 且 TextHorizontalAlignment=Right,
+                 它们的"右边缘"靠 SuggestedWidth(232/326/486/622)+VM 里的 `|x,w,文本|` 内联标记拼出来,
+                 而那套内联标记在放大字号后彻底失效 -> 四列右对齐到同一个 x, 于是互相覆盖。
+                 修法(改成陆军页那套**已验证**的写法, 见 FeudalArmy.xml 的军团行):
+                   ① 每个数值列**一个独立 TextWidget**, MarginLeft 写死该列的左边界, TextHorizontalAlignment=Right,
+                      列宽 = right - left, 右边缘 = MarginLeft + SuggestedWidth;
+                   ② 列头同样独立成控件、同样 TextHorizontalAlignment=Right, **右边缘与数据列逐像素相同**;
+                   ③ VM 删掉 `|x,w,文本|` 内联标记, D1..D4 只返回纯文本。
+               【症状 2】行内两行文字上下重叠
+                 根因: 行高 96 里塞了"名称(20 号) + 数值(20 号) + 说明(17 号) + 完整度条"。
+                 修法: 三行**各自独立的 y 区间**, 且按 CJK 字面高度(U+4E00..U+9FFF = 1.0em)算过净空:
+                   名称 y8 h34 / 数值行 y46 h26 / 说明 y72 h24, 完整度条改到 y72(与说明同一行区间, 只在舰队页出现)。
+                   相邻净空: 25(名称中心) -> 46.5(数值中心) -> 81(说明中心), 任意两行字面不交叠。
+               【症状 3】长提示横穿列表
+                 根因: HelpLine 是 90 像素高的固定控件, 17 号字 4 行 = 96 像素 -> 第 4 行溢出到 y240 以下;
+                       底部"操作结果行"在 y926、页脚在底距 80, 两者都只有一行的高度, 换行后互相/与判语带打架。
+                 修法: HelpLine 固定 3 行(150..222), 分隔线从 y282 提到 y260 让位;
+                       判语带与结果行都是**单行**(内容侧已裁剪), 且各自独立 y 区间(896 / 902)。
+               【症状 4】右侧文字溢出面板(面板宽 860)
+                 根因: 行尾"战列舰""第纳尔"这类长文本没有宽度上限, 直接画到控件右边界之外。
+                 修法: 全部文本控件都写死 SuggestedWidth 且落在面板内:
+                       标题栏文字 x184 w580(到 764, 让开 X 键 780) / 总览条六格 36..838 /
+                       行内最后一列右边缘 736, 操作键 746..810(行宽 810, 面板右内边 844)。
+               【症状 5】顶部总览条六个标签挤在一起
+                 修法: 单元格中心间距 132 -> 134(起点 36), 标签字号 17 -> 15, 并把长达 8 字的
+                       "舰船(艘·我方)"压成"舰船(我方)"。最长的"日耗(维护+军饷)"= 7 字 15 号 = 105 < 134,
+                       与右邻之间必留 29 像素空档。数值仍 20 号(用户没抱怨, 不动)。
+
+             ============ 热区(prefab 元素 ↔ 面板坐标 ↔ UI\NavyPanel.cs 的 AddSpot) ============
+              ★ 面板坐标 = 本文件写的 MarginLeft/MarginTop; AddSpot 会统一加上 PanelX(64)。
+              ★ 行内坐标 ↔ 面板坐标: 面板 x = 26(ListPanel MarginLeft) + 行内 x; 行 y = 496 + i*112
+
+              元素                        prefab(面板坐标)              热区 AddSpot                    动作
+              ==========================  ============================  ==============================  ======================
+              标题栏 X                    780,26  56x52                 780,26,56,52                    _vm.ExecuteClose
+              (底部[关闭] 已删: v4.286 用户要求去掉重复的关闭入口, 热区同步删除)
+              页签 舰队                   28,300 156x44                 28,300,156,44                   SwitchTab(0)
+              页签 造船                   196,300 156x44                196,300,156,44                  SwitchTab(1)
+              页签 封锁                   364,300 156x44                364,300,156,44                  SwitchTab(2)
+              页签 战报                   532,300 156x44                532,300,156,44                  SwitchTab(3)
+              页签 海运                   700,300 156x44                700,300,156,44                  SwitchTab(4)
+              ［舰队页控制条］(@ShowFleetBar, y356 h48; 按钮 h40 y360)
+              ◀                           28,356   30x48                 28,356,30,48                    _vm.PrevFleet
+              舰队名(点=下一支)           60,356  246x48                 60,356,246,48                   _vm.NextFleet
+              ▶                           312,356  30x48                 312,356,30,48                   _vm.NextFleet
+              [组建舰队]                  350,360 122x40                 350,360,122,40                  _vm.FoundFleet
+              [@MoorBtnText]              480,360 112x40                 480,360,112,40                  _vm.MoorSelected
+              [离港]                      600,360  76x40                 600,360,76,40                   _vm.UnmoorSelected
+              [回港]                      684,360  72x40                 684,360,72,40                   _vm.RecallFleet
+              [解散]                      764,360  74x40                 764,360,74,40                   _vm.DisbandFleet
+              ［造船页控制条］(@ShowPortPicker, 几何同封锁页)
+              ◀                           28,356   30x48                 28,356,30,48                    _vm.PrevPort
+              港口名(点=下一个)           60,356  280x48                 60,356,280,48                   _vm.NextPort
+              ▶                           348,356  30x48                 348,356,30,48                   _vm.NextPort
+              [@PickBtnText]              392,360 150x40                 392,360,150,40                  _vm.StartPick(1)
+              [跳到该城]                  556,360 120x40                 556,360,120,40                  _vm.FlyToPickerPort
+              ［封锁页控制条］(@ShowEnemyPicker; 比造船页多一枚[出击])
+              ◀                           28,356   30x48                 28,356,30,48                    _vm.PrevEnemyPort
+              敌港名(点=下一个)           60,356  280x48                 60,356,280,48                   _vm.NextEnemyPort
+              ▶                           348,356  30x48                 348,356,30,48                   _vm.NextEnemyPort
+              [@PickBtnText]              392,360 150x40                 392,360,150,40                  _vm.StartPick(2)
+              [跳到敌港]                  556,360 120x40                 556,360,120,40                  _vm.FlyToPickerPort
+              [出击·舰队交战]             684,360 154x40                 684,360,154,40                  _vm.Sortie
+              底部[出击·舰队交战]         190, 底距26 190x44             190, sh-70, 190, 44             _vm.Sortie
+              ［海运页控制条］(@ShowTransport)
+              ① 标号(不可点)              26,366   20x28                  (无)
+              ◀ 军团                       48,356   28x48                 48,356,28,48                    _vm.PrevLegion
+              军团值(点=下一个)           78,356  150x48                 78,356,150,48                   _vm.NextLegion
+              ▶ 军团                       230,356  28x48                 230,356,28,48                   _vm.NextLegion
+              ② 标号(不可点)              278,366  20x28                  (无)
+              ◀ 出发港                     300,356  28x48                 300,356,28,48                   _vm.PrevFromPort
+              出发港值(点=下一个)         330,356 140x48                 330,356,140,48                  _vm.NextFromPort
+              ▶ 出发港                     472,356  28x48                 472,356,28,48                   _vm.NextFromPort
+              [选城]                      504,360  64x40                 504,360,64,40                   _vm.StartPick(3)
+              ③ 标号(不可点)              586,366  20x28                  (无)
+              ◀ 目的港                     608,356  28x48                 608,356,28,48                   _vm.PrevToPort
+              目的港值(点=下一个)         638,356 120x48                 638,356,120,48                  _vm.NextToPort
+              ▶ 目的港                     760,356  28x48                 760,356,28,48                   _vm.NextToPort
+              [选城]                      792,360  46x40                 792,360,46,40                   _vm.StartPick(4)
+              底部[装船出发]              190, 底距26 190x44             190, sh-70, 190, 44             _vm.DepartTransport
+              ［v4.284 新增: 舰队页批量操作三枚 + 花钱换属性两枚］
+              舰队页[全部召回]            190, 底距26 190x44             190, sh-70, 190, 44             _vm.RecallAllFleets
+              舰队页[全部交还]            394, 底距26 190x44             394, sh-70, 190, 44             _vm.ReleaseAllFleets
+              舰队页[全部进驻母港]        598, 底距26 236x44             598, sh-70, 236, 44             _vm.MoorAllFleets
+              舰队页[海上演训 费用]       560,866  130x40                560,866,130,40                  _vm.SeaDrill
+              舰队页[整备 费用]           696,866  138x40                696,866,138,40                  _vm.OverhaulAll
+              ★ 资源总览条(y84 h44)与舰队构成条(y836 h52)都是**纯显示**: 没有热区。
+              ［数据区行内操作键］(第 5 列; @ShowRowList 的三页**共用同一列**)
+              操作键(造船/封锁/海运)      行内 746,38  64x40            面板 26+746=772, 496+i*112+38, 64,40   _vm.RowActionByKey(key)
+              ★ v4.286: 三页统一到同一列。旧版造船/海运 640 w136 与封锁 632 w64 是两套坐标, 语义相同的键
+                却画在不同位置, 而且封锁页那 8 像素偏差曾经是热区错位的来源。现统一 746..810(面板 772..836), 贴行右内边。
+              ★ 行内数值列(v4.286: **每列一个独立 TextWidget**, 左边界写死 + TextHorizontalAlignment=Right)
+                四列的**右边缘(面板绝对坐标)** = 460 / 556 / 646 / 736(四个页签完全相同, 不再分两套)
+                行内 MarginLeft       = 314 / 438 / 548 / 610  ->  列宽 120 / 92 / 72 / 100
+                面板左边界(行内 + 26) = 340 / 464 / 574 / 636
+              ★ 列头标签的右边缘**必须**等于上面那组数字(核对脚本第四项会逐像素比):
+                船员/我方载员/载员   right 460 -> x=360 w100
+                耐久/敌舰/船数        right 556 -> x=464 w92
+                战力/运力/我方舰      right 646 -> x=574 w72
+                维护·造价·航程/繁荣度 right 736 -> x=636 w100
+              ★ 名称列 行内 x68 w126(超长出省略号, 见 VM.Clip) ... 舰种·势力·航线列 行内 x194 w164(居中)
+                说明行 行内 x68 w664(右端 732, 让开操作键 746) ... 完整度条同宽(仅舰队页)。
+              ============================================================================ -->
+        <BrushWidget WidthSizePolicy="Fixed" SuggestedWidth="860" HeightSizePolicy="StretchToParent" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@PanelOffset" Brush="ArmyManagement.Panel.Left">
+          <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_frame" />
+            <!-- 与军务/军队/财政页统一: 木纹底 + 半透明压暗层 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="8" MarginRight="8" MarginTop="8" MarginBottom="8" Sprite="fia_ui2_tex_wood" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="10" MarginRight="10" MarginTop="10" MarginBottom="10" Sprite="BlankWhiteSquare" Color="#0D0A0780" />
+
+            <!-- ===== 标题栏: 红底条 y14 h62 + 图标 + 标题 + 状态行 ===== -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" VerticalAlignment="Top" MarginTop="14" MarginLeft="14" MarginRight="14" Sprite="fia_ui_banner_red" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="44" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="28" MarginTop="24" Sprite="fia_bld_naval_port" />
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="86" MarginTop="28" Brush="MapTextBrushGal" Brush.FontSize="30" Brush.FontColor="#E8C33AFF" Text="海军" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="580" HeightSizePolicy="Fixed" SuggestedHeight="26" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="184" MarginTop="36" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C8B98FCC" Text="@StatusLine" />
+
+            <!-- ===== 顶部"资源总览条"(v4.284 第 1 项; 仿陆军页概览卡): y84 h44 =====
+             六个关键数字, 与陆军页顶部 @TreasuryText/@MenText/... 同一个位置语义。
+             每个数字都来自**已有的只读函数**(VM 的 Ov* 属性, 注释里逐条写明取自哪个函数),
+             不是面板另算一套口径 —— 否则会与舰队页状态行/日结扣款对不上。
+             条 84..128; 数值 y86 h25(20 号) / 标签 y112 h20(**15 号**); 六格中心间距 **134**, 起点 37。
+             ★ v4.286(用户反馈第 5 条): 标签原来 17 号且格心距只有 132, "舰船(艘·我方)"与"在航巡逻队(支)"
+               两侧几乎贴住。现在格心距 134 + 标签 15 号 + 最长标签压到 7 字(105 像素),
+               相邻标签之间必留 29 像素空档。数值仍是 20 号(用户没抱怨它, 不动)。
+             ★ 标签口径一律显式写出(我方 / 在航 / 全图), 与 VM 里 Ov* 的取数函数逐条对应。 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="808" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="84" Sprite="fia_ui2_plate_dark" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="37" MarginTop="84" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@OvTreasuryColor" Text="@OvTreasury" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="Fixed" SuggestedHeight="20" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="37" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8A8070FF" Text="国库(第纳尔)" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="171" MarginTop="84" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#7FBF6AFF" Text="@OvFleets" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="Fixed" SuggestedHeight="20" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="171" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8A8070FF" Text="我方舰队(支)" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="305" MarginTop="84" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#6AB0FFFF" Text="@OvShips" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="Fixed" SuggestedHeight="20" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="305" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8A8070FF" Text="我方舰船(艘)" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="439" MarginTop="84" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E8DCC0FF" Text="@OvSailors" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="Fixed" SuggestedHeight="20" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="439" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8A8070FF" Text="我方水手(人)" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="573" MarginTop="84" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#D98C4AFF" Text="@OvCost" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="Fixed" SuggestedHeight="20" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="573" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8A8070FF" Text="我方日耗(第纳尔)" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="707" MarginTop="84" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@OvPatrolColor" Text="@OvPatrol" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="132" HeightSizePolicy="Fixed" SuggestedHeight="20" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="707" MarginTop="108" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8A8070FF" Text="在航巡逻队(支)" />
+
+            <!-- ===== 本页头部(pageHeader): v4.284 压成**一行** y130 h18(原来 y88 h56 两行) =====
+             让位给上面的资源总览条。文本一字不改: VM 的 FlatHeader 把两行之间的换行换成 " · "。
+             相邻核对: 总览条底 128 < 130 ✓; 130+18=148 < HelpLine y150 ✓。 -->
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="800" HeightSizePolicy="Fixed" SuggestedHeight="18" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="30" MarginTop="130" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#D8C9A0FF" Text="@Header" />
+
+            <!-- ===== 本页怎么用(y150 h72; 17 号灰字, **固定 3 行**) =====
+             ★ v4.286(用户反馈第 3 条): 原来 h=90 想装 4 行, 但 17 号 CJK 的字面高约 22 像素,
+               4 行 = 88 像素, 加上行距后第 4 行溢出控件下边界(y240), 视觉上就压到别的层上。
+               现在只给 3 行(3 × 22 = 66 <= 72), 内容侧(VM.HelpLine)也按 3 行裁剪。
+             ★ 相邻核对: 页头 130+18=148 < 150 ✓; 150+72=222 < 科技行 y228 ✓。 -->
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="800" HeightSizePolicy="Fixed" SuggestedHeight="72" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="30" MarginTop="150" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#7A7060FF" Text="@HelpLine" />
+
+            <!-- ===== 战报页: 已研究的海军科技(一行, 只在战报页显示) =====
+             ★ v4.286: 228+24=252 < 分隔线 y260 ✓ -->
+            <TextWidget IsVisible="@ShowLogs" WidthSizePolicy="Fixed" SuggestedWidth="800" HeightSizePolicy="Fixed" SuggestedHeight="24" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="30" MarginTop="228" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#8FD8E8FF" Text="@TechText" />
+
+            <!-- ===== 分隔线 y260 (260+10=270 <= 页签 y300; v4.286 由 282 上提, 给 3 行 HelpLine 让位) ===== -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="10" VerticalAlignment="Top" MarginTop="260" MarginLeft="22" MarginRight="22" Sprite="fia_ui2_divider_ornate" />
+
+            <!-- ================= 页签(y=300, h=44; x=28/196/364/532/700, w=156 间距 12) =================
+            选中 = 金底槽 + 金字 + 底部 4 像素金线; 未选中 = 暗底槽 + 灰字。与军务页页签同一套配色。 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="156" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="28" MarginTop="300" Sprite="fia_ui2_tab_header" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="156" HeightSizePolicy="Fixed" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="28" MarginTop="300" TextHorizontalAlignment="Center" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@TabColor0" Text="舰队" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="156" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="196" MarginTop="300" Sprite="fia_ui2_tab_header" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="156" HeightSizePolicy="Fixed" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="196" MarginTop="300" TextHorizontalAlignment="Center" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@TabColor1" Text="造船" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="156" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="364" MarginTop="300" Sprite="fia_ui2_tab_header" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="156" HeightSizePolicy="Fixed" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="364" MarginTop="300" TextHorizontalAlignment="Center" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@TabColor2" Text="封锁" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="156" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="532" MarginTop="300" Sprite="fia_ui2_tab_header" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="156" HeightSizePolicy="Fixed" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="532" MarginTop="300" TextHorizontalAlignment="Center" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@TabColor3" Text="战报" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="156" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="700" MarginTop="300" Sprite="fia_ui2_tab_header" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="156" HeightSizePolicy="Fixed" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="700" MarginTop="300" TextHorizontalAlignment="Center" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@TabColor4" Text="海运" />
+            <!-- 选中金线(x 与页签同, y=344) -->
+            <Widget IsVisible="@TabLine0" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="156" SuggestedHeight="4" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="28" MarginTop="344" Sprite="BlankWhiteSquare" Color="#C9A227FF" />
+            <Widget IsVisible="@TabLine1" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="156" SuggestedHeight="4" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="196" MarginTop="344" Sprite="BlankWhiteSquare" Color="#C9A227FF" />
+            <Widget IsVisible="@TabLine2" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="156" SuggestedHeight="4" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="364" MarginTop="344" Sprite="BlankWhiteSquare" Color="#C9A227FF" />
+            <Widget IsVisible="@TabLine3" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="156" SuggestedHeight="4" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="532" MarginTop="344" Sprite="BlankWhiteSquare" Color="#C9A227FF" />
+            <Widget IsVisible="@TabLine4" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="156" SuggestedHeight="4" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="700" MarginTop="344" Sprite="BlankWhiteSquare" Color="#C9A227FF" />
+
+            <!-- ================= 舰队页控制条(y=356 h=48, @ShowFleetBar) =================
+             ★ 相邻核对: 页签金线 y344+4=348 < 356 ✓; 控制条底 404 < 状态行 y408 ✓。 -->
+            <Widget IsVisible="@ShowFleetBar" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48" VerticalAlignment="Top" MarginTop="356" MarginLeft="22" MarginRight="22" Sprite="fia_ui_row" />
+            <TextWidget IsVisible="@ShowFleetBar" WidthSizePolicy="Fixed" SuggestedWidth="30" HeightSizePolicy="StretchToParent" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="28" MarginTop="356" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#E8C33AFF" Text="◀" />
+            <TextWidget IsVisible="@ShowFleetBar" WidthSizePolicy="Fixed" SuggestedWidth="246" HeightSizePolicy="Fixed" SuggestedHeight="26" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="60" MarginTop="367" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E9CD74FF" Text="@FleetBarText" />
+            <TextWidget IsVisible="@ShowFleetBar" WidthSizePolicy="Fixed" SuggestedWidth="30" HeightSizePolicy="StretchToParent" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="312" MarginTop="356" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#E8C33AFF" Text="▶" />
+            <ButtonWidget IsVisible="@ShowFleetBar" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="122" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="350" MarginTop="360" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#7FBF6AFF" Text="组建舰队" />
+              </Children>
+            </ButtonWidget>
+            <!-- [进驻城市] / 点选期间显示[取消选点](@MoorBtnText): 进驻 = 停进自有沿海城市的泊位 -->
+            <ButtonWidget IsVisible="@ShowFleetBar" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="480" MarginTop="360" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#8FD8E8FF" Text="@MoorBtnText" />
+              </Children>
+            </ButtonWidget>
+            <ButtonWidget IsVisible="@ShowFleetBar" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="76" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="600" MarginTop="360" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E9CD74FF" Text="离港" />
+              </Children>
+            </ButtonWidget>
+            <ButtonWidget IsVisible="@ShowFleetBar" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="72" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="684" MarginTop="360" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E9CD74FF" Text="回港" />
+              </Children>
+            </ButtonWidget>
+            <ButtonWidget IsVisible="@ShowFleetBar" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="74" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="764" MarginTop="360" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#C96A5AFF" Text="解散" />
+              </Children>
+            </ButtonWidget>
+
+            <!-- ================= 造船页控制条(y=356 h=48, @ShowPortPicker) ================= -->
+            <Widget IsVisible="@ShowPortPicker" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48" VerticalAlignment="Top" MarginTop="356" MarginLeft="22" MarginRight="22" Sprite="fia_ui_row" />
+            <TextWidget IsVisible="@ShowPortPicker" WidthSizePolicy="Fixed" SuggestedWidth="30" HeightSizePolicy="StretchToParent" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="28" MarginTop="356" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#E8C33AFF" Text="◀" />
+            <TextWidget IsVisible="@ShowPortPicker" WidthSizePolicy="Fixed" SuggestedWidth="288" HeightSizePolicy="Fixed" SuggestedHeight="26" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="60" MarginTop="367" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E9CD74FF" Text="@PickerText" />
+            <TextWidget IsVisible="@ShowPortPicker" WidthSizePolicy="Fixed" SuggestedWidth="30" HeightSizePolicy="StretchToParent" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="348" MarginTop="356" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#E8C33AFF" Text="▶" />
+            <ButtonWidget IsVisible="@ShowPortPicker" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="392" MarginTop="360" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#8FD8E8FF" Text="@PickBtnText" />
+              </Children>
+            </ButtonWidget>
+            <ButtonWidget IsVisible="@ShowPortPicker" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="120" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="556" MarginTop="360" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E9CD74FF" Text="跳到该城" />
+              </Children>
+            </ButtonWidget>
+
+            <!-- ================= 封锁页控制条(y=356 h=48, @ShowEnemyPicker; 比造船页多一枚[出击]) ================= -->
+            <Widget IsVisible="@ShowEnemyPicker" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48" VerticalAlignment="Top" MarginTop="356" MarginLeft="22" MarginRight="22" Sprite="fia_ui_row" />
+            <TextWidget IsVisible="@ShowEnemyPicker" WidthSizePolicy="Fixed" SuggestedWidth="30" HeightSizePolicy="StretchToParent" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="28" MarginTop="356" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#E8C33AFF" Text="◀" />
+            <TextWidget IsVisible="@ShowEnemyPicker" WidthSizePolicy="Fixed" SuggestedWidth="288" HeightSizePolicy="Fixed" SuggestedHeight="26" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="60" MarginTop="367" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E9CD74FF" Text="@PickerText" />
+            <TextWidget IsVisible="@ShowEnemyPicker" WidthSizePolicy="Fixed" SuggestedWidth="30" HeightSizePolicy="StretchToParent" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="348" MarginTop="356" Brush="MapTextBrushGal" Brush.FontSize="22" Brush.FontColor="#E8C33AFF" Text="▶" />
+            <ButtonWidget IsVisible="@ShowEnemyPicker" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="392" MarginTop="360" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#8FD8E8FF" Text="@PickBtnText" />
+              </Children>
+            </ButtonWidget>
+            <ButtonWidget IsVisible="@ShowEnemyPicker" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="120" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="556" MarginTop="360" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E9CD74FF" Text="跳到敌港" />
+              </Children>
+            </ButtonWidget>
+            <ButtonWidget IsVisible="@ShowEnemyPicker" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="154" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="684" MarginTop="360" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E9CD74FF" Text="出击 · 舰队交战" />
+              </Children>
+            </ButtonWidget>
+
+            <!-- ================= 海运页控制条(y=356 h=48, @ShowTransport): ①军团 ②出发港 ③目的港 =================
+             两个港口各有[选城] -> 地图点选; 军团用 ◀ ▶(军团不是城市, 不需要地图点选) -->
+            <Widget IsVisible="@ShowTransport" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48" VerticalAlignment="Top" MarginTop="356" MarginLeft="22" MarginRight="22" Sprite="fia_ui_row" />
+            <TextWidget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" SuggestedWidth="20" HeightSizePolicy="Fixed" SuggestedHeight="26" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="368" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@StepLegionColor" Text="①" />
+            <TextWidget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" SuggestedWidth="28" HeightSizePolicy="StretchToParent" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="48" MarginTop="356" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E8C33AFF" Text="◀" />
+            <TextWidget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" SuggestedWidth="148" HeightSizePolicy="Fixed" SuggestedHeight="26" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="78" MarginTop="368" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@StepLegionColor" Text="@LegionText" />
+            <TextWidget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" SuggestedWidth="28" HeightSizePolicy="StretchToParent" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="230" MarginTop="356" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E8C33AFF" Text="▶" />
+            <TextWidget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" SuggestedWidth="20" HeightSizePolicy="Fixed" SuggestedHeight="26" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="278" MarginTop="368" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@StepFromColor" Text="②" />
+            <TextWidget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" SuggestedWidth="28" HeightSizePolicy="StretchToParent" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="300" MarginTop="356" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E8C33AFF" Text="◀" />
+            <TextWidget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" SuggestedWidth="140" HeightSizePolicy="Fixed" SuggestedHeight="26" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="330" MarginTop="368" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@StepFromColor" Text="@FromPortText" />
+            <TextWidget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" SuggestedWidth="28" HeightSizePolicy="StretchToParent" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="472" MarginTop="356" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E8C33AFF" Text="▶" />
+            <ButtonWidget IsVisible="@ShowTransport" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="64" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="504" MarginTop="360" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#8FD8E8FF" Text="选城" />
+              </Children>
+            </ButtonWidget>
+            <TextWidget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" SuggestedWidth="20" HeightSizePolicy="Fixed" SuggestedHeight="26" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="586" MarginTop="368" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@StepToColor" Text="③" />
+            <TextWidget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" SuggestedWidth="28" HeightSizePolicy="StretchToParent" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="608" MarginTop="356" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E8C33AFF" Text="◀" />
+            <TextWidget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" SuggestedWidth="120" HeightSizePolicy="Fixed" SuggestedHeight="26" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="638" MarginTop="368" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@StepToColor" Text="@ToPortText" />
+            <TextWidget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" SuggestedWidth="28" HeightSizePolicy="StretchToParent" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="760" MarginTop="356" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E8C33AFF" Text="▶" />
+            <ButtonWidget IsVisible="@ShowTransport" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="792" MarginTop="360" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#8FD8E8FF" Text="选城" />
+              </Children>
+            </ButtonWidget>
+
+            <!-- ================= 本页状态行(y=408 h=44, 两行 15 号; 关键数值带色) =================
+             ★ 相邻核对: 控制条底 404 < 408 ✓; 408+44=452 < 列头 y458 ✓。 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="808" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="408" Sprite="BlankWhiteSquare" Color="#00000044" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="788" HeightSizePolicy="Fixed" SuggestedHeight="44" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="36" MarginTop="408" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@TabStatusColor" Text="@TabStatusText" />
+
+            <!-- ================= 列头(y=458 h=32; 标签 y462 h24) =================
+             ★ v4.286: 四个数值列的列头一律 TextHorizontalAlignment="Right", 且 **右边缘(面板坐标)
+               与行内数据列逐像素相同**: 船员 460 / 耐久 556 / 战力 646 / 维护·造价·航程 736;
+               名称列(94..220, 居中) 与 舰种·势力·航线列(220..384, 居中) 与行内同宽同中心。
+             ★ 行内数据列(面板绝对坐标) = 名称 94..220 / 舰种 220..384 / 船员 ..460 / 耐久 ..556 /
+               战力 ..646 / 维护·造价·航程 ..736; 行内最后一列右端 736 < 操作键左端 772。 -->
+            <Widget IsVisible="@ShowHeadFleet" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="808" SuggestedHeight="32" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="458" Sprite="fia_ui2_subheader" />
+            <TextWidget IsVisible="@ShowHeadFleet" WidthSizePolicy="Fixed" SuggestedWidth="126" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="94" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="舰船" />
+            <TextWidget IsVisible="@ShowHeadFleet" WidthSizePolicy="Fixed" SuggestedWidth="164" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="220" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="舰种" />
+            <TextWidget IsVisible="@ShowHeadFleet" WidthSizePolicy="Fixed" SuggestedWidth="100" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="360" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="船员" />
+            <TextWidget IsVisible="@ShowHeadFleet" WidthSizePolicy="Fixed" SuggestedWidth="92" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="464" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="耐久" />
+            <TextWidget IsVisible="@ShowHeadFleet" WidthSizePolicy="Fixed" SuggestedWidth="72" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="574" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E8C33AFF" Text="战力" />
+            <TextWidget IsVisible="@ShowHeadFleet" WidthSizePolicy="Fixed" SuggestedWidth="100" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="636" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#D98C4AFF" Text="维护/日" />
+
+            <Widget IsVisible="@ShowHeadYard" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="808" SuggestedHeight="32" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="458" Sprite="fia_ui2_subheader" />
+            <TextWidget IsVisible="@ShowHeadYard" WidthSizePolicy="Fixed" SuggestedWidth="126" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="94" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="船型" />
+            <TextWidget IsVisible="@ShowHeadYard" WidthSizePolicy="Fixed" SuggestedWidth="164" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="220" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="舰种" />
+            <TextWidget IsVisible="@ShowHeadYard" WidthSizePolicy="Fixed" SuggestedWidth="100" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="360" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="船员" />
+            <TextWidget IsVisible="@ShowHeadYard" WidthSizePolicy="Fixed" SuggestedWidth="92" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="464" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="耐久" />
+            <TextWidget IsVisible="@ShowHeadYard" WidthSizePolicy="Fixed" SuggestedWidth="72" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="574" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E8C33AFF" Text="战力" />
+            <TextWidget IsVisible="@ShowHeadYard" WidthSizePolicy="Fixed" SuggestedWidth="100" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="636" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#D98C4AFF" Text="造价" />
+
+            <Widget IsVisible="@ShowHeadBlock" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="808" SuggestedHeight="32" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="458" Sprite="fia_ui2_subheader" />
+            <TextWidget IsVisible="@ShowHeadBlock" WidthSizePolicy="Fixed" SuggestedWidth="126" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="94" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="敌国港口" />
+            <TextWidget IsVisible="@ShowHeadBlock" WidthSizePolicy="Fixed" SuggestedWidth="164" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="220" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="势力·船坞" />
+            <TextWidget IsVisible="@ShowHeadBlock" WidthSizePolicy="Fixed" SuggestedWidth="100" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="360" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="我方载员" />
+            <TextWidget IsVisible="@ShowHeadBlock" WidthSizePolicy="Fixed" SuggestedWidth="92" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="464" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="敌舰(该国)" />
+            <TextWidget IsVisible="@ShowHeadBlock" WidthSizePolicy="Fixed" SuggestedWidth="72" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="574" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E8C33AFF" Text="我方舰" />
+            <TextWidget IsVisible="@ShowHeadBlock" WidthSizePolicy="Fixed" SuggestedWidth="100" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="636" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#D98C4AFF" Text="繁荣度" />
+
+            <Widget IsVisible="@ShowHeadTrans" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="808" SuggestedHeight="32" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="458" Sprite="fia_ui2_subheader" />
+            <TextWidget IsVisible="@ShowHeadTrans" WidthSizePolicy="Fixed" SuggestedWidth="126" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="94" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="我方军团" />
+            <TextWidget IsVisible="@ShowHeadTrans" WidthSizePolicy="Fixed" SuggestedWidth="164" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Center" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="220" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="航线" />
+            <TextWidget IsVisible="@ShowHeadTrans" WidthSizePolicy="Fixed" SuggestedWidth="100" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="360" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="载员" />
+            <TextWidget IsVisible="@ShowHeadTrans" WidthSizePolicy="Fixed" SuggestedWidth="92" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="464" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="船数" />
+            <TextWidget IsVisible="@ShowHeadTrans" WidthSizePolicy="Fixed" SuggestedWidth="72" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="574" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#8FD8E8FF" Text="运力" />
+            <TextWidget IsVisible="@ShowHeadTrans" WidthSizePolicy="Fixed" SuggestedWidth="100" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="636" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#8FD8E8FF" Text="航程" />
+
+            <!-- ===== v4.286(用户反馈③): 页码 / 滚动指示器 =====
+             位置: 列头带最右端的空白区(x740..834; 最后一个列头"维护/日"的文字右端只到 736, 净空 4 像素)。
+             只显示"滚轮 x/y 页"; 总行数 <= 每页行数时是**空串**(不提示 —— 免得凭空造出"能滚"的错觉)。
+             ★ v4.286c(用户反馈②: "还不提示滚轮可用"): 文案从"第x/y页"改成"滚轮 x/y 页" ——
+               与陆军页"滚轮翻页"同一个意思, 同时给出"第几页/共几页"的位置反馈。
+             ★ 它与滚轮是同一份状态(VM.PageText 用 _rowCount/_scroll 现算), 所以显示的页就是真实页。 -->
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="94" HeightSizePolicy="Fixed" SuggestedHeight="24" TextHorizontalAlignment="Right" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="740" MarginTop="462" Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#8A8070FF" Text="@PageText" />
+
+
+
+
+            <!-- ================= 空状态引导(列表为空时显示在列头下, y=478 两行) ================= -->
+            <TextWidget IsVisible="@ShowEmptyFleet" WidthSizePolicy="Fixed" SuggestedWidth="808" HeightSizePolicy="Fixed" SuggestedHeight="56" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="496" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#8A8070FF" Text="@EmptyFleet" />
+            <TextWidget IsVisible="@ShowEmptyYard" WidthSizePolicy="Fixed" SuggestedWidth="808" HeightSizePolicy="Fixed" SuggestedHeight="56" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="496" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#8A8070FF" Text="@EmptyYard" />
+            <TextWidget IsVisible="@ShowEmptyBlock" WidthSizePolicy="Fixed" SuggestedWidth="808" HeightSizePolicy="Fixed" SuggestedHeight="56" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="496" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#8A8070FF" Text="@EmptyBlock" />
+            <TextWidget IsVisible="@ShowEmptyTrans" WidthSizePolicy="Fixed" SuggestedWidth="808" HeightSizePolicy="Fixed" SuggestedHeight="56" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="496" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#8A8070FF" Text="@EmptyTrans" />
+            <TextWidget IsVisible="@ShowEmptyLogs" WidthSizePolicy="Fixed" SuggestedWidth="808" HeightSizePolicy="Fixed" SuggestedHeight="56" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="496" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#8A8070FF" Text="@EmptyLogs" />
+
+            <!-- ================= 行列表(y=472 起, 行高 120, 每页 3 行 -> 末尾 832) =================
+             ★ v4.286(用户反馈第 2 条: 放大后两行文字上下重叠):
+               旧行高 96 里塞了"名称 + 数值 + 说明 + 完整度条"四层, 17 号字下三层文字要 24+24+20 = 68 像素,
+               再加条与行距, 96 装不下 -> 名称/数值/说明互相压。
+               现在改成 **每页 3 行 × 行高 112**(v4.286b: 数据区下移到 y496 让开列头 -> 496..832;
+               v4.286b 用户反馈①: 列头带在 y458..490, 列表原来从 472 起, 行容器的 fia_ui_row 背景 Sprite
+               画在列头之后, 把列头下半截盖掉了 —— 现在 496 起, 与列头文字带(463.2..484.8)留 11 像素净空)。
+               每行内部四层文字的 y 区间(按 CJK 字面高 = 1.0em, 行高 = 1.2em 算净空, 核对脚本第五项逐条验):
+                 名称   y8  h34 -> 字面 485..509  (面板绝对)   20 号
+                 数值行 y40 h28 -> 字面 514..538  (面板绝对)   20 / 17 / 20 / 18 号
+                 说明行 y72 h24 -> 字面 545.8..566.2           17 号
+                 完整度条 y96 h8 -> 96..104(在说明行之下, 不出行底 120)
+               ★ 行内四列改成"每列一个独立 TextWidget", 行内右边缘 314+120 / 438+92 / 548+72 / 610+100
+                 (面板绝对 = 行内 + 26 = 460/556/646/736, **与列头逐像素相同**); VM 不再拼内联标记。
+               ★ 说明行不再与数值行抢同一块横向空间, 所以可以放宽到 664 像素(行内 68..732, 让开操作键 746)。 -->
+            <ListPanel IsVisible="@ShowRowList" DataSource="{Rows}" WidthSizePolicy="Fixed" SuggestedWidth="818" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="496" StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <!-- ★ v4.286c(用户反馈②: "只显示三个, 还不提示滚轮"): 行高 112 -> **96**, 每页 **4 行**。
+                   怎么腾出来的: ① 去掉行内"完整度条"(信息不丢 —— 说明行里就有"完整度 92%", 且整行说明的
+                   颜色本来就是按完整度着色 @NoteColor); ② 舰队构成条由两行压成一行(见下方)。
+                   行内三层文字的 y 区间(核对器逐条验过, 互不相交):
+                     名称 y6 h32 -> 文字带 10..34      (20 号)
+                     数值 y38 h26 -> 文字带 39..63     (20/17/20/18 号, 与名称净空 5 像素)
+                     说明 y68 h24 -> 文字带 69.8..90.2 (17 号, 与数值净空 6.8 像素; 行底 96) -->
+                <Widget WidthSizePolicy="Fixed" SuggestedWidth="810" HeightSizePolicy="Fixed" SuggestedHeight="96" MarginBottom="0" Sprite="fia_ui_row">
+                  <Children>
+                    <!-- 舰船/港口图标(图集 fia_ship_* / fia_bld_*, 与陆军 UI 同款动态绑定) -->
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="48" SuggestedHeight="48" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="8" MarginTop="24" Sprite="fia_ui2_plate_dark" />
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="40" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="12" MarginTop="28" Sprite="@Icon" />
+                    <!-- 名称列: 行内 68..194(绝对 94..220), 居中; 超长由 VM 截断加省略号 -->
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="126" HeightSizePolicy="Fixed" SuggestedHeight="32" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="68" MarginTop="6" TextHorizontalAlignment="Center" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@C1Color" Text="@C1" />
+                    <!-- 舰种·势力·航线列: 行内 194..358(绝对 220..384), 居中 -->
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="164" HeightSizePolicy="Fixed" SuggestedHeight="32" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="194" MarginTop="6" TextHorizontalAlignment="Center" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@C2Color" Text="@C2" />
+                    <!-- 四个数值列(右对齐; 面板绝对右边缘 460/556/646/736 == 列头的同一组数; 字号 20/17/20/18) -->
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="120" HeightSizePolicy="Fixed" SuggestedHeight="26" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="314" MarginTop="38" TextHorizontalAlignment="Right" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@D1Color" Text="@D1" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="92" HeightSizePolicy="Fixed" SuggestedHeight="26" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="438" MarginTop="38" TextHorizontalAlignment="Right" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@D2Color" Text="@D2" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="72" HeightSizePolicy="Fixed" SuggestedHeight="26" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="548" MarginTop="38" TextHorizontalAlignment="Right" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@D3Color" Text="@D3" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="100" HeightSizePolicy="Fixed" SuggestedHeight="26" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="610" MarginTop="38" TextHorizontalAlignment="Right" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@D4Color2" Text="@D4" />
+                    <!-- 说明行(左, 只占一行; 绝对右端 732, 让开操作键 746)
+                         v4.286c: 完整度条已移除(行高收到 96 后放不下, 且说明行里本就有"完整度 N%") -->
+                    <TextWidget IsVisible="@HasNote" WidthSizePolicy="Fixed" SuggestedWidth="664" HeightSizePolicy="Fixed" SuggestedHeight="24" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="68" MarginTop="68" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@NoteColor" Text="@Note" />
+                    <!-- 行内操作键(第 5 列): 行内 746..810(面板 772..836), 与热区同源(VM.ActX/ActW) -->
+                    <ButtonWidget IsVisible="@HasAction" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@ActW" SuggestedHeight="40" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@ActX" MarginTop="28" Brush="Fia.Button" UpdateChildrenStates="true">
+                      <Children>
+                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@ActionColor" Text="@ActionText" />
+                      </Children>
+                    </ButtonWidget>
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- ================= 舰队页: 选中舰队的"构成条"(v4.284 第 2 项; @ShowCompose) =================
+             ★ v4.286c(用户反馈②: "只显示三个"): 为了把数据区让到 **4 行**(496..880), 构成条由
+               "y836 h52 两段"压成 **"y884 h28 一行"**, 内容 = 舰种构成 + 载员 + 战力 + 水手
+               (士气/完整度/日耗在状态行与顶栏都有, 不重复; 提督与特长仍在结果行 @ResultText)。
+             ★ 两枚花钱按钮([海上演训]/[整备])同步下移到 y884 h28, 放在构成条右侧:
+               构成条 26..586(背景), 按钮 590..712 与 718..834 -> 水平净空 4 / 6 像素, 不重叠。
+               (它们原来的 y840 h40 会**压住第 4 行列表**(784..880), 所以必须挪。)
+             ★ 相邻核对: 列表底 880 < 884 ✓; 构成条/按钮 884..912;
+               海运判语带 y896 与结果行 y896 只在海运/其它页签显示(与舰队页互斥) ✓;
+               页脚行顶边 = 屏高-80-28(1030 屏 = 922) > 912 ✓; 底部按钮顶边 960 ✓。
+             ★ 这一块是**纯显示**: 没有热区(选中哪支舰队由控制条 ◀ ▶ 决定, 见 FleetBarText)。
+             ★ 与"舰队页数据区"的分工: 数据区是"逐船一行"(我方全部舰船), 这里只讲**选中的那一支舰队**。 -->
+            <Widget IsVisible="@ShowCompose" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="560" SuggestedHeight="28" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="884" Sprite="fia_ui2_plate_dark" />
+            <TextWidget IsVisible="@ShowCompose" WidthSizePolicy="Fixed" SuggestedWidth="544" HeightSizePolicy="Fixed" SuggestedHeight="28" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="34" MarginTop="884" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#8FD8E8FF" Text="@ComposeText1" />
+            <!-- @ComposeText2 的控件已移除(两段并成一行); VM 仍保留该属性, 免得旧 prefab/旧绑定找不到属性而 NRE -->
+
+            <!-- ================= 舰队页: 花钱换属性两枚(v4.284 第 4 项; 仿陆军页[阅兵 1500]) =================
+             [海上演训] 提升舰队**士气**(真实属性, 见 NavalTaskForce.SeaDrill); [整备] 把我方全部舰船修满。
+             按钮文字里**带费用**(@DrillText/@OverhaulText), 颜色绑定: 金/青 = 可执行, 红 = 国库不够, 灰 = 无对象。
+             ★ 几何: 590..712(122) 与 718..834(116), 都在 y884 h28(与构成条同一行; 见上面的相邻核对)。 -->
+            <ButtonWidget IsVisible="@ShowFleetBar" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="122" SuggestedHeight="28" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="590" MarginTop="884" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@DrillColor" Text="@DrillText" />
+              </Children>
+            </ButtonWidget>
+            <ButtonWidget IsVisible="@ShowFleetBar" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="116" SuggestedHeight="28" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="718" MarginTop="884" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="@OverhaulColor" Text="@OverhaulText" />
+              </Children>
+            </ButtonWidget>
+
+            <!-- ================= 战报列表(y=472 起) ================= -->
+            <ListPanel IsVisible="@ShowLogList" DataSource="{Logs}" WidthSizePolicy="Fixed" SuggestedWidth="818" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="496" StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" SuggestedWidth="810" HeightSizePolicy="CoverChildren" MarginBottom="8" Sprite="fia_ui_row">
+                  <Children>
+                    <!-- 胜负色条: 绿=胜 / 红=败 / 金=其它 -->
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="6" SuggestedHeight="30" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="10" MarginTop="6" Sprite="BlankWhiteSquare" Color="@TitleColor" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="770" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="6" Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="@TitleColor" Text="@Title" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="770" HeightSizePolicy="CoverChildren" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="36" Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#D8C9A0FF" Text="@Body" />
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
+
+            <!-- ================= 海运页 判语带(可出发/不可出发 + 原因; y=896 h=34) =================
+             ★ 相邻核对(v4.286 重排, 全部用绝对 y 算过, 不靠"应该没问题"):
+                列表底 856 < 判语带 896 ✓; 判语带 896+34=930
+                ResultText y896(与判语带**互斥**: @ShowResult = _tab != 4) ✓
+                页脚行锚底距 80 + h28 -> 顶边 = 屏高-108: 1030 屏时 922..950
+                -> 判语带 896..930 与页脚 922..950 有 8 像素交叠, 所以**海运页的页脚只写一行短句**
+                   (VM.FootLine 的 case 4 已裁到一行, 见那里的注释), 单行时两者视觉不打架。
+                底部按钮顶边 = 屏高-70 = 960 > 950 ✓
+             ★ 判语带宽度 788、17 号字 -> 单行容量约 46 个全角字; 内容侧由 VM.ClampBand 截断加省略号。 -->
+            <Widget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="808" SuggestedHeight="34" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="26" MarginTop="896" Sprite="BlankWhiteSquare" Color="#00000055" />
+            <TextWidget IsVisible="@ShowTransport" WidthSizePolicy="Fixed" SuggestedWidth="788" HeightSizePolicy="Fixed" SuggestedHeight="26" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="36" MarginTop="900" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="@PlanBandColor" Text="@PlanBandText" />
+
+            <!-- ================= 操作结果 / 下一步引导行(舰队·造船·封锁·战报 共用; y=896) =================
+             ★ v4.286: 由 y926 上提到 y896(仍在列表底 856 之下 40 像素), 给页脚行让出空间;
+               SuggestedHeight 与内容侧裁剪共同保证它是**一行**(换行会向上下各溢出一行, 压页脚)。 -->
+            <TextWidget IsVisible="@ShowResult" WidthSizePolicy="Fixed" SuggestedWidth="800" HeightSizePolicy="Fixed" SuggestedHeight="26" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="30" MarginTop="896" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E8C33AFF" Text="@ResultText" />
+
+            <!-- ================= 底部说明行(锚定底距 80; 单行 17 号灰字) =================
+             ★ v4.286: 由"两行 40 像素"改成"单行 28 像素", 内容侧(VM.FootLine)也裁到一行 ——
+               17 号字一旦换行, 文字会以控件中心为基准向上下各溢出一行(约 20 像素),
+               既压页脚上方的结果行、又压底部按钮。 -->
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="800" HeightSizePolicy="Fixed" SuggestedHeight="28" ClipContents="true" HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="30" MarginBottom="80" Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#A89C7ACC" Text="@FootLine" />
+
+            <!-- ================= 底部按钮: [出击] / [装船出发](两者同位互斥) =================
+             ★ v4.286(用户反馈②): 左下角那枚 [关闭] 已删除 —— 右上角标题栏的 X 就是同一个动作
+               (热区 780,26,56,52), 底部再放一枚纯属重复。
+               删按钮的同时**必须删掉 NavyPanel.cs 里那条 AddSpot(26, sh-70, 150, 44)**, 否则会
+               出现"点一块看不见的地方也有反应"。
+               下面三组的位置一律未动(用户没要求): 舰队页批量三枚(x190/394/598 底距26 h44)、
+               封锁页 [出击](x190)、海运页 [装船出发](x190)。 -->
+            <ButtonWidget IsVisible="@ShowSortie" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="190" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="190" MarginBottom="26" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="#E9CD74FF" Text="出击 · 舰队交战" />
+              </Children>
+            </ButtonWidget>
+            <!-- ================= 舰队页批量操作三枚(v4.284 第 3 项; 仿陆军页[全军回防]/[全军交还总监]) =================
+             位置: 底部行(底距 26, h44), x = 190 / 394 / 598(宽 190/190/236, 右边界 834)。
+             ★ 与 [出击](封锁页, x190 w190) / [装船出发](海运页, x190 w190) **同位但互斥**:
+               三个 IsVisible(@ShowFleetBar / @ShowSortie / @ShowTransport) 分别对应页签 0 / 2 / 4,
+               同一时刻只有一组显示, 所以共用 x190 这个槽位不会打架(热区也只在对应页签注册)。
+             ★ 颜色按"当前有没有可执行对象"绑定(灰 = 点了也会给中文原因, 不是禁用; 热区始终在):
+               @RecallAllColor / @ReleaseAllColor / @MoorAllColor。 -->
+            <ButtonWidget IsVisible="@ShowFleetBar" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="190" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="190" MarginBottom="26" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@RecallAllColor" Text="全部召回" />
+              </Children>
+            </ButtonWidget>
+            <ButtonWidget IsVisible="@ShowFleetBar" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="190" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="394" MarginBottom="26" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@ReleaseAllColor" Text="全部交还" />
+              </Children>
+            </ButtonWidget>
+            <ButtonWidget IsVisible="@ShowFleetBar" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="236" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="598" MarginBottom="26" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@MoorAllColor" Text="全部进驻母港" />
+              </Children>
+            </ButtonWidget>
+
+            <!-- 不可出发时按钮文字变灰(热区仍在, 点了会给出原因, 不会静默失败) -->
+            <ButtonWidget IsVisible="@ShowTransport" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="190" SuggestedHeight="44" HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="190" MarginBottom="26" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="20" Brush.FontColor="@DepartBtnColor" Text="装船出发" />
+              </Children>
+            </ButtonWidget>
+
+            <!-- 标题栏 X(x=780 y=26 w=56 h=52) -->
+            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="56" SuggestedHeight="52" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="780" MarginTop="26" Brush="Fia.Button" UpdateChildrenStates="true">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="24" Text="X" />
+              </Children>
+            </ButtonWidget>
+          </Children>
+        </BrushWidget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

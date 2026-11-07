@@ -29,6 +29,9 @@ namespace FeudalInternalAffairs
         internal static readonly Dictionary<string, float> Morale2 = new Dictionary<string, float>();
         internal const float MoraleMax = 100f, MoraleDailyGain = 3f, MoralePerBattle = 20f;
         internal const float OrgMax = 100f, OrgDailyGain = 1f, OrgPerBattle = 25f, WoundHealDaily = 0.05f;
+        // v4.255(P0-5③): 战败/战斗损耗后的组织度下限 —— 原来一场败仗 -25, 恢复仅 +1/日,
+        //   组织度归零后第一轮崩溃判定(≤15)必崩 -> 必败 -> 必被缴获, 形成"一崩就永久"
+        internal const float OrgFloorAfterBattle = 25f;
 
         internal const float VetMax = 100f;
 
@@ -52,8 +55,22 @@ namespace FeudalInternalAffairs
         internal static readonly List<string> PopLossLog = new List<string>();
         internal static readonly List<string> WeeklyLossLog = new List<string>();
         private static int _lastWeekClear = -1;
+        private static int _lastPopLogDay = -1;   // v4.255(P0-2): 兵源损耗面板按日清空
 
         internal static void BeginBattleLosses() { try { PopLossLog.Clear(); } catch { } }
+
+        // v4.255(P0-2): 真实兵源减员登记 —— 人口扣减现在只在 DefArmy.RemoveSoldiersPop 发生一次,
+        //   所以"文化战损"面板改由真实减员处写入(原来由 BattleSim 的重复扣减写入)
+        internal static void NoteSoldierPopLoss(string settlementName, int men)
+        {
+            try
+            {
+                if (men <= 0) return;
+                if (PopLossLog.Count >= 10) return;
+                PopLossLog.Add((string.IsNullOrEmpty(settlementName) ? "?" : settlementName) + " -" + men + " 人(兵源)");
+            }
+            catch { }
+        }
 
         internal static string LossSummary()
         {
@@ -122,11 +139,113 @@ namespace FeudalInternalAffairs
             catch { }
         }
         internal static float WoundedOf(string key){ float v; return (!string.IsNullOrEmpty(key) && Wounded.TryGetValue(key, out v)) ? v : 0f; }
-        internal static void OrgLoss(string key, float amount){ try { if(string.IsNullOrEmpty(key)) return; float v = OrgOf2(key) - amount; Org[key] = v < 0f ? 0f : v; } catch { } }
+        // v4.255(P0-5③): 加组织度下限保护(战败不再把组织度砸到 0)
+        internal static void OrgLoss(string key, float amount){ try { if(string.IsNullOrEmpty(key)) return; float v = OrgOf2(key) - amount; if (v < OrgFloorAfterBattle) v = OrgFloorAfterBattle; Org[key] = v; } catch { } }
         internal static float VetOf(string key)
         {
             float v;
             return (!string.IsNullOrEmpty(key) && Vet.TryGetValue(key, out v)) ? v : 0f;
+        }
+
+        // ==================== v4.255(P0-5④): 非军团(含 AI)部队的组织度 ====================
+        //   原来 DefArmyStats.OrgOf 只认 DefArmy.Legions: 我方读持久组织度, AI 部队恒 100 —— 两套口径。
+        //   现在所有部队共用同一套规则: 键 = 军团键(我方) 或 部队 StringId(其它), 默认满值 100,
+        //   战斗后写回、每日 +OrgDailyGain 恢复、失效键清理。
+        //   注: 该表不落盘(存档结构不变), 读档后按满值重新开始, 不会凭空削弱 AI。
+        private static readonly Dictionary<string, float> PartyOrg = new Dictionary<string, float>(StringComparer.Ordinal);
+        private const int PartyOrgMaxKeys = 512;
+        private static int _lastPartyOrgDay = -1;
+
+        // 任意部队组织度键: 我方军团 -> 军团键; 其它 -> 部队 StringId
+        internal static float PartyOrgOf(string key, float def)
+        {
+            try
+            {
+                float v;
+                if (!string.IsNullOrEmpty(key) && PartyOrg.TryGetValue(key, out v)) return v;
+            }
+            catch { }
+            return def;
+        }
+
+        internal static void PartyOrgSet(string key, float v)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(key)) return;
+                if (v < 0f) v = 0f;
+                if (v > OrgMax) v = OrgMax;
+                if (v >= OrgMax - 0.5f) { PartyOrg.Remove(key); return; }   // 满值 = 默认, 不占位
+                if (PartyOrg.Count >= PartyOrgMaxKeys && !PartyOrg.ContainsKey(key))
+                {
+                    PrunePartyOrg();
+                    if (PartyOrg.Count >= PartyOrgMaxKeys) return;
+                }
+                PartyOrg[key] = v;
+            }
+            catch { }
+        }
+
+        // 战斗结束后把某部队所在方的组织度写回持久值(仅非军团部队; 我军团由 OnBattle 统一结算)
+        internal static void PersistBattleOrg(MobileParty p, float org)
+        {
+            try
+            {
+                if (p == null) return;
+                if (DefArmy.LegionOf(p) != null) return;
+                PartyOrgSet(p.StringId, org);
+            }
+            catch { }
+        }
+
+        // 非军团组织度每日恢复 + 失效键清理
+        internal static void DailyPartyOrg(int day)
+        {
+            try
+            {
+                if (_lastPartyOrgDay == day) return;
+                _lastPartyOrgDay = day;
+                if (PartyOrg.Count == 0) return;
+                var alive = new HashSet<string>(StringComparer.Ordinal);
+                try
+                {
+                    var c = Campaign.Current;
+                    if (c != null && c.MobileParties != null)
+                        for (int i = 0; i < c.MobileParties.Count; i++)
+                        {
+                            var p = c.MobileParties[i];
+                            if (p != null && p.IsActive && !string.IsNullOrEmpty(p.StringId)) alive.Add(p.StringId);
+                        }
+                }
+                catch { }
+                var keys = new List<string>(PartyOrg.Keys);
+                for (int i = 0; i < keys.Count; i++)
+                {
+                    if (PartyOrg.Count > PartyOrgMaxKeys || !alive.Contains(keys[i])) { PartyOrg.Remove(keys[i]); continue; }
+                    float v = PartyOrg[keys[i]] + OrgDailyGain;
+                    if (v >= OrgMax) PartyOrg.Remove(keys[i]);
+                    else PartyOrg[keys[i]] = v;
+                }
+            }
+            catch { }
+        }
+
+        private static void PrunePartyOrg()
+        {
+            try
+            {
+                var alive = new HashSet<string>(StringComparer.Ordinal);
+                var c = Campaign.Current;
+                if (c != null && c.MobileParties != null)
+                    for (int i = 0; i < c.MobileParties.Count; i++)
+                    {
+                        var p = c.MobileParties[i];
+                        if (p != null && p.IsActive && !string.IsNullOrEmpty(p.StringId)) alive.Add(p.StringId);
+                    }
+                var keys = new List<string>(PartyOrg.Keys);
+                for (int i = 0; i < keys.Count; i++) if (!alive.Contains(keys[i])) PartyOrg.Remove(keys[i]);
+            }
+            catch { }
         }
 
         // ---- v27: 弹药(27.5) ----
@@ -226,12 +345,36 @@ namespace FeudalInternalAffairs
                         float m = 1f - (wd / men) * 0.5f;
                         if (m < 0.5f) m = 0.5f;
                         try { if (DefArmy.HasSupport(p, 1)) m = Math.Min(1f, m * 1.05f); } catch { }
+                        // v4.266: 军事科技(急救分诊 -8% / 现代护理 -5% 伤员惩罚) —— 部队被打时"伤员 ×"乘子
+                        try { m = Math.Min(1f, m + Research.WoundRelief(KingdomOf(p))); } catch { }
                         return m;
                     }
                 }
             }
             catch { }
             return 1f;
+        }
+
+        // v4.266: 取该部队所属王国(为空回退玩家国) —— 军事科技按"当事国"算
+        private static Kingdom KingdomOf(MobileParty p)
+        {
+            try
+            {
+                var k = p != null ? p.MapFaction as Kingdom : null;
+                return k != null ? k : Research.PlayerKingdom();
+            }
+            catch { return Research.PlayerKingdom(); }
+        }
+
+        // v4.266: 伤员日治疗科技倍率(急救分诊 +30% / 现代护理 +25%) —— 军团键 -> 所属国
+        private static float HealMultOf(string legionKey)
+        {
+            try
+            {
+                var p = string.IsNullOrEmpty(legionKey) ? null : DefArmy.FindParty(legionKey);
+                return Research.WoundHealMult(KingdomOf(p));
+            }
+            catch { return 1f; }
         }
 
         // 编制上限(V3: 由军官与科技决定)
@@ -247,7 +390,12 @@ namespace FeudalInternalAffairs
                 }
             }
             catch { }
-            lim += BattleSim.MilitaryTechCount() * 12;
+            // v4.266: 科技数改为按"当事国"算(原来读玩家国, AI 军团白吃玩家科技);
+            //   并叠加有具体落点的科技(总参谋部 +60 / 士官训练 +50 / 军事统计 +40 / 装甲部队 +40 / 兵棋推演 +30 / 突击队 +20)
+            var kd = KingdomOf(p);
+            try { lim += kd != null ? Research.MilitaryTechCountOf(kd) * 12 : BattleSim.MilitaryTechCount() * 12; }
+            catch { lim += BattleSim.MilitaryTechCount() * 12; }
+            try { lim += Research.CommandLimitBonus(kd); } catch { }
             return lim;
         }
 
@@ -272,11 +420,19 @@ namespace FeudalInternalAffairs
         {
             try
             {
-                if (p == null || p.LeaderHero == null) return 0.9f;
-                int lead = p.LeaderHero.GetSkillValue(DefaultSkills.Leadership);
-                int tac = p.LeaderHero.GetSkillValue(DefaultSkills.Tactics);
-                float m = 0.9f + (lead * 0.6f + tac * 0.4f) / 100f;
-                return m < 0.9f ? 0.9f : (m > 1.6f ? 1.6f : m);
+                float m;
+                if (p == null || p.LeaderHero == null) m = 0.9f;
+                else
+                {
+                    int lead = p.LeaderHero.GetSkillValue(DefaultSkills.Leadership);
+                    int tac = p.LeaderHero.GetSkillValue(DefaultSkills.Tactics);
+                    m = 0.9f + (lead * 0.6f + tac * 0.4f) / 100f;
+                }
+                // v4.266: 军事科技(军事航空"空中侦察/炮校射" +4% / 总参谋部 +3% / 军事统计 +2%)
+                //   落点即"全军输出"乘子, 由 BattleSim.DamageMult 读取
+                try { m *= 1f + Research.OfficerBonus(KingdomOf(p)); } catch { }
+                // v4.266(用户决策③): 上限 1.6 -> 1.8, 给科技加成留出空间(否则高统率将领吃不到科技)
+                return m < 0.9f ? 0.9f : (m > 1.8f ? 1.8f : m);
             }
             catch { return 1f; }
         }
@@ -313,50 +469,81 @@ namespace FeudalInternalAffairs
         internal static string TacticOf(MobileParty p, out float outMult, out float takeMult, out float moraleMult)
         {
             outMult = 1f; takeMult = 1f; moraleMult = 1f;
+            string name = "标准阵型";
             try
             {
                 var sh = new float[4];
                 CompositionOf(p, sh);
-                if (sh[2] >= 0.30f) { outMult = 1.10f; takeMult = 1.15f; return "快速推进(骑兵≥30%)"; }
-                if (sh[1] >= 0.40f) { outMult = 1.15f; moraleMult = 1.10f; return "火力压制(弓手≥40%)"; }
-                if (sh[0] >= 0.60f) { takeMult = 0.85f; return "稳固阵线(步兵≥60%)"; }
+                if (sh[2] >= 0.30f) { outMult = 1.10f; takeMult = 1.15f; name = "快速推进(骑兵≥30%)"; }
+                else if (sh[1] >= 0.40f) { outMult = 1.15f; moraleMult = 1.10f; name = "火力压制(弓手≥40%)"; }
+                else if (sh[0] >= 0.60f) { takeMult = 0.85f; name = "稳固阵线(步兵≥60%)"; }
             }
             catch { }
-            return "标准阵型";
+            // v4.266: 军事科技落点(原"空节点"从此在战报/部队 HUD 的战术文案上可见):
+            //   进攻: 装甲部队 +8% / 突击队 +6% / 兵棋推演 +5% / 化学战 +5% / 喷火器 +5%   -> outMult
+            //   减伤: 混凝土要塞 -10% / 纵深防御 -8% / 喷火器 -3%                          -> takeMult
+            //   注: 不改 moraleMult —— BattleSim 的 MoraleOrgTick 只吃战斗条件(堑壕战/暴风),
+            //       该出参在坐镇指挥里未被使用, 只有 UI 展示, 不能拿来当落点。
+            try
+            {
+                var kd = KingdomOf(p);
+                string extra = "";
+                float off = Research.TacticOffense(kd);
+                if (off > 0f) { outMult *= 1f + off; extra += "·科技进攻+" + (int)Math.Round(off * 100f) + "%"; }
+                float def = Research.TacticDefense(kd);
+                if (def > 0f) { takeMult *= 1f - def; extra += "·工事减伤" + (int)Math.Round(def * 100f) + "%"; }
+                // v4.266: 军事建筑"城墙加固"(@defense 10/15/23 每级) —— 驻守本国城镇/城堡的部队战术减伤
+                float wall = MilBuildings.StationedDefenseOf(p);
+                if (wall > 0f) { takeMult *= 1f - wall; extra += "·城防" + (int)Math.Round(wall * 100f) + "%"; }
+                if (extra.Length > 0) name += extra;
+            }
+            catch { }
+            return name;
         }
 
         // 战报归档时结算老兵度(胜 +6 / 败 -4)
-        internal static void OnBattle(bool ourWin)
+        //   v4.255(P0-1): 只对"本场实际参战的部队"结算 —— 原来无条件遍历全部军团,
+        //   于是 AI 互殴(我方输出恒 0 -> 判"战败")也会给玩家没参战的军团扣老兵/组织度/士气/伤员。
+        //   participants = 本场战斗的参战部队(开战快照记录); 为空则不做任何结算。
+        internal static void OnBattle(bool ourWin, List<MobileParty> participants)
         {
             try
             {
+                var inBattle = new HashSet<string>(StringComparer.Ordinal);
+                if (participants != null)
+                    for (int i = 0; i < participants.Count; i++)
+                    {
+                        var pp = participants[i];
+                        if (pp != null && !string.IsNullOrEmpty(pp.StringId)) inBattle.Add(pp.StringId);
+                    }
+                if (inBattle.Count == 0) return;
+                int applied = 0;
                 for (int i = 0; i < DefArmy.Legions.Count; i++)
                 {
                     var lg = DefArmy.Legions[i];
                     if (lg == null) continue;
+                    var lp = DefArmy.LegionParty(lg);
+                    string pid = lp != null ? lp.StringId : lg.PartyId;
+                    if (string.IsNullOrEmpty(pid) || !inBattle.Contains(pid)) continue;   // v4.255: 未参战 -> 不结算
+                    applied++;
                     string k = LegionKey(lg);
                     float v = VetOf(k);
                     v += ourWin ? 6f : -4f;
                     if (v < 0f) v = 0f;
                     if (v > VetMax) v = VetMax;
                     Vet[k] = v;
-                }
-                for (int i = 0; i < DefArmy.Legions.Count; i++)
-                {
-                    var lg2 = DefArmy.Legions[i];
-                    if (lg2 == null) continue;
-                    string k2 = LegionKey(lg2);
-                    OrgLoss(k2, OrgPerBattle);                              // V3: 战斗损耗组织度
-                    MoraleLoss(k2, MoralePerBattle);                        // V3: 战斗损耗士气
-                    var lp2 = DefArmy.LegionParty(lg2);
-                    if (lp2 != null)
+                    OrgLoss(k, OrgPerBattle);                              // V3: 战斗损耗组织度(带下限保护)
+                    MoraleLoss(k, MoralePerBattle);                        // V3: 战斗损耗士气
+                    if (lp != null)
                     {
-                        int men = 0; try { men = lp2.Party.NumberOfRegularMembers; } catch { }
+                        int men = 0; try { men = lp.Party.NumberOfRegularMembers; } catch { }
                         float add = men * (ourWin ? 0.06f : 0.14f);         // 胜方伤员少 / 败方伤员多
-                        Wounded[k2] = Math.Min(men * 0.5f, WoundedOf(k2) + add);
+                        Wounded[k] = Math.Min(men * 0.5f, WoundedOf(k) + add);
                     }
                 }
-                DLog.Force("军团老兵度: " + (ourWin ? "胜利 +6" : "战败 -4") + ", 组织度 -25, 伤员已入池");
+                if (applied > 0)
+                    DLog.Force("军团老兵度: " + (ourWin ? "胜利 +6" : "战败 -4") + " (参战军团 " + applied + " 支)"
+                        + ", 组织度 -" + ((int)OrgPerBattle) + "(下限 " + ((int)OrgFloorAfterBattle) + "), 伤员已入池");
             }
             catch { }
         }
@@ -575,7 +762,12 @@ namespace FeudalInternalAffairs
                             if (d < bestD) { bestD = d; best = s; }
                         }
                     }
-                    if (best == null || bestD > range) continue;
+                    if (best == null) continue;
+                    // v4.266: 军需容量(@supply)接进补给半径 —— 军械库 50/90/140 + 补给站 40/60/92 按级累加,
+                    //   每 2 点军需容量 = +1 地图单位补给半径(补给站 3 级 ≈ +138, 军械库 3 级 ≈ +210)
+                    float range2 = range;
+                    try { range2 += BuildDefs.EffectSumOf(best.StringId, BuildDefs.EffSupply) * 0.5f; } catch { }
+                    if (bestD > range2) continue;
                     var item = FeudalGoods.Item(FeudalGoods.Explosives);
                     if (item == null || best.ItemRoster == null) continue;
                     int have = best.ItemRoster.GetItemNumber(item);
@@ -607,6 +799,10 @@ namespace FeudalInternalAffairs
             {
                 try { EnsureRailSpeedPatch(); DailyRailTransport(day); } catch { }   // v4.21x: 铁路运输日耗
                 try { DailyAmmoResupply(day); } catch { }                            // v27: 弹药补给
+                try { DailyPartyOrg(day); } catch { }                                // v4.255(P0-5④): AI 部队组织度日恢复
+                try { MilBuildings.Daily(day); } catch { }                           // v4.266: 军事建筑效果(民兵/治安)
+                // v4.255(P0-2): 兵源损耗面板改为"当日"口径(人口扣减已只在真实减员处记录)
+                if (day != _lastPopLogDay) { _lastPopLogDay = day; try { PopLossLog.Clear(); } catch { } }
                 if (day % 7 == 0 && day != _lastWeekClear) { WeeklyLossLog.Clear(); _lastWeekClear = day; }
                 for (int i = 0; i < DefArmy.Legions.Count; i++)
                 {
@@ -642,7 +838,7 @@ namespace FeudalInternalAffairs
                     float org = OrgOf2(k) + OrgDailyGain;
                     if (org > orgCap) org = orgCap;
                     Org[k] = org;
-                    float wd = WoundedOf(k) * (1f - WoundHealDaily);
+                    float wd = WoundedOf(k) * (1f - WoundHealDaily * HealMultOf(k));
                     if (wd < 0.5f) wd = 0f;
                     Wounded[k] = wd;
                     // v4.206: V3 每周损耗(4~12%): 围城/缺粮/士气崩溃时才发生; 本土补给正常不损耗
@@ -737,6 +933,228 @@ namespace FeudalInternalAffairs
                 if (RailTransport.Count > 0) EnsureRailSpeedPatch();
             }
             catch { }
+        }
+    }
+
+    // ==================== v4.266: 军事建筑效果接线(用户决策⑤) ====================
+    //   背景: 军营/军械库/马厩/城墙/瞭望塔/巡逻营/补给站/民兵营的 @garrison/@recruit/@supply/@cavalry/
+    //   @defense/@vision/@security/@bandit/@militia 此前**全代码无人读取**(建了完全没用)。
+    //   本类把所有读取点集中到一处, 各系统只要调用下面的方法即可(数值口径见 Economy\BuildingDefs.cs 的建筑表):
+    //     @garrison  军营 20/35/55     -> DefArmy.GarrisonCapOf(守备营上限 = max(600,现有兵力) + 军营; v4.268)
+    //     @recruit   军营 5/8/12       -> DefArmy.ConscriptPool(可征人口)
+    //     @supply    军械库 50/90/140, 补给站 40/60/92 -> 弹药补给半径(ArmyDoctrine.DailyAmmoResupply)
+    //                                                  + 驻地军团日耗粮(DefArmy.FeedLegions)
+    //     @cavalry   马厩 10/15/23     -> 军团马匹需求(DefArmy.NeedOf)
+    //     @defense   城墙加固 10/15/23 -> 驻守本国城镇/城堡的战术减伤(ArmyDoctrine.TacticOf; 只在物理驻守时生效, 野战拿不到)
+    //     @vision    瞭望塔 15/23/35   -> 部队地图视野(DefaultMapVisibilityModel 补丁; 依赖该模型未被其他 mod 替换)
+    //     @security  巡逻营 3/5/8      -> 商队安全(Economy\Caravans.SecurityOf) + 该城民众激进度
+    //     @bandit    巡逻营 -5/-8/-12  -> 同上(负值, 取反计入治安; 商队安全总量与旧硬编码持平)
+    //     @militia   民兵营 20/30/46   -> 该聚落民兵规模下限(Settlement.Militia; v4.268 去掉基础 20, 无民兵营不加成)
+    internal static class MilBuildings
+    {
+        internal const float GarrisonBaseCap = 600f;   // 守备营基础上限(无军营也不低于此值, 保证不废掉既有存档)
+
+        // 读某聚落某项效果的合计(等级加权); 失败/无建筑 = 0
+        internal static float Eff(string settlementId, string effId)
+        {
+            try { return BuildDefs.EffectSumOf(settlementId, effId); } catch { return 0f; }
+        }
+
+        // 该部队"所属/驻扎"的自家聚落(用于把建筑效果落到部队上): 优先当前所在聚落, 其二是本国军团驻地
+        internal static Settlement HomeOf(MobileParty p)
+        {
+            try
+            {
+                if (p == null) return null;
+                var cur = p.CurrentSettlement;
+                if (cur != null && p.MapFaction != null && ReferenceEquals(cur.MapFaction, p.MapFaction)) return cur;
+                var lg = DefArmy.LegionOf(p);
+                if (lg != null && !string.IsNullOrEmpty(lg.HomeId))
+                {
+                    var h = DefArmy.FindSettlement(lg.HomeId);
+                    if (h != null) return h;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        // @defense: 驻守本国城镇/城堡时的战术减伤(0~0.35, 每 100 防御 = -35% 封顶)
+        internal static float StationedDefenseOf(MobileParty p)
+        {
+            try
+            {
+                var s = HomeOf(p);
+                if (s == null) return 0f;
+                if (p == null || p.CurrentSettlement == null || !ReferenceEquals(p.CurrentSettlement, s)) return 0f;   // 只在自家城里驻扎才吃城防
+                float v = Eff(s.StringId, BuildDefs.EffDefense) / 100f;
+                return v > 0.35f ? 0.35f : v;
+            }
+            catch { return 0f; }
+        }
+
+        // @vision: 视野加成(比例, 0~0.6)
+        internal static float SpottingBonusOf(MobileParty p)
+        {
+            try
+            {
+                var s = HomeOf(p);
+                if (s == null) return 0f;
+                float v = Eff(s.StringId, BuildDefs.EffVision) / 100f;
+                return v > 0.6f ? 0.6f : v;
+            }
+            catch { return 0f; }
+        }
+
+        // @garrison: 守备营上限 = max(600, 现有兵力) + 军营(20/35/55 每级)
+        //   v4.268: 基础改为"动态不低于现有兵力" —— 老存档里超过 600 的守备营不会被削, 也绝不出现
+        //   "上限低于现有兵力"导致的死锁; 想继续扩编仍需建军营(上限 = 现有 + 军营加成)。
+        internal static int GarrisonCapOf(Settlement s)
+        {
+            try
+            {
+                if (s == null) return (int)GarrisonBaseCap;
+                float have = 0f;
+                try { have = DefArmy.GarrisonMenOf(s.StringId); } catch { }
+                float baseCap = have > GarrisonBaseCap ? have : GarrisonBaseCap;
+                return (int)(baseCap + Eff(s.StringId, BuildDefs.EffGarrison));
+            }
+            catch { return (int)GarrisonBaseCap; }
+        }
+
+        // @recruit: 可征人口加成(比例, 0~0.5)
+        internal static float RecruitPoolBonusOf(Settlement s)
+        {
+            try
+            {
+                if (s == null) return 0f;
+                float v = Eff(s.StringId, BuildDefs.EffRecruit) / 100f;
+                return v > 0.5f ? 0.5f : v;
+            }
+            catch { return 0f; }
+        }
+
+        // @cavalry: 马匹需求减免(比例, 0~0.5) —— "骑兵补充"
+        internal static float CavalrySupplyOf(Settlement s)
+        {
+            try
+            {
+                if (s == null) return 0f;
+                float v = Eff(s.StringId, BuildDefs.EffCavalry) / 100f;
+                return v > 0.5f ? 0.5f : v;
+            }
+            catch { return 0f; }
+        }
+
+        // @supply: 驻地军粮日耗减免(比例, 0~0.30)
+        internal static float SupplyFoodSaveOf(Settlement s)
+        {
+            try
+            {
+                if (s == null) return 0f;
+                float v = Eff(s.StringId, BuildDefs.EffSupply) / 500f;   // 50/90/140 每级 -> 10%/18%/28%(3 级 ~ 封顶)
+                return v > 0.30f ? 0.30f : v;
+            }
+            catch { return 0f; }
+        }
+
+        // 治安(0~1): @security + |@bandit| 按级累加 / 100; 巡逻营 3 级 = (8+12)*3/100 = 0.60(与旧硬编码 0.2×3 等值)
+        internal static float SecurityOf(string settlementId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(settlementId)) return 0f;
+                float v = (Eff(settlementId, BuildDefs.EffSecurity) - Eff(settlementId, BuildDefs.EffBandit)) / 100f;
+                return v > 1f ? 1f : (v < 0f ? 0f : v);
+            }
+            catch { return 0f; }
+        }
+
+        // ================= 日结: @militia(民兵规模) + @security/@bandit(民众激进度) =================
+        private static int _lastDay = -1;
+        private const int MaxMilBuildSettlements = 400;   // 安全上限(防全图定居点扫描拖慢日结)
+
+        internal static void Daily(int day)
+        {
+            try
+            {
+                if (day == _lastDay) return;
+                _lastDay = day;
+                EnsureVisionPatch();   // 瞭望塔视野补丁(首次日结注册一次)
+                var k = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                if (k == null) return;
+                int n = 0;
+                foreach (var s in k.Settlements)
+                {
+                    if (s == null || string.IsNullOrEmpty(s.StringId)) continue;
+                    if (++n > MaxMilBuildSettlements) break;
+                    try { ApplyMilitiaFloor(s); } catch { }
+                    try { ApplySecurity(s); } catch { }
+                }
+            }
+            catch { }
+        }
+
+        // @militia: 民兵营 -> 该聚落民兵不低于"民兵营加成"(只抬下限, 不每日累加 -> 不会无限涨)
+        //   v4.268: 去掉基础 20 —— 没建民兵营(=0 级)的聚落完全不受影响, 避免新档首日民兵凭空跳一下
+        private static void ApplyMilitiaFloor(Settlement s)
+        {
+            try
+            {
+                if (s == null || (!s.IsTown && !s.IsCastle)) return;
+                float floor = Eff(s.StringId, BuildDefs.EffMilitia);   // 民兵营 20/30/46 每级; 无民兵营 = 0 -> 不加成
+                if (floor <= 0f) return;
+                if (s.Militia < floor) s.Militia = floor;
+            }
+            catch { }
+        }
+
+        // @security/@bandit: 巡逻营 -> 该城民众激进度每日下降(幅度 = 治安 × 0.0004, 治安 0.6 -> 0.024%/日)
+        private static void ApplySecurity(Settlement s)
+        {
+            try
+            {
+                if (s == null || string.IsNullOrEmpty(s.StringId)) return;
+                float sec = SecurityOf(s.StringId);
+                if (sec <= 0.001f) return;
+                float delta = sec * 0.0004f;          // 正数 = 向忠诚(见 Pops.ShiftStance)
+                var l = Pops.Of(s.StringId);
+                if (l == null) return;
+                for (int i = 0; i < l.Count; i++) Pops.ShiftStance(l[i], delta);
+            }
+            catch { }
+        }
+
+        // ================= @vision: 瞭望塔 -> 部队地图视野 =================
+        private static bool _visionPatchApplied;
+
+        internal static void EnsureVisionPatch()
+        {
+            if (_visionPatchApplied) return;
+            try
+            {
+                var h = new Harmony("FeudalInternalAffairs.MilBuildingVision");
+                h.CreateClassProcessor(typeof(VisionPatch)).Patch();
+                _visionPatchApplied = true;
+                DLog.Force("军事建筑: 瞭望塔视野补丁已注册");
+            }
+            catch (Exception ex) { DLog.Force("瞭望塔视野补丁注册失败: " + ex.Message); }
+        }
+
+        // 视野模型补丁(与铁路运输速度补丁同套路, 自行注册, 不改 SubModule 补丁表)
+        [HarmonyPatch(typeof(DefaultMapVisibilityModel), "GetPartySpottingRange")]
+        internal static class VisionPatch
+        {
+            private static void Postfix(MobileParty party, ref ExplainedNumber __result)
+            {
+                try
+                {
+                    float v = SpottingBonusOf(party);
+                    if (v <= 0.001f) return;
+                    __result.AddFactor(v, new TextObject("瞭望塔"));
+                }
+                catch { }
+            }
         }
     }
 }

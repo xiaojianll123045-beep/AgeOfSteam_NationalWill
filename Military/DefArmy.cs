@@ -45,6 +45,9 @@ namespace FeudalInternalAffairs
     {
         internal string SettlementId = "";
         internal int Placed;        // 对账后的在册数
+        // v4.255: 守备营装备账(型号 -> 件数) —— 募兵时已从国家军械库领走的装备记在这里,
+        //   建军/补员时把这批转交军团, 避免同一批兵被领装 2~3 次
+        internal Dictionary<string, int> Equip = new Dictionary<string, int>(StringComparer.Ordinal);
     }
 
     // 征兵批次(v4.239: 强制征兵 —— 无服役时效, 一直服役到 解甲归田/转常备/战损; 代价走民怨与请愿)
@@ -185,6 +188,7 @@ namespace FeudalInternalAffairs
         internal static int UnpaidDays;
         internal static int TodayMilLoss;      // 今日军损(统计翻牌)
         internal static bool MutinyWarned;
+        private static int _lastSettledDay = -1;   // v4.255: 上次已日结的游戏日(同日防重, 随存档落盘)
 
         private static Clan _clan;
         private static readonly Dictionary<string, CharacterObject[]> TroopCache = new Dictionary<string, CharacterObject[]>();
@@ -257,10 +261,12 @@ namespace FeudalInternalAffairs
                     if (p == null || !p.IsActive) continue;
                     sum += RegularsOf(p) * WagePerManPerDay * WageMultOf(lg);
                 }
-                if (sum <= 0.0) return (int)Math.Ceiling(TotalMen() * WagePerManPerDay);
+                // v4.255: 兜底改成 0 —— 原来 sum<=0 时按 TotalMen()(含守备营)收费,
+                //   "没有活跃野战军团但有守备营"时会突然按守备营人数扣国库(守备营平时不进军饷账)
+                if (sum <= 0.0) return 0;
                 return (int)Math.Ceiling(sum);
             }
-            catch { return (int)Math.Ceiling(TotalMen() * WagePerManPerDay); }
+            catch { return 0; }
         }
 
         // 按当前编制, 国库还能撑多少天
@@ -576,6 +582,9 @@ namespace FeudalInternalAffairs
             if (sold == null) return;
             int take = Math.Min(n, (int)Math.Floor(sold.Size));
             sold.Size -= take;
+            // v4.255(P0-2): 人口扣减的唯一入口 —— 只在真实减员处登记一次供 UI 显示
+            //   (BattleSim 里对全部军团按兵力 5%/12% 的重复扣减已删除)
+            try { ArmyDoctrine.NoteSoldierPopLoss(s.Name != null ? s.Name.ToString() : s.StringId, take); } catch { }
         }
 
         // 士兵解甲归田(1:1 回农民/劳工)
@@ -661,16 +670,83 @@ namespace FeudalInternalAffairs
         // 从国家军械库领装(逐型号尽量领足), 返回实际领到件数
         private static int TakeEquipFromArmory(Dictionary<string, int> need)
         {
+            return TakeEquipFromArmory(need, null);
+        }
+
+        // v4.255: 带"实际领到明细"的重载 —— 供募兵记守备营装备账(避免建军时重复领装)
+        private static int TakeEquipFromArmory(Dictionary<string, int> need, Dictionary<string, int> taken)
+        {
             int got = 0;
             try
             {
                 if (need == null || need.Count == 0) return 0;
                 string key = Armory.NationalOwner(OurKingdom);
                 if (string.IsNullOrEmpty(key)) return 0;
-                foreach (var kv in need) got += Armory.TakeKey(key, kv.Key, kv.Value);
+                foreach (var kv in need)
+                {
+                    int g = Armory.TakeKey(key, kv.Key, kv.Value);
+                    got += g;
+                    if (g > 0 && taken != null)
+                    {
+                        int old;
+                        taken.TryGetValue(kv.Key, out old);
+                        taken[kv.Key] = old + g;
+                    }
+                }
             }
             catch { }
             return got;
+        }
+
+        // v4.255: 把本次领到的装备记进守备营装备账
+        private static void AddGarrisonEquip(DefGarrison rec, Dictionary<string, int> taken)
+        {
+            try
+            {
+                if (rec == null || taken == null || taken.Count == 0) return;
+                if (rec.Equip == null) rec.Equip = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (var kv in taken)
+                {
+                    if (kv.Value <= 0 || string.IsNullOrEmpty(kv.Key)) continue;
+                    int old;
+                    rec.Equip.TryGetValue(kv.Key, out old);
+                    rec.Equip[kv.Key] = old + kv.Value;
+                }
+            }
+            catch { }
+        }
+
+        // v4.255: 建军/补员时把这批兵"在守备营账上已有的装备"转进军团快照,
+        //   使随后的 EquipLegion 只补 need - have(原来同一批兵在募兵和建军时各领一次)
+        private static void TransferGarrisonEquip(DefLegion lg, DefGarrison rec, int men, int leftInGarrison)
+        {
+            try
+            {
+                if (lg == null || rec == null || rec.Equip == null || rec.Equip.Count == 0 || men <= 0) return;
+                var need = NeedOf(lg);
+                if (need == null || need.Count == 0) return;
+                var snap = SnapshotOf(lg, true);
+                if (snap == null) return;
+                float share = men / (float)Math.Max(1, men + Math.Max(0, leftInGarrison));
+                int moved = 0;
+                foreach (var kv in need)
+                {
+                    int have;
+                    if (!rec.Equip.TryGetValue(kv.Key, out have) || have <= 0) continue;
+                    int take = Math.Min(have, kv.Value);
+                    int cap = (int)Math.Ceiling(have * share);
+                    if (take > cap) take = cap;
+                    if (take <= 0) continue;
+                    int cur;
+                    snap.TryGetValue(kv.Key, out cur);
+                    snap[kv.Key] = cur + take;
+                    rec.Equip[kv.Key] = have - take;
+                    moved += take;
+                }
+                if (moved > 0)
+                    DLog.Force("军械库: 守备营装备转交军团 " + moved + " 件(避免重复领装)");
+            }
+            catch { }
         }
 
         private static bool Spend(int v)
@@ -744,6 +820,17 @@ namespace FeudalInternalAffairs
                         var b = Garrisons[j];
                         if (b == null || b.SettlementId != a.SettlementId) continue;
                         b.Placed = Math.Max(b.Placed, a.Placed);
+                        // v4.255: 装备账一并合并(否则合并后这批装备凭空消失, 建军时又要重新领)
+                        if (a.Equip != null && a.Equip.Count > 0)
+                        {
+                            if (b.Equip == null) b.Equip = new Dictionary<string, int>(StringComparer.Ordinal);
+                            foreach (var kv in a.Equip)
+                            {
+                                int old;
+                                b.Equip.TryGetValue(kv.Key, out old);
+                                b.Equip[kv.Key] = old + kv.Value;
+                            }
+                        }
                         Garrisons.RemoveAt(i);
                         DLog.Force("国防军: 守备营合并 " + a.SettlementId + " -> 一条记录(兵力 " + b.Placed + ")");
                         break;
@@ -802,6 +889,12 @@ namespace FeudalInternalAffairs
                 if (avail < n) return Fail("可转人口不足: " + s.Name + " 只有 " + avail + " 人可征募");
                 var target = GarrisonTarget(s);
                 if (target == null) return Fail("该聚落没有可驻防的城镇/城堡");
+                // v4.266: 军事建筑"军营"(@garrison 20/35/55 每级) 接进守备营上限(基础上限 600 + 军营加成)
+                int gcap = MilBuildings.GarrisonCapOf(target);
+                int ghave = GarrisonMenOf(target.StringId);
+                int room = gcap - ghave;
+                if (room <= 0) return Fail("守备营已满(" + ghave + "/" + gcap + "): 建「军营」提高守备营上限");
+                if (n > room) n = room;
                 var garrison = GarrisonPartyOf(target);
                 if (garrison == null) return Fail("驻军不存在: " + target.Name);
 
@@ -809,11 +902,13 @@ namespace FeudalInternalAffairs
                 if (moved <= 0) return Fail("可转人口不足");
                 if (moved < n) n = moved;
 
-                string equipMsg = DrawRecruitEquip(n, s.Culture);
+                Dictionary<string, int> taken;   // v4.255: 本次实际领到的装备
+                string equipMsg = DrawRecruitEquip(n, s.Culture, out taken);
 
                 AddComposition(garrison.MemberRoster, s.Culture, n);
                 var rec = GetGarrisonRec(target.StringId, true);
                 if (rec != null) rec.Placed += n;
+                AddGarrisonEquip(rec, taken);   // v4.255: 已领装备记进守备营账(建军/补员时转交, 不再重复领)
 
                 Spend(cost);
                 Fiscal.AddMilitary(cost);
@@ -827,13 +922,21 @@ namespace FeudalInternalAffairs
         // 领装: 按新兵编成(步/弓/骑)从国家军械库逐型号尽量领足; 返回"军械库领装 N%"文案
         internal static string DrawRecruitEquip(int n, CultureObject culture)
         {
+            Dictionary<string, int> taken;
+            return DrawRecruitEquip(n, culture, out taken);
+        }
+
+        // v4.255: 增加 out taken(实际领到的型号/件数) —— 由调用方记进守备营装备账
+        internal static string DrawRecruitEquip(int n, CultureObject culture, out Dictionary<string, int> taken)
+        {
+            taken = new Dictionary<string, int>(StringComparer.Ordinal);
             try
             {
                 var need = RecruitEquipNeed(n, culture);
                 int needT = 0;
                 foreach (var kv in need) needT += kv.Value;
                 if (needT <= 0) return "";
-                int gotT = TakeEquipFromArmory(need);
+                int gotT = TakeEquipFromArmory(need, taken);
                 int fill = (int)Math.Round(100.0 * gotT / needT);
                 if (fill > 100) fill = 100;
                 if (fill < 100) return " · 军械库领装 " + fill + "%(缺 " + (needT - gotT) + " 件)";
@@ -865,6 +968,98 @@ namespace FeudalInternalAffairs
         internal static Clan EnsureClan()
         {
             try { return Clan.PlayerClan; } catch { return null; }
+        }
+
+        // ==================== v4.276: 海军舰队用的 internal 转发 ====================
+        //   舰队实体化(Navy\NavalTaskForce.cs)要复用国防军已经踩过坑的两条路径, 但它们在别的
+        //   系统里是 private。这里只做**转发**, 不改任何既有逻辑(改动量最小、回归风险最低):
+        //   ① 司令生成 -> MakeGeneral(家族/模板/技能/命名那条路, 与军团将军完全同源);
+        //   ② 从港口守备营抽兵 -> MoveDefTroops(只抽 mod 自己募来的三种基础兵, 不从天上掉水手)。
+        internal static Hero MakeCaptainFor(Settlement home, string title)
+        {
+            try
+            {
+                var h = MakeGeneral(home, 0);
+                if (h == null) return null;
+                if (!string.IsNullOrEmpty(title))
+                {
+                    try { h.SetName(new TextObject(title), new TextObject(title)); } catch { }
+                }
+                return h;
+            }
+            catch (Exception ex) { DLog.Force("国防军: 生成舰队司令失败 " + ex.Message); return null; }
+        }
+
+        internal static int MoveGarrisonTroopsTo(Settlement home, TroopRoster dst, int n)
+        {
+            try
+            {
+                if (home == null || home.Culture == null || dst == null || n <= 0) return 0;
+                var garrison = GarrisonPartyOf(home);
+                if (garrison == null) return 0;
+                int moved = MoveDefTroops(garrison.MemberRoster, dst, home.Culture, n);
+                if (moved > 0)
+                {
+                    var rec = GetGarrisonRec(home.StringId, false);
+                    if (rec != null) rec.Placed = Math.Max(0, rec.Placed - moved);
+                }
+                return moved;
+            }
+            catch (Exception ex) { DLog.Force("国防军: 向舰队调兵失败 " + ex.Message); return 0; }
+        }
+
+        internal static int GarrisonMen(Settlement home)
+        {
+            try { return home != null ? GarrisonMenOf(home.StringId) : 0; }
+            catch { return 0; }
+        }
+
+        // v4.277: 军饷口径的**只读转发**(第 1 项: 海军舰队水手军饷)。
+        //   舰队(Navy\NavalTaskForce)不在 DefArmy.Legions 登记表里, 所以 DailyWageCost() 永远不含它;
+        //   但舰队水手的军饷口径**必须与陆军一字不差** —— 这里把两个权威入口原样暴露出去,
+        //   舰队侧照抄同一算式(RegularsOf × WagePerManPerDay × 科研系数), 不另发明一套单价:
+        //     · PerManPerDay   = WagePerManPerDay(0.5/兵/日)
+        //     · RegularsOf(p)  = MemberRoster.TotalRegulars(不含英雄司令, 与陆军同口径)
+        //     · ResearchWageSave() = WageMultOf 里那一段(v4.266 军事统计 -6% 军饷)的**只读**提取,
+        //       使"研究军事统计 -> 陆军和海军的军饷一起降"这条因果对两支军队同时成立。
+        //   ★ 这三个都是新增入口, 既有方法一个字节都没改(WageMultOf 的实现保持原样)。
+        internal static float WagePerManPerDayForFleet() { return WagePerManPerDay; }
+
+        internal static int RegularsOfForFleet(MobileParty p) { return RegularsOf(p); }
+
+        internal static float ResearchWageSaveForFleet()
+        {
+            try { return Research.WageSave(OurKingdom); } catch { return 0f; }
+        }
+
+        // v4.277(第 1 项): 舰队欠饷哗变时的减员 —— 走**与军团哗变完全相同的移除路径**
+        //   (v4.255 修过的 RemoveDefTroops: 按兵种逐类移除 + 不碰英雄司令)。
+        //   兵种表按**母港文化**取 —— 与建军时"从哪个港口守备营抽的兵"同一来源
+        //   (Found() 里 MoveGarrisonTroopsTo(port, ...) 抽的就是 port.Culture 那三种 T2),
+        //   所以移除时用母港文化才能命中同一批兵种(用我们的王国文化可能一个都对不上)。
+        //   返回实际移除人数(0 = 该舰队名册里没有该文化的国防军兵种, 那就什么都不做并返回 0)。
+        internal static int RemoveRegularsForFleet(MobileParty p, int n)
+        {
+            try
+            {
+                if (p == null || n <= 0) return 0;
+                CultureObject culture = null;
+                try
+                {
+                    var f = NavalTaskForce.ForceOf(p);
+                    var home = f != null ? FindSettlement(f.HomePortId) : null;
+                    if (home != null) culture = home.Culture;
+                }
+                catch { }
+                if (culture == null) { try { culture = p.CurrentSettlement != null ? p.CurrentSettlement.Culture : null; } catch { } }
+                if (culture == null) { try { culture = OurKingdom != null ? OurKingdom.Culture : null; } catch { } }
+                if (culture == null) return 0;
+                int removed = RemoveDefTroops(p.MemberRoster, culture, n);
+                if (removed > 0)
+                    DLog.Force("国防军: 舰队水手哗变减员 " + removed + " 人(" + MapSelection.NameOf(p) + ")");
+                return removed;
+            }
+            catch (Exception ex) { DLog.Force("国防军: 舰队减员失败 " + ex.Message); return 0; }
         }
 
         private static CharacterObject FindTemplate(CultureObject culture)
@@ -963,6 +1158,9 @@ namespace FeudalInternalAffairs
                 + "国防军第" + number + "军团";
         }
 
+        // v4.254: 出城去抖(部队 id -> 上次搬出的游戏日)
+        private static readonly Dictionary<string, int> _pullOutDay = new Dictionary<string, int>();
+
         // v4.91: 补 native 陆地导航(海军 DLC 下新建军团若缺此能力, native 侧不会移动)
         internal static void EnsureNavigation(MobileParty p)
         {
@@ -972,6 +1170,13 @@ namespace FeudalInternalAffairs
                 // v4.95: 非活跃部队 native 完全不驱动 -> 强制激活
                 try { if (!p.IsActive) { p.IsActive = true; DLog.Force("国防军: 部队非活跃, 已激活 " + MapSelection.NameOf(p)); } } catch { }
                 if (!p.IsActive) return;
+                // v4.272(审计 A2): **海运中的军团不许走下面的"陆地导航修补/拖回陆地"** ——
+                //   原实现紧跟着就是 `if (p.IsCurrentyAtSea) { IsCurrentlyAtSea = false; MovePartyToTheClosestLand(); }`,
+                //   而 EnsureNavigation 的调用点里有 NationalWillOrders.TakeOver(玩家任何一条命令都会走)
+                //   -> 海运途中玩家点一下这支军团, 军团会被瞬间拖回陆地, 海运立刻中断(船还挂在它名下)。
+                //   海运有自己的目标港与推进链路(见 NavalTransport.Depart 的 SetMoveGoToSettlement),
+                //   到港/超时/召回时由 Arrive/Recall 负责下船, 所以这里直接放行, 一个字都不改。
+                if (NavalTransport.InConvoy(p.StringId)) return;
                 bool land = true;
                 try { land = p.HasLandNavigationCapability; } catch { }
                 if (!land)
@@ -990,17 +1195,27 @@ namespace FeudalInternalAffairs
                 }
                 catch { }
                 // v4.95: 部队若在定居点内(卡在城里), 移到城门外空地
+                // v4.254: 加去抖 —— 每次玩家命令都会走到这里(TakeOver -> EnsureNavigation), 原来连点 6 次
+                //   "前往"就把同一支部队瞬移出城 6 次(日志实证: 5 秒内两支军团 12 次), 部队在城门/城内
+                //   之间来回跳, 玩家看到"点了没反应/停在半路"。现在同一支部队每天最多搬一次。
                 try
                 {
                     if (p.CurrentSettlement != null)
                     {
-                        var st = p.CurrentSettlement;
-                        var gate = st.GatePosition;
-                        if (gate.ToVec2().Distance(st.Position.ToVec2()) > 0.1f)
+                        int today = Politics.Today();
+                        int pulled;
+                        if (_pullOutDay.TryGetValue(p.StringId, out pulled) && pulled == today) { }
+                        else
                         {
-                            p.Position = gate;
-                            try { p.MovePartyToTheClosestLand(); } catch { }
-                            DLog.Force("国防军: 部队位于城(定居点)内, 已移出到城门外 " + MapSelection.NameOf(p));
+                            _pullOutDay[p.StringId] = today;
+                            var st = p.CurrentSettlement;
+                            var gate = st.GatePosition;
+                            if (gate.ToVec2().Distance(st.Position.ToVec2()) > 0.1f)
+                            {
+                                p.Position = gate;
+                                try { p.MovePartyToTheClosestLand(); } catch { }
+                                DLog.Force("国防军: 部队位于城(定居点)内, 已移出到城门外 " + MapSelection.NameOf(p));
+                            }
                         }
                     }
                 }
@@ -1183,6 +1398,9 @@ namespace FeudalInternalAffairs
                 catch { }
                 var rec = GetGarrisonRec(home.StringId, true);
                 if (rec != null) rec.Placed = Math.Max(0, rec.Placed - moved);
+                // v4.255: 先把这批兵在守备营账上已有的装备转进军团快照, 再补装 ——
+                //   否则同一批兵募兵时领一次、建军时又按 NeedOf 领一次
+                TransferGarrisonEquip(lg, rec, moved, rec != null ? rec.Placed : 0);
                 EquipLegion(lg, 1f);          // 从国家军械库领装(100%), 满足率据实更新
 
                 Spend(cost);
@@ -1298,9 +1516,11 @@ namespace FeudalInternalAffairs
                 {
                     var p = list[i];
                     if (ReferenceEquals(p, main)) continue;
-                    int men = p.MemberRoster.TotalManCount;
+                    int men = RegularsOf(p);   // v4.255: 正兵口径
                     int moved = MoveDefTroops(p.MemberRoster, main.MemberRoster, culture, men);
                     total += moved;
+                    // v4.255: 逐人熟练度/个人击杀随兵并入主军团(原来只搬原版兵, 逐人表整段丢)
+                    try { Soldiers.Merge(main, p); } catch { }
                     var lg = LegionOf(p);
                     if (lg != null)
                     {
@@ -1362,9 +1582,16 @@ namespace FeudalInternalAffairs
                 var mr = new TroopRoster(party.Party);
                 int moved = MoveDefTroops(p.MemberRoster, mr, home.Culture, want);
                 party.InitializeMobilePartyAtPosition(mr, new TroopRoster(party.Party), p.Position, false);
+                // v4.255: 逐人表按比例分给新军团(原来 Split 零调用 -> 新军团熟练度回初值、
+                //   掷弹兵/胸甲骑兵的 80 熟练与累计击杀全丢, 原队只能由 Reconcile 从表尾截断)
+                try { Soldiers.Split(p, party, regs > 0 ? moved / (float)regs : 0f); } catch { }
                 try { party.Party.SetCustomName(new TextObject(LegionName(number))); } catch { }
                 try { party.SetCustomHomeSettlement(home); } catch { }
-                try { party.Ai.SetDoNotMakeNewDecisions(true); party.SetMoveModeHold(); } catch { }
+                // v4.254: 不再对新拆出的军团设 SetDoNotMakeNewDecisions(true)+SetMoveModeHold()。
+                //   原版 AI 决策已由 DefArmyAi.AiGuard(屏蔽 MobilePartyAi.TickInternal) 挡掉, 再设这两个标志
+                //   会让 native 侧疑似冻结移动 —— v4.90 已确认它是"指挥不动"的根因并在 TakeOver 里删掉,
+                //   但**拆分这条路径漏改了**, 于是拆出来的新军团点[驻防]/点地图都不动。
+                try { party.Ai.SetDoNotMakeNewDecisions(false); } catch { }
                 var nl = new DefLegion
                 {
                     PartyId = pid,
@@ -1375,6 +1602,7 @@ namespace FeudalInternalAffairs
                     Task = "驻守",
                     Comp = null,                 // 由实际名单折算(CompOf)
                     EquipTier = lg.EquipTier,
+                    PlayerHold = lg.PlayerHold,   // v4.254: 拆分出的新军团继承"玩家接管"(否则刚拆出来就被 AI 调走)
                     Supports = CopySupports(lg.Supports),
                     EquipFill = 1f,
                     Training = lg.Training,
@@ -1417,7 +1645,8 @@ namespace FeudalInternalAffairs
             {
                 var lg = LegionOf(p);
                 if (lg == null) return "只能解散国防军野战军团";
-                int men = p.MemberRoster.TotalManCount;
+                int men = RegularsOf(p);   // v4.255: 正兵口径(不含将军) —— 原来按 TotalManCount 算,
+                                           //   100 人军团按 101 收遣散费/守备营多记 1 人/强制遣散多还 1 人口
                 var home = HomeOf(lg);
                 var target = GarrisonTarget(home);
                 int cost = men * DisbandCost;
@@ -1510,6 +1739,11 @@ namespace FeudalInternalAffairs
                 int lv = Politics.LawLevel(2);
                 if (s == null || lv <= 0) return 0;
                 float mult = 0.10f * (1f + lv * 0.05f);
+                // v4.266: 征兵类科技接进"可征人口"(征兵办公室 +15% / 义务兵役 +12% / 预备役 +9% / 战争宣传 +6%)
+                //   原来这四项只有"征召上限 +N%"一条落点, 聚落可征人口不吃科技
+                try { mult *= Research.ConscriptPoolMult(OurKingdom); } catch { }
+                // v4.266: 军事建筑"军营"(@recruit 5/8/12 每级) 接进可征人口 —— 征兵面板上的数字直接变大
+                try { mult *= 1f + MilBuildings.RecruitPoolBonusOf(s); } catch { }
                 // v4.122: 与"实际可征人口"同口径(原来只算单一阶层, 会与实际抽取对不上)
                 return (int)(RealCommonersOf(s) * mult);
             }
@@ -1553,6 +1787,11 @@ namespace FeudalInternalAffairs
                 if (s == null || n <= 0) return "请先选择征兵地";
                 var target = GarrisonTarget(s);
                 if (target == null) return "该聚落没有可驻防的城镇/城堡";
+                // v4.266: 军事建筑"军营"(@garrison) 守备营上限(与募兵同口径)
+                int gcap = MilBuildings.GarrisonCapOf(target);
+                int room = gcap - GarrisonMenOf(target.StringId);
+                if (room <= 0) return Fail("守备营已满(" + GarrisonMenOf(target.StringId) + "/" + gcap + "): 建「军营」提高守备营上限");
+                if (n > room) n = room;
                 var garrison = GarrisonPartyOf(target);
                 if (garrison == null) return "驻军不存在: " + target.Name;
 
@@ -1566,11 +1805,13 @@ namespace FeudalInternalAffairs
                 if (moved <= 0) return Fail("可征人口不足");
                 if (moved < n) { DLog.Force("征兵: 实际只征到 " + moved + "/" + n + " 人(人口池截断)"); n = moved; }
 
-                string equipMsg = DrawRecruitEquip(n, s.Culture);
+                Dictionary<string, int> taken;   // v4.255: 本次实际领到的装备
+                string equipMsg = DrawRecruitEquip(n, s.Culture, out taken);
 
                 AddComposition(garrison.MemberRoster, s.Culture, n);
                 var rec = GetGarrisonRec(target.StringId, true);
                 if (rec != null) rec.Placed += n;
+                AddGarrisonEquip(rec, taken);   // v4.255: 已领装备记进守备营账(建军/补员时转交, 不再重复领)
 
                 Conscripts.Add(new DefConscript { SettlementId = s.StringId, Count = n, ExpireDay = -1 });   // v4.239: 强制征兵无时效
 
@@ -1796,7 +2037,12 @@ namespace FeudalInternalAffairs
                     var rec = GetGarrisonRec(target.StringId, false);
                     if (rec != null) rec.Placed = Math.Max(0, rec.Placed - (c.Count - left));
                 }
-                ReturnSoldiersToCommoners(s, c.Count);
+                // v4.256: 人口必须还给**士兵实际所属的聚落**。征召记录里的 SettlementId 可能是附属村庄,
+                //   而兵员在 Soldiers 池里记的是 GarrisonTarget(村庄)=所属城镇 —— 原来传村庄, 池里查不到人
+                //   就一个平民都不返还(1:1 铁律被破坏, 平民池单调下降, 募兵/征兵/编制上限越来越低)。
+                Settlement back = null;
+                try { back = GarrisonTarget(s); } catch { }
+                ReturnSoldiersToCommoners(back != null ? back : s, c.Count);
             }
             catch { }
         }
@@ -1832,6 +2078,11 @@ namespace FeudalInternalAffairs
             try
             {
                 if (OurKingdom == null) return;
+                // v4.255: 同日防重 —— 读档路径(DefArmyBehavior.OnGameLoaded)无条件补结算一次,
+                //   反复读同一存档就能在不推进游戏日的情况下刷军饷/训练度/月结(日志实证同一天两次月结)。
+                //   _lastSettledDay 随存档落盘, 所以"读旧档"不会被上一局的高值卡住。
+                if (day == _lastSettledDay) return;
+                _lastSettledDay = day;
                 EnsureClan();
                 PayWages();
                 FeedLegions();
@@ -1853,7 +2104,13 @@ namespace FeudalInternalAffairs
         internal static string StanceNameOf(DefLegion lg) { return StanceNames[StanceOf(lg)]; }
 
         // 军饷系数(操练状态加练: 军饷 ×1.3)
-        internal static float WageMultOf(DefLegion lg) { return StanceOf(lg) == StanceDrill ? 1.3f : 1f; }
+        internal static float WageMultOf(DefLegion lg)
+        {
+            float m = StanceOf(lg) == StanceDrill ? 1.3f : 1f;
+            // v4.266: 军事统计 -6% 军饷(兵员/装备/粮秣统一造册 -> 军费效率); 落点 = 日军饷(DailyWageCost)
+            try { m *= 1f - Research.WageSave(OurKingdom); } catch { }
+            return m;
+        }
 
         // 军粮系数(行军 ×1.4; 征粮自给 = 0; 后勤天才 -25%)
         internal static float FoodMultOf(DefLegion lg)
@@ -1862,6 +2119,9 @@ namespace FeudalInternalAffairs
             if (StanceOf(lg) == StanceMarch) m *= 1.4f;
             if (StanceOf(lg) == StanceForage) m = 0f;
             if (HasTrait(lg, TraitLogistics)) m *= 0.75f;
+            // v4.266: 军事科技省粮(后勤学 -12% / 总参谋部 -5% / 预备役 -3%);
+            //   与 WarEconomy.ArmyFoodDaysOf 同口径, 军粮可支撑天数会一起变长
+            try { m *= Math.Max(0.4f, 1f - Research.FoodSave(OurKingdom)); } catch { }
             return m;
         }
 
@@ -1900,9 +2160,19 @@ namespace FeudalInternalAffairs
         }
 
         // 训练度 -> 战斗系数(0.8 ~ 1.2): 训练度 60 = ×1.04
+        // v4.266: 叠加军事科技训练加成(士官训练 +8 / 兵棋推演 +6 / 军事统计 +5 / 装甲部队 +4 / 突击队 +4 /
+        //   总参谋部 +3 / 军事航空 +3, 见 Research.TrainingBonus)。只改"战斗系数", 不写回 lg.Train —— 否则
+        //   存档会把加成当成训练度存下来, 读档再加一次(双算)。
         internal static float TrainMultOf(DefLegion lg)
         {
-            try { return 0.8f + 0.4f * (TrainLevelOf(lg) / 100f); } catch { return 1f; }
+            try
+            {
+                float t = TrainLevelOf(lg);
+                try { t += Research.TrainingBonus(OurKingdom); } catch { }
+                if (t > 100f) t = 100f;
+                return 0.8f + 0.4f * (t / 100f);
+            }
+            catch { return 1f; }
         }
 
         internal static float TrainMultOf(MobileParty p)
@@ -1960,12 +2230,22 @@ namespace FeudalInternalAffairs
         }
 
         // 交还军事总监(单支)
+        //   v4.273(审计 #4): PlayerHold 是**所有守卫的总开关** —— 周结 AI / 铁路运兵 / EnsureNavigation /
+        //   Hourly 的 SetMoveModeHold 全都先问它。原实现对海运中的军团也无条件置 false ⇒ 海运当天的
+        //   推进链路(DefaultBehavior=GoToSettlement / DesiredAiNavigationType=Naval)立刻被 AI 改回陆地目标,
+        //   军团带着一船人掉头回岸。现在: 海运中的军团**跳过**, 不改 PlayerHold/Task, 并给玩家中文提示。
+        //   (只改这一处判定, 本文件其它逻辑一字不动。)
         internal static string ReleaseToAi(MobileParty p)
         {
             try
             {
                 var lg = LegionOf(p);
                 if (lg == null) return "不是国防军野战军团";
+                if (p != null && NavalTransport.InConvoy(p.StringId))
+                {
+                    DLog.Force("军团交还拦截(海运中): " + MapSelection.NameOf(p) + " 保持玩家指挥");
+                    return "该军团正在海运途中, 不能交还军事总监 —— 请先到海军页[召回], 或等它到港下船后再交还";
+                }
                 lg.PlayerHold = false;
                 lg.Task = "驻守";
                 DLog.Force("军团交还: " + MapSelection.NameOf(p) + " 交还军事总监");
@@ -1975,21 +2255,33 @@ namespace FeudalInternalAffairs
         }
 
         // 交还军事总监(全军)
+        //   v4.273(审计 #4): 同上 —— 海运中的军团跳过(保留 PlayerHold), 并在返回值里如实说明跳过了几支,
+        //   免得玩家看到"已交还 N 支"却发现自己那支还在自己名下。
         internal static string ReleaseAllToAi()
         {
             try
             {
                 int n = 0;
+                int skipped = 0;
                 for (int i = 0; i < Legions.Count; i++)
                 {
                     var lg = Legions[i];
                     if (lg == null || !lg.PlayerHold) continue;
+                    if (NavalTransport.InConvoy(lg.PartyId))
+                    {
+                        skipped++;
+                        DLog.Force("军团交还拦截(海运中): " + lg.PartyId + " 保持玩家指挥");
+                        continue;
+                    }
                     lg.PlayerHold = false;
                     lg.Task = "驻守";
                     n++;
                 }
-                DLog.Force("军团交还: 全军 " + n + " 支交还军事总监");
-                return n > 0 ? ("已交还 " + n + " 支军团给军事总监(恢复自动调度)") : "没有玩家接管的军团";
+                DLog.Force("军团交还: 全军 " + n + " 支交还军事总监" + (skipped > 0 ? ("(海运中 " + skipped + " 支跳过)") : ""));
+                string tail = skipped > 0 ? (" · 海运途中 " + skipped + " 支未交还(请先召回或等其到港)") : "";
+                return n > 0
+                    ? ("已交还 " + n + " 支军团给军事总监(恢复自动调度)" + tail)
+                    : (skipped > 0 ? ("没有可交还的军团 —— " + skipped + " 支正在海运途中, 请先召回") : "没有玩家接管的军团");
             }
             catch { return "交还失败"; }
         }
@@ -2013,7 +2305,10 @@ namespace FeudalInternalAffairs
                 if (p == null || !p.IsActive) return false;
                 if (!IsDefArmyParty(p)) return true;          // 非国防军(领主军/联军)不受此约束
                 var lg = LegionOf(p);
-                if (lg == null) return true;
+                // v4.254: 登记表查不到但确实是国防军(id 前缀)时**不许** AI 动 —— 原来这里 return true,
+                //   一旦 Legion.PartyId 与部队 id 脱钩(重建/异常读档/合并), PlayerHold 保护就凭空失效,
+                //   军团立刻重新被军事总监和铁路 AI 调走。
+                if (lg == null) return false;
                 if (lg.PlayerHold) return false;              // 玩家接管中
                 if (CommandTimeout.IsCommanded(p)) return false;   // 玩家刚下过命令
                 if (MapSelection.Is(p)) return false;             // 玩家正选着它
@@ -2161,7 +2456,14 @@ namespace FeudalInternalAffairs
                     int want = (int)Math.Ceiling(men * FoodPerManPerDay * 2f);
                     int have = s.ItemRoster.GetItemNumber(grain);
                     int got = Math.Min(have, want);
-                    if (got > 0) s.ItemRoster.AddToCounts(grain, -got);
+                    if (got > 0)
+                    {
+                        s.ItemRoster.AddToCounts(grain, -got);
+                        // v4.290 修复: 与 FeedLegions 同一个问题 —— 征粮原先"只从聚落扣、不进部队",
+                        //   于是 lg.Starve 被清成 0(mod 以为自给自足), 而原版照样判定军团饥饿、
+                        //   照样按 14.87%/天逃兵。征粮必须是"把粮搬进部队", 不能只是账面自给。
+                        try { p.ItemRoster.AddToCounts(grain, got); } catch { }
+                    }
                 }
                 try { if (s.Town != null) s.Town.Loyalty = Math.Max(0f, s.Town.Loyalty - 0.4f); } catch { }
                 try { Politics.ConscriptGrievance = Math.Min(100f, Politics.ConscriptGrievance + 0.2f); } catch { }
@@ -2242,7 +2544,15 @@ namespace FeudalInternalAffairs
                     var p = LegionParty(lg);
                     if (p == null || !p.IsActive) continue;
                     int men = p.MemberRoster.TotalManCount;
+                    int regs = RegularsOf(p);   // v4.255: 逃散按正兵口径(不含将军)
                     int need = (int)Math.Ceiling(men * FoodPerManPerDay * FoodMultOf(lg));   // v4.243: 行军 ×1.4 / 征粮 0 / 后勤 -25%
+                    // v4.266: 军事建筑"补给站/军械库"(@supply) —— 驻地军需容量降低该军团日耗粮(与 WarEconomy 的军粮天数同口径)
+                    var h0 = HomeOf(lg);
+                    if (h0 != null)
+                    {
+                        float save = MilBuildings.SupplyFoodSaveOf(h0);
+                        if (save > 0f) need = (int)Math.Ceiling(need * (1f - save));
+                    }
                     if (StanceOf(lg) == StanceForage || need <= 0) { lg.Starve = 0; continue; }   // 征粮自行解决
                     var home = HomeOf(lg);
                     bool ok = false;
@@ -2252,6 +2562,19 @@ namespace FeudalInternalAffairs
                         if (have >= need)
                         {
                             home.ItemRoster.AddToCounts(grain, -need);
+                            // v4.290 修复(最严重的一条): 粮必须真的进部队。
+                            //   原版 FoodConsumptionBehavior.DailyTickParty 每天扣的是**部队自己的**
+                            //   ItemRoster, 判据 DoesPartyConsumeFood 含 LeaderHero.IsLord —— 而国防军将军
+                            //   正是 SetNewOccupation(Occupation.Lord), 三重命中无法逃逸。
+                            //   原先这里只从驻地粮仓扣、军团 ItemRoster 一件没收到 -> 吃光建军时原版给的
+                            //   15~30 单位谷物后永久饥饿 -> -30 士气, 且连续两天起每天再 -5(衰减后稳态 -50)
+                            //   -> 原版 PartyDesertionCampaignBehavior 真的会执行, 概率 1-0.2^((10-morale)/100)
+                            //   = 稳态 14.87%/天, 1000 人军团约 25~30 个衰减日被打残。
+                            //   更糟的是这些减员会被 Reconcile 记成"军损"并从士兵池扣人口(不回平民池),
+                            //   等于逃兵当阵亡记, 总人口单调下降。
+                            //   mod 自己的"休整 +1.5/日"走的是 ArmyDoctrine 的 Morale2 字典,
+                            //   根本不碰原版 RecentEventsMorale, 对逃兵判定毫无作用。
+                            try { p.ItemRoster.AddToCounts(grain, need); } catch { }
                             ok = true;
                         }
                     }
@@ -2259,7 +2582,7 @@ namespace FeudalInternalAffairs
                     lg.Starve++;
                     if (lg.Starve > 3)
                     {
-                        int desert = Math.Max(1, men / 50);
+                        int desert = Math.Max(1, regs / 50);
                         home = home != null ? home : FindSettlement(lg.HomeId);
                         int got = 0;
                         if (home != null && home.Culture != null)
@@ -2299,7 +2622,8 @@ namespace FeudalInternalAffairs
                         DLog.Force("国防军: " + LegionName(lg.Number) + " 编制消失(阵亡/被俘), 军损 " + men);
                         continue;
                     }
-                    int actual = p.MemberRoster.TotalHealthyCount;
+                    int actual = RegularsOf(p);   // v4.255: 正兵口径(含伤员, 不含将军) —— 原来用 TotalHealthyCount
+                                                  //   会把伤员也算成阵亡扣 pop, 并把 Expected 写成 101
                     if (actual < lg.Expected)
                     {
                         int d = lg.Expected - actual;
@@ -2349,8 +2673,10 @@ namespace FeudalInternalAffairs
                     var p = LegionParty(lg);
                     if (p != null && p.IsActive)
                     {
-                        ApplyMutinyPop(lg.HomeId, p.MemberRoster.TotalManCount);
-                        RemoveDefTroops(p.MemberRoster, CultureOfLegion(lg), p.MemberRoster.TotalManCount);
+                        // v4.255: 哗变按正兵口径(原来 TotalManCount 会把将军当兵还给人口/移除)
+                        int pm = RegularsOf(p);
+                        ApplyMutinyPop(lg.HomeId, pm);
+                        RemoveDefTroops(p.MemberRoster, CultureOfLegion(lg), pm);
                     }
                     RetireGeneral(lg.GeneralId);
                     try { if (p != null) DestroyPartyAction.ApplyForDisbanding(p, HomeOf(lg)); } catch { }
@@ -2535,9 +2861,18 @@ namespace FeudalInternalAffairs
                     var p = LegionParty(lg);
                     if (p == null || !p.IsActive) continue;
                     // v5.x AI: "AI*" 任务由军事总监接管(周结下令), 不再强制待命(否则会取消围城等指令)
+                    // v4.290 修复: 补上"驻守" —— ReleaseToAi/创建军团写的都是"驻守"(见 :1377/:1602/:2250/:2277),
+                    //   而这里原先只认"驻防/巡逻/AI*", 于是玩家一点[交还军事总监]就被 SetMoveModeHold() 按住,
+                    //   紧接着被原版 AI 接管(交还给的是原版 AI, 不是 mod 的军事总监)。
                     bool hasTask = lg.Task != null && (lg.Task.Contains("驻防") || lg.Task.Contains("巡逻")
+                        || lg.Task.Contains("驻守")
                         || lg.Task.StartsWith("AI", StringComparison.Ordinal));
                     bool commanded = CommandTimeout.IsCommanded(p) || MapSelection.Is(p);
+                    // v4.254: **玩家接管的军团不许被"强制待命"** —— 原来只要 10 秒指挥窗口一过、且没有
+                    //   驻防/巡逻/AI* 任务, 每小时整点就会被 SetMoveModeHold() 按住, 于是:
+                    //   ①"点城镇前往"走到城门附近(距离<1.5m 时驾驶目标被清)就被 Hold -> 停在城门外不进城;
+                    //   ②"攻击"没有目标点、窗口一过就被 Hold -> 攻击命令被取消(用户: 点了没反应)。
+                    if (lg.PlayerHold) continue;
                     if (!hasTask && !commanded)
                     {
                         try { p.SetMoveModeHold(); } catch { }
@@ -2704,8 +3039,12 @@ namespace FeudalInternalAffairs
                 var garrison = GarrisonPartyOf(home);
                 if (garrison == null || home.Culture == null) return "驻地没有守备营";
                 int cur = RegularsOf(p);   // v4.87: 容量按正兵算
-                int room = MaxLegionMen - cur;
-                if (room <= 0) return "军团已满员";
+                // v4.256: 补员必须看**编制上限**(其余三个入口都已用 CommandLimitOf) ——
+                //   原来用 MaxLegionMen(100 万), 这条路能把军团一路补到百万级, 组织度被超编惩罚
+                //   压到 0.6 而军务页不显示(界面审计发现)。
+                int room;
+                try { room = ArmyDoctrine.CommandLimitOf(p) - cur; } catch { room = MaxLegionMen - cur; }
+                if (room <= 0) return "军团已满编(编制 " + cur + ")";
                 int avail = GarrisonMenOf(home.StringId);   // v4.90: 账面口径
                 if (avail <= 0) return "驻地守备营没有可调兵员(先募兵)";
                 int n = Math.Min(Math.Min(want, room), avail);
@@ -2713,6 +3052,9 @@ namespace FeudalInternalAffairs
                 int moved = MoveDefTroops(garrison.MemberRoster, p.MemberRoster, home.Culture, n);
                 var rec = GetGarrisonRec(home.StringId, true);
                 if (rec != null) rec.Placed = Math.Max(0, rec.Placed - moved);
+                // v4.255: 补进来的兵, 装备从守备营账转交(避免月结时按全额再领一遍)
+                TransferGarrisonEquip(lg, rec, moved, rec != null ? rec.Placed : 0);
+                try { RefreshFill(lg); } catch { }
                 lg.Expected = RegularsOf(p);
                 string msg = "补员 " + moved + " 人 → " + MapSelection.NameOf(p) + "(编制 " + RegularsOf(p) + ")";
                 DLog.Force("国防军: " + msg);
@@ -2999,7 +3341,8 @@ namespace FeudalInternalAffairs
                 var garrison = GarrisonPartyOf(city);
                 if (garrison == null || city.Culture == null) return "该城没有守备营";
                 int cur = RegularsOf(p);
-                int room = MaxLegionMen - cur;
+                int room;
+                try { room = ArmyDoctrine.CommandLimitOf(p) - cur; } catch { room = MaxLegionMen - cur; }   // v4.256: AI 补员同口径(原来也用 MaxLegionMen)
                 if (room <= 0) return "军团已满员";
                 int avail = GarrisonMenOf(city.StringId);
                 if (avail <= 0) return "该城守备营没有可调兵员";
@@ -3206,10 +3549,15 @@ namespace FeudalInternalAffairs
                     need = Equipment.NeedOf(CompOf(lg), TierOf(lg), lg.Supports);
                     AddMachineGunNeed(need, lg);
                     AddHelmetNeed(need, lg);
+                    AddTechGearNeed(need, lg);     // v4.266: 化学战 -> 毒气炮弹
                     return need;
                 }
 
                 int tier = TierOf(lg);
+                // v4.266: 军事建筑"马厩"(@cavalry 10/15/23 每级) -> 骑兵补充: 驻地马匹需求按比例下调
+                //   (需求降 -> 满足率与补装压力同步下降 -> 骑兵/龙骑兵/骑炮兵能真正拉起来)
+                float cavSupply = 0f;
+                try { cavSupply = MilBuildings.CavalrySupplyOf(MilBuildings.HomeOf(LegionParty(lg))); } catch { }
                 foreach (var kv in units)
                 {
                     var u = Equipment.Unit(kv.Key);
@@ -3220,6 +3568,11 @@ namespace FeudalInternalAffairs
                         if (pick == null) continue;
                         int q = (int)Math.Ceiling(u.Req[r].Per100 * (double)kv.Value / 100.0);
                         if (q <= 0) continue;
+                        if (cavSupply > 0f && (u.Req[r].Tag == EquipTag.AnyHorse || u.Req[r].Tag == EquipTag.HeavyHorse))
+                        {
+                            q = (int)Math.Ceiling(q * (1.0 - cavSupply));
+                            if (q <= 0) q = 1;
+                        }
                         int old;
                         need.TryGetValue(pick.Id, out old);
                         need[pick.Id] = old + q;
@@ -3239,6 +3592,7 @@ namespace FeudalInternalAffairs
                 }
                 AddMachineGunNeed(need, lg);   // v4.241: 机枪 1 挺/百人(27.2 炮数口径)
                 AddHelmetNeed(need, lg);       // v4.241: 钢盔(附加件, 不计入满足率)
+                AddTechGearNeed(need, lg);     // v4.266: 化学战 -> 毒气炮弹(每 200 人 1 发)
             }
             catch { }
             return need;
@@ -3265,6 +3619,29 @@ namespace FeudalInternalAffairs
                 string ammo = "ammo_kit";
                 need.TryGetValue(ammo, out old);
                 need[ammo] = old + guns;                       // 弹药组: 机枪 1 套/挺
+            }
+            catch { }
+        }
+
+        // v4.266: 科技专属器材需求(照 AddMachineGunNeed 口径) —— 化学战"毒气炮弹"(gas_shell):
+        //   解锁后每 200 人配 1 发, 自动进入军团装备需求/满足率/工厂订单/装备快照;
+        //   炮击阶段取快照里最强一门炮(CannonStatsOf); v4.268 起毒气炮弹 Dmg 205 < 后装线膛炮 210,
+        //   所以它不会抬高炮击伤害 —— 化学战的价值是"稀缺特种弹需求 + 战术进攻 +3%"(见 Research.TacticOffense)。
+        //   该型号只带 HeavyGun 标签且排在既有型号之后, 不会顶掉野战/攻城炮兵的选型(PickForTag 同级取先出现的)。
+        private static void AddTechGearNeed(Dictionary<string, int> need, DefLegion lg)
+        {
+            try
+            {
+                if (need == null || lg == null) return;
+                if (!Research.Mil(OurKingdom, "chemical_warfare")) return;
+                var p = LegionParty(lg);
+                int men = p != null ? RegularsOf(p) : 0;
+                if (men <= 0) return;
+                int shells = (int)Math.Ceiling(men / 200.0);
+                if (shells <= 0) return;
+                int old;
+                need.TryGetValue("gas_shell", out old);
+                need["gas_shell"] = old + shells;
             }
             catch { }
         }
@@ -3298,6 +3675,21 @@ namespace FeudalInternalAffairs
             try
             {
                 if (p == null) return r;
+                // v4.267: 玩家方(玩家家族部队/国防军)走逐人表; AI 部队不再建表, 改为按原版兵种折算的
+                //   轻量口径(不缓存跨调用)。两者在"首次折算"时结果一致, 所以 AI 的兵种占比/战斗力不掉。
+                if (!Soldiers.IsPlayerSideParty(p))
+                {
+                    var lm = Soldiers.LightUnitMen(p, null);
+                    if (lm == null) return r;
+                    foreach (var kv in lm)
+                    {
+                        if (kv.Value <= 0) continue;
+                        int old;
+                        r.TryGetValue(kv.Key, out old);
+                        r[kv.Key] = old + kv.Value;
+                    }
+                    return r;
+                }
                 Dictionary<string, int> men;
                 Dictionary<string, float> profs;
                 Soldiers.Aggregate(p, out men, out profs);
@@ -3316,12 +3708,56 @@ namespace FeudalInternalAffairs
             return r;
         }
 
+        // v4.267: 战斗快照用重载 —— 传入 call-local 缓存, 把同一场战斗里 N 次 ShareOf 的重复折算摊掉
+        //   (AI 部队每次 ShareOf 否则都要重新按名册折算一遍)
+        internal static Dictionary<int, int> UnitMenOfCached(MobileParty p, Dictionary<string, Dictionary<int, int>> cache)
+        {
+            var r = new Dictionary<int, int>();
+            try
+            {
+                if (p == null) return r;
+                if (!Soldiers.IsPlayerSideParty(p))
+                {
+                    var lm = Soldiers.LightUnitMen(p, cache);
+                    if (lm == null) return r;
+                    foreach (var kv in lm)
+                    {
+                        if (kv.Value <= 0) continue;
+                        int old;
+                        r.TryGetValue(kv.Key, out old);
+                        r[kv.Key] = old + kv.Value;
+                    }
+                    return r;
+                }
+                return UnitMenOf(p);
+            }
+            catch { return r; }
+        }
+
         // 某兵种在军团里的占比(0~1); 兵种特性按占比折算, 避免"塞 1 个掷弹兵全军团 +20%"
         internal static float ShareOf(MobileParty p, int unitIdx)
         {
             try
             {
                 var m = UnitMenOf(p);
+                if (m.Count == 0) return 0f;
+                int total = 0, mine = 0;
+                foreach (var kv in m)
+                {
+                    total += kv.Value;
+                    if (kv.Key == unitIdx) mine += kv.Value;
+                }
+                return total > 0 ? mine / (float)total : 0f;
+            }
+            catch { return 0f; }
+        }
+
+        // v4.267: 战斗快照专用(带缓存); 与 ShareOf 同口径
+        internal static float ShareOfCached(MobileParty p, int unitIdx, Dictionary<string, Dictionary<int, int>> cache)
+        {
+            try
+            {
+                var m = UnitMenOfCached(p, cache);
                 if (m.Count == 0) return 0f;
                 int total = 0, mine = 0;
                 foreach (var kv in m)
@@ -3382,6 +3818,14 @@ namespace FeudalInternalAffairs
                     if (Equipment.HasTag(def, EquipTag.MachineGun)) continue;   // 机枪不算炮
                     if (def.Dmg > dmg) dmg = def.Dmg;
                     if (def.Pen > pen) pen = def.Pen;
+                }
+                // v4.266: 化学战 -> 毒气炮弹。军械库还没入库该型号时也按战术条令口径计,
+                //   保证"研究完立刻看得见"(炮击阶段的炮伤害/战报), 入库后由快照同一口径接管。
+                //   v4.268: 230 -> 205(低于后装线膛炮 210): 特种弹只提供稀缺需求 + 战术进攻 +3%, 不替代主炮。
+                if (Research.Mil(OurKingdom, "chemical_warfare"))
+                {
+                    if (dmg < 205f) dmg = 205f;
+                    if (pen < 125f) pen = 125f;
                 }
             }
             catch { }
@@ -3825,7 +4269,7 @@ namespace FeudalInternalAffairs
         internal static bool Converted;   // FIA_Converted 标记(防重复; 由 SoldiersBehavior 落盘)
 
         // 新战役首次进入地图执行一次; 旧档缺标记宽容补跑一次(28.12)
-        // TEMP 测试: 给玩家国家与家族塞满全套装备(39 型号 x 10 万), 上线前删
+        // TEMP 测试: 给玩家国家与家族塞满全套装备(40 型号 x 200 件; v4.266 起目录含毒气炮弹), 上线前删
         internal static void DebugFillPlayer()
         {
             try
@@ -3855,6 +4299,10 @@ namespace FeudalInternalAffairs
             try
             {
                 if (TempFilled) return;
+                // v4.256: 只在**开局**发放一次 —— TempFilled 是进程内静态标记, 退出重进就清零,
+                //   于是每次读档又 +1 亿(日志实证: 同一存档三次读档 100,006,934 -> 100,011,798 -> 199,984,436)。
+                //   判据用"国库里还没有这笔钱": 已有钱就直接标记为已发, 不再重复注入。
+                if (EconomyWorld.Treasury.Gold >= 1000000) { TempFilled = true; return; }
                 if (Clan.PlayerClan == null || Clan.PlayerClan.Kingdom == null) return;
                 TempFilled = true;
                 DebugFillPlayer();     // TEMP
@@ -3951,6 +4399,45 @@ namespace FeudalInternalAffairs
         }
 
         // ==================== 存档 ====================
+        // v4.255: 守备营装备账 <-> 文本(型号:件数, @ 分隔)
+        private static string EquipLedgerText(Dictionary<string, int> d)
+        {
+            try
+            {
+                if (d == null || d.Count == 0) return "";
+                var sb = new StringBuilder();
+                foreach (var kv in d)
+                {
+                    if (kv.Value <= 0 || string.IsNullOrEmpty(kv.Key)) continue;
+                    if (sb.Length > 0) sb.Append('@');
+                    sb.Append(kv.Key).Append(':').Append(kv.Value);
+                }
+                return sb.ToString();
+            }
+            catch { return ""; }
+        }
+
+        private static void ParseEquipLedger(Dictionary<string, int> d, string text)
+        {
+            try
+            {
+                if (d == null || string.IsNullOrEmpty(text)) return;
+                foreach (var pair in text.Split('@'))
+                {
+                    if (string.IsNullOrEmpty(pair)) continue;
+                    int at = pair.LastIndexOf(':');
+                    if (at <= 0) continue;
+                    int n;
+                    if (!int.TryParse(pair.Substring(at + 1), out n) || n <= 0) continue;
+                    string id = pair.Substring(0, at);
+                    int old;
+                    d.TryGetValue(id, out old);
+                    d[id] = old + n;
+                }
+            }
+            catch { }
+        }
+
         internal static string Save()
         {
             try
@@ -3980,6 +4467,8 @@ namespace FeudalInternalAffairs
                     var g = Garrisons[i];
                     if (i > 0) sb.Append('|');
                     sb.Append(g.SettlementId).Append(',').Append(g.Placed).Append(",0");   // 旧 LowEquip 位占位(兼容旧档索引)
+                    // v4.255: 第 4 位 = 守备营装备账(型号:件数, @ 分隔; 无则空)
+                    sb.Append(',').Append(EquipLedgerText(g.Equip));
                 }
                 sb.Append(';');
                 for (int i = 0; i < Conscripts.Count; i++)
@@ -3989,6 +4478,8 @@ namespace FeudalInternalAffairs
                     sb.Append(c.SettlementId).Append(',').Append(c.Count).Append(',').Append(c.ExpireDay).Append(',').Append(c.Standing ? 1 : 0);
                 }
                 sb.Append(';');
+                // v4.255: 追加第 7 段 = 欠饷警告标记 + 上次日结日(旧档无此段 -> 默认 false/-1, 索引不冲突)
+                sb.Append(MutinyWarned ? 1 : 0).Append(',').Append(_lastSettledDay);
                 return sb.ToString();
             }
             catch { return ""; }
@@ -4007,6 +4498,15 @@ namespace FeudalInternalAffairs
                 ClanId = seg[1] ?? "";
                 int u;
                 if (seg.Length > 2 && int.TryParse(seg[2], out u)) UnpaidDays = u;
+                // v4.255: MutinyWarned/上次日结日落盘 —— 原来 MutinyWarned 没存,
+                //   读档后欠饷≥7 天会重复 -30 士气; 日结日用于同日防重
+                if (seg.Length > 6 && !string.IsNullOrEmpty(seg[6]))
+                {
+                    var v6 = seg[6].Split(',');
+                    MutinyWarned = v6[0] == "1";
+                    int ld;
+                    if (v6.Length > 1 && int.TryParse(v6[1], out ld)) _lastSettledDay = ld;
+                }
                 if (seg.Length > 3) foreach (var line in seg[3].Split('|'))
                 {
                     if (string.IsNullOrEmpty(line)) continue;
@@ -4044,7 +4544,10 @@ namespace FeudalInternalAffairs
                     var f = line.Split(',');
                     if (f.Length < 3) continue;
                     // f[2] = 旧 LowEquip, 已废弃(读到忽略)
-                    if (!string.IsNullOrEmpty(f[0])) Garrisons.Add(new DefGarrison { SettlementId = f[0], Placed = PI(f[1]) });
+                    if (string.IsNullOrEmpty(f[0])) continue;
+                    var ng = new DefGarrison { SettlementId = f[0], Placed = PI(f[1]) };
+                    if (f.Length > 3) ParseEquipLedger(ng.Equip, f[3]);   // v4.255: 守备营装备账(旧档无 -> 空)
+                    Garrisons.Add(ng);
                 }
                 NormalizeGarrisons();   // v4.86: 合并同城重复守备营记录
                 if (seg.Length > 5) foreach (var line in seg[5].Split('|'))
@@ -4107,6 +4610,7 @@ namespace FeudalInternalAffairs
                 MilArmory.Reset();
                 EquipMigrationPending = false;
                 UnpaidDays = 0; TodayMilLoss = 0; MutinyWarned = false;
+                _lastSettledDay = -1;   // v4.255: 新战役重开日结防重
                 TroopCache.Clear();
                 Converted = false;   // 28.2: 新战役重新建档转化
                 TempFilled = false;  // TEMP: 新战役重新补给

@@ -43,15 +43,20 @@ namespace FeudalInternalAffairs
                 int day = Politics.Today();
                 Active = true;
                 StartDay = day;
-                EndDay = day + DurationDays + EquipDurationBonus();   // v4.241: 电报机"动员 +15%"
+                // v4.266: 军事科技"预备役" -> 动员窗口 +25%(有预备役名册, 一次动员能撑更久);
+                //   落点 = 动员持续天数, UI"动员状态(剩余 N 天)"直接变长
+                int techDays = 0;
+                try { techDays = (int)Math.Round(DurationDays * Research.MobilizeDaysBonus(k)); } catch { }
+                EndDay = day + DurationDays + EquipDurationBonus() + techDays;   // v4.241: 电报机"动员 +15%"
                 CallCount++;
                 // 动员冲击: 合法性 +2(同仇敌忾), 农民不满
                 Politics.Legitimacy = LawSystem.ClampF(Politics.Legitimacy + 2f, 0f, 100f);
                 InterestGroups.AddEventMod(6, -8);   // 农民被抽丁
                 InterestGroups.AddEventMod(7, 10);   // 军队振奋
-                InterestGroups.NotifyPlayer("⚔ 全国动员! 60 天内: 征召池 ×1.5 · 军事 +10% · 税收 -10%", true);
-                DLog.Force("动员: 开始(第 " + day + " 天)");
-                return "已发布动员令: 60 天(征召池 ×1.5, 军事 +10%, 税收 -10%)";
+                int total = DurationDays + EquipDurationBonus() + techDays;
+                InterestGroups.NotifyPlayer("⚔ 全国动员! " + total + " 天内: 征召池 ×1.5 · 军事 +10% · 税收 -10%", true);
+                DLog.Force("动员: 开始(第 " + day + " 天, 持续 " + total + " 天)");
+                return "已发布动员令: " + total + " 天(征召池 ×1.5, 军事 +10%, 税收 -10%)";
             }
             catch { return "动员失败"; }
         }

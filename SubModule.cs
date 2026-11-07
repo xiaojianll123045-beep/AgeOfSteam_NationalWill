@@ -4,6 +4,7 @@ using Bannerlord.UIExtenderEx;
 using HarmonyLib;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
+using TaleWorlds.Localization;   // v4.261: 主菜单教程入口要用 TextObject
 using TaleWorlds.MountAndBlade;
 
 namespace FeudalInternalAffairs
@@ -94,6 +95,10 @@ namespace FeudalInternalAffairs
                     typeof(NoAiControlPatches.BlockMakePeace),
                     typeof(DefArmyPatches.PartySizeLimitPatch),
                     typeof(DefArmyPatches.DefArmyNoNativeWagePatch),   // v4.252: 国防军不吃原版军饷(军饷由 mod 收)
+                    // v4.290: 下面两个 patch DefaultClanFinanceModel.AddPartyExpense 的类**不在此注册** ——
+                    //   它们改到 OnGameStart 注册(理由见 OnGameStart 里"税收接管补丁"那段长注释:
+                    //   启动期处理 DefaultClanFinanceModel 会提前触发它的静态初始化, 而它的静态字段依赖
+                    //   Game.Current.GameTextManager -> TypeInitializationException -> 该类型永久不可用)。
                     typeof(DefArmyPatches.SpeedLockPatch),
                     typeof(DiplomacyPatches.AlwaysCanDeclareWar),
                     typeof(DiplomacyPatches.DeclareWarDirectly),
@@ -134,6 +139,16 @@ namespace FeudalInternalAffairs
                     typeof(NotificationFilter.DisplayMessageFilter),
                     typeof(DefArmyAi.AiGuard),
                     typeof(DefArmyAi.NoAutoRecruit),
+                    // v4.276: 舰队的"AI 守卫"(舰队必须能走, 又必须不被 AI 接管 —— 见 Navy\NavalTaskForceAi.cs)
+                    typeof(NavalTaskForceAi.NoInitiative),
+                    typeof(NavalTaskForceAi.LockBehavior),
+                    // v4.278(第 1 项 ★ P0): 水手工钱补丁 —— v4.277 写好了类却**漏登记**, 等于没打:
+                    //   原版照收舰队陆战部队工资(500 水手约 1200/日) + FIA 再收 250/日,
+                    //   且原版那笔不记 Fiscal 科目 ⇒ 面板只显示 250、国库实际少更多。与国防军那条(上面 :97)并列。
+                    typeof(NavalTaskForceAi.NoNativeWage),
+                    // v4.278(第 2 项 ★ P0): 就算工资清零了, 原版每天仍会从国库搬 5000/舰队 去"补足"舰队长的
+                    //   私人金库(反编译证据见该类长注释)。这条在源头整方法跳过, 只对 fia_navy_ 生效。
+                    typeof(NavalTaskForceAi.NoNativePartyExpense),
                     // 28.3 禁止原版军队入口(招募/升级/组建军团/解散劫持)
                     typeof(VanillaArmySuppress.HideTownRecruitMenu),
                     typeof(VanillaArmySuppress.HideVillageRecruitMenu),
@@ -174,6 +189,27 @@ namespace FeudalInternalAffairs
                 catch (Exception ex) { DLog.Force("装备科技校验异常: " + ex.Message); }
                 KingdomTraitPatches.NavalTraitPatches.Apply(HarmonyInstance);
                 NavalVisualGuard.Apply(HarmonyInstance);
+                // v4.277(审计 A10): 海上巡逻收益 —— 给 DLC 的 NavalSettlementPatrolModel.GetPatrolPartySpawnDuration
+                //   挂 Postfix(玩家王国港口巡逻队刷新周期 ÷ 巡逻科技系数)。DLC 缺失时内部直接跳过。
+                try { NavalPatrol.Apply(HarmonyInstance); } catch (Exception ex) { DLog.Force("海军巡逻补丁异常: " + ex.Message); }
+                // v4.278(第 1 项): 水手工钱补丁的**双保险** —— DLC 的 NavalDLCPartyWageModel.GetTotalWage
+                //   内部确实 `BaseModel.GetTotalWage(...)` 转调基类(反编译实证, 所以上面的 NoNativeWage 会触发),
+                //   但两个 Postfix 的先后不由我们决定, 且 DLC 那个 override 会拿 `totalWage.BaseNumber` 做除法。
+                //   这里用**反射**(NavalDLC.* 一律反射)在 DLC 类型上再挂一个 Prefix, 命中就直接跳过整段计算。
+                //   ★ 本调用是幂等的: 若此刻 NavalDLC.dll 还没加载(找不到类型)它只打一行日志,
+                //     OnGameStart 时会再调一次补齐 —— 所以这里失败不是错误。
+                try { NavalTaskForceAi.ApplyDlcWageGuard(HarmonyInstance); }
+                catch (Exception ex) { DLog.Force("海军工资双保险补丁异常: " + ex.Message); }
+                // v4.268: 海战 DLC 探测(纯反射探测 NavalDLC.dll 的类型, 不硬引用、不写进 SubModule.xml 依赖)
+                //   没装 DLC -> 整条海军功能静默降级(海军页显示"未检测到海战 DLC"), 其它系统完全不受影响
+                try
+                {
+                    if (NavalBridge.DlcLoaded)
+                        DLog.Force("海战 DLC: 已检测到 NavalDLC(海军层启用; 港口 " + NavalBridge.AllPorts().Count + " 处)");
+                    else
+                        DLog.Force("海战 DLC: 未安装 -> 海军功能整体降级(不影响其它系统)");
+                }
+                catch (Exception ex) { DLog.Force("海战 DLC 探测异常(按未安装处理): " + ex.Message); }
                 TerritoryColorMode.NameplateWidgetPatch.Apply(HarmonyInstance);
                 MapInfoSelectionPatch.OverrideInfoNaval.Apply(HarmonyInstance);
 
@@ -196,6 +232,86 @@ namespace FeudalInternalAffairs
             base.OnBeforeInitialModuleScreenSetAsRoot();
             try { ModConflictGuard.TryPopup(); }
             catch (Exception ex) { DLog.Force("冲突弹窗异常: " + ex.Message); }
+            // v4.261: 主菜单加「蒸汽时代教程」入口(点击 = 教程模式 + 开新战役)
+            try { RegisterTutorialEntry(); }
+            catch (Exception ex) { DLog.Force("教程入口注册异常: " + ex.Message); }
+        }
+
+        // ==================== v4.261: 主菜单「蒸汽时代教程」 ====================
+        //   用户要求: 教程不强制 —— 正常点[战役]开始的游戏全程无引导; 想学就点这个入口,
+        //   它会打开"教程模式"再转交给原版的新战役按钮, 于是接下来: 选国 -> 挑战链逐步引导。
+        internal const string TutorialOptionId = "AoSSteamTutorial";
+
+        private static void RegisterTutorialEntry()
+        {
+            var mod = Module.CurrentModule;
+            if (mod == null) return;
+            try { if (mod.GetInitialStateOptionWithId(TutorialOptionId) != null) return; } catch { }
+            var opt = new InitialStateOption(
+                TutorialOptionId,
+                new TextObject("蒸汽时代教程"),
+                9001,
+                StartTutorialCampaign,
+                () => (false, new TextObject("")),
+                new TextObject("带你走一遍这套系统: 选国 → 经济 → 建军 → 立法 → 科技(以沙盒模式开局, 不带原版主线与新手教程)"),
+                () => false);
+            mod.AddInitialStateOption(opt);
+            DLog.Force("教程入口: 主菜单已注册「蒸汽时代教程」");
+        }
+
+        private static void StartTutorialCampaign()
+        {
+            try
+            {
+                Guide.TutorialMode = true;
+                var mod = Module.CurrentModule;
+                // v4.261b: 教程局要的是**沙盒模式**入口 —— 战役(Campaign/StoryMode)会带上骑砍原版新手教程
+                //   与龙旗主线任务, 混进我们的引导里很乱。这里不硬编码 id(沙盒按钮不在 SandBox.dll 里注册),
+                //   改为运行时枚举 + 关键字匹配, 沙盒优先、战役兜底。
+                try
+                {
+                    foreach (var o in mod.GetInitialStateOptions())
+                    {
+                        if (o == null) continue;
+                        string nm = o.Name != null ? o.Name.ToString() : "";
+                        bool hidden = false;
+                        try { hidden = o.IsHidden != null && o.IsHidden(); } catch { }
+                        DLog.Force("教程入口: 主菜单选项 id=" + o.Id + " 名称=" + nm + (hidden ? "(隐藏)" : ""));
+                    }
+                }
+                catch { }
+                string id = FindMenuOption(mod, "andbox");     // 沙盒(Sandbox)
+                if (id == null) id = FindMenuOption(mod, "沙盒");
+                if (id == null) id = FindMenuOption(mod, "ampaign");   // 兜底: 战役(会带原版教程/主线)
+                if (id == null) id = FindMenuOption(mod, "战役");
+                if (id != null)
+                {
+                    DLog.Force("教程入口: 教程模式已开启 -> 转交主菜单入口(" + id + ")");
+                    mod.ExecuteInitialStateOptionWithId(id);
+                }
+                else
+                {
+                    DLog.Force("教程入口: 未找到沙盒/战役入口 —— 教程模式已开启, 请手动点[沙盒]开始");
+                    try { MapSelection.Message("教程模式已开启: 请手动点[沙盒]开始新游戏, 选国后教程会自动开始"); } catch { }
+                }
+            }
+            catch (Exception ex) { DLog.Force("教程入口启动异常: " + ex.Message); }
+        }
+
+        // 按关键字(不区分大小写)在主菜单选项里找一个: 先比 id, 再比显示名
+        private static string FindMenuOption(Module mod, string key)
+        {
+            try
+            {
+                foreach (var o in mod.GetInitialStateOptions())
+                {
+                    if (o == null || string.IsNullOrEmpty(o.Id)) continue;
+                    if (o.Id.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0) return o.Id;
+                    if (o.Name != null && o.Name.ToString().IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0) return o.Id;
+                }
+            }
+            catch { }
+            return null;
         }
 
         // 前 10 秒内持续尝试屏蔽外部 RTS 模块(它们的程序集可能比我们晚加载)
@@ -211,6 +327,32 @@ namespace FeudalInternalAffairs
             base.OnGameStart(game, gameStarterObject);
             try
             {
+                // v4.278(第 1 项): DLC 工资双保险补丁的**兜底重试** —— OnSubModuleLoad 时若 NavalDLC.dll
+                //   尚未进入 AppDomain, 那次调用只打了日志; 到这里所有模块的程序集都加载完了, 必能命中。
+                //   方法内部幂等(已打过就跳过), 所以重复调用无副作用。
+                try { NavalTaskForceAi.ApplyDlcWageGuard(HarmonyInstance); }
+                catch (Exception exD) { DLog.Force("海军工资双保险补丁(OnGameStart 重试)异常: " + exD.Message); }
+                // ==================== v4.290: 税收接管补丁必须在**这里**注册 ====================
+                // ★ 不能放进上面那个启动期数组。实测崩因链(已由完整堆栈确证):
+                //   放进数组 -> Harmony 在 OnSubModuleLoad 阶段就去处理 DefaultClanFinanceModel.AddSettlementIncome
+                //   -> 该类型的静态初始化被**提前**触发, 而它的静态字段是
+                //        private static readonly TextObject _xxx = Game.Current.GameTextManager.FindText("...");
+                //      —— 此时 Game.Current 还是 null -> TypeInitializationException。
+                //   更严重的是: 类型一旦被判"初始化失败", **之后每次访问都抛**(不可恢复), 于是:
+                //        MapScreen..ctor -> GauntletMapBarGlobalLayer.Initialize -> MapBarVM.Initialize
+                //        -> MapInfoVM.UpdatePlayerInfo -> CalculateClanGoldChange -> 炸
+                //        -> FinalizeCharacterCreationState 失败 -> 角色创建无法结束
+                //        -> 玩家卡在原版"文化列表"选国界面(而且选完就崩)。
+                //   到这里(Campaign.OnInitialize 的 OnGameStart 阶段)Game.Current / GameTextManager 都已就绪。
+                try
+                {
+                    HarmonyInstance.CreateClassProcessor(typeof(KingdomTraitPatches.PlayerSettlementIncomeTakeover)).Patch();
+                    // 同批: [原版补金库 5000] 与 [领主军军饷双扣] —— 它们也 patch 同一个类型
+                    //   (DefaultClanFinanceModel.AddPartyExpense), 一并延后到 Game.Current 就绪之后再挂。
+                    HarmonyInstance.CreateClassProcessor(typeof(DefArmyPatches.DefArmyNoNativePartyExpensePatch)).Patch();
+                    HarmonyInstance.CreateClassProcessor(typeof(DefArmyPatches.LordArmyNoNativeExpensePatch)).Patch();
+                }
+                catch (Exception exT) { DLog.Force("财政类补丁(OnGameStart)异常: " + exT.Message); }
                 // 商品注册必须早于存档数据加载(读档时 SyncData 在 OnGameInitializationFinished 之前跑)
                 if (game != null && game.GameType is Campaign) FeudalItems.Register(game, "OnGameStart");
                 if (gameStarterObject is CampaignGameStarter starter)
@@ -220,6 +362,7 @@ namespace FeudalInternalAffairs
                     starter.AddBehavior(new DiplomacyBehavior());
                     starter.AddBehavior(new DefArmyBehavior());
                     starter.AddBehavior(new SoldiersBehavior());   // 28.5: FIA_Soldiers/FIA_Converted 存档接线 + 建档转化入口
+                    starter.AddBehavior(new NavalBehavior());      // v4.268: 海军层(日结/存档键 FIA_Navy; 软依赖海战 DLC)
                     starter.AddModel(new FeudalCombatModel());   // v4.200: 接管坐镇指挥伤害(高级热武器高伤害)
                     DLog.Info("已注册 NationalWillBehavior / EconomyBehavior / DiplomacyBehavior / DefArmyBehavior");
                 }

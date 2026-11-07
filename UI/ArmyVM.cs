@@ -453,6 +453,11 @@ namespace FeudalInternalAffairs
         [DataSourceProperty] public string ConscriptBtnCost { get { return _conscriptCost; } }
         [DataSourceProperty] public string FormLegionBtnText { get { return _formLegionBtn; } }
         [DataSourceProperty] public string StatusText { get { return _status; } }
+        // v4.258: 切页签时清掉上一页留下的操作结果(三个页签各有一份 @StatusText, 原来会串页显示)
+        internal void ClearStatus()
+        {
+            try { _status = ""; OnPropertyChangedWithValue("", "StatusText"); } catch { }
+        }
         [DataSourceProperty] public string LegionHelp { get { return _legionHelp; } }
         [DataSourceProperty] public string GarrisonHelp { get { return _garrisonHelp; } }
         [DataSourceProperty] public string RecruitHelp { get { return _recruitHelp; } }

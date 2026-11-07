@@ -65,6 +65,9 @@ namespace FeudalInternalAffairs
                 case Salt: return "特产: 盐滩产出; 腌制与调味";
                 case Silver: return "特产: 银矿产出; 贵金属, 高价商品";
                 case Spice: return "特产: 香料园产出; 最贵的贸易品";
+                // v4.273(B-4): 海战 DLC 的两种新商品(海上渔获的加工品)
+                case WalrusTusk: return "海象牙; 海上渔获的贵重产物(来自海战 DLC)";
+                case WhaleOil:   return "鲸油; 海上渔获的加工品, 照明与工业原料(来自海战 DLC)";
                 default: return "—";
             }
         }
@@ -104,6 +107,10 @@ namespace FeudalInternalAffairs
         internal const string Salt = "salt";
         internal const string Silver = "silver";
         internal const string Spice = "spice";
+
+        // ---- v4.273(B-4): 海战 DLC 的两种新商品(StringId 与 DLC 的 ItemCategory 一致) ----
+        internal const string WalrusTusk = "walrus_tusk";
+        internal const string WhaleOil = "whale_oil";
 
         // ---- v4.167: V3 化商品扩展(第 25 章, 33 种; 短名 Id, 物品 fia_ 前缀) ----
         internal const string Lead = "lead";
@@ -219,7 +226,16 @@ namespace FeudalInternalAffairs
             new GoodDef { Id = Aeroplanes, ItemId = "fia_aeroplanes", Name = "飞机", BasePrice = 80, Sprite = "fia_goods_iron",    IsNew = true, IsMilitary = true },
             // 本地(不可贸易)
             new GoodDef { Id = Electricity, ItemId = "fia_electricity", Name = "电力", BasePrice = 30, Sprite = "fia_goods_stone", IsNew = true },
-            new GoodDef { Id = Transportation, ItemId = "fia_transportation", Name = "运输", BasePrice = 30, Sprite = "fia_goods_stone", IsNew = true }
+            new GoodDef { Id = Transportation, ItemId = "fia_transportation", Name = "运输", BasePrice = 30, Sprite = "fia_goods_stone", IsNew = true },
+            // ================= v4.273(B-4): 海战 DLC 的两种新商品 =================
+            //   反编译实证: DLC 自己注册了 ItemCategory `walrus_tusk`(海象牙) 与 `whale_oil`(鲸油)
+            //   (NavalDLC.NavalItemCategories, DLC 反编译 5764-5800), 物品本体在 DLC 的 items.xml 里,
+            //   StringId 就是 "walrus_tusk" / "whale_oil"。**不是**本 mod 新建(IsNew=false), 所以
+            //   Item(id) 会走 ObjectManager 查原版/DLC 的物品定义; 没装 DLC 时查不到 -> 市场自动跳过,
+            //   零副作用(软依赖)。
+            //   分类: 都算"特产"(海上渔获的加工品), 于是市场"特产"过滤器里能看到、可自由贸易。
+            new GoodDef { Id = WalrusTusk, ItemId = "walrus_tusk", Name = "海象牙", BasePrice = 120, Sprite = "fia_goods_iron",  IsSpecialty = true },
+            new GoodDef { Id = WhaleOil,   ItemId = "whale_oil",   Name = "鲸油",   BasePrice = 90,  Sprite = "fia_goods_charcoal", IsSpecialty = true }
         };
 
         internal static readonly List<GoodDef> All = BuildAll();

@@ -49,10 +49,12 @@ namespace FeudalInternalAffairs
                 {
                     var g = sb.Groups[i];
                     if (g == null || g.Count <= 0) continue;
-                    if (g.DefId == "patrol") s += 0.2f * g.Count;
-                    else if (g.DefId == "watchtower") s += 0.1f * g.Count;
-                    else if (g.DefId == "militia_camp") s += 0.1f * g.Count;
+                    // v4.266: 治安改为读建筑效果 @security/@bandit(此前是硬编码建筑 id, "治安/剿匪"效果全代码没人读)
+                    //   巡逻营 3 级 = (8 + 12)×3 / 100 = 0.60, 与旧硬编码 0.2×3 等值 -> 不改既有平衡
+                    if (g.DefId == "watchtower") s += 0.1f * g.Count;      // 瞭望塔无 @security, 保留旧口径
+                    else if (g.DefId == "militia_camp") s += 0.1f * g.Count;   // 同上
                 }
+                s += MilBuildings.SecurityOf(sid);   // @security + |@bandit|
                 return s > 1f ? 1f : s;
             }
             catch { return 0f; }

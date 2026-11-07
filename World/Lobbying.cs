@@ -69,7 +69,10 @@ namespace FeudalInternalAffairs
                 var hero = TaleWorlds.CampaignSystem.Hero.MainHero;
                 if (hero == null) return "找不到君主。";
                 if (hero.Gold < d.Gold) return "金币不足(需 " + d.Gold + ", 现有 " + hero.Gold + ")。";
-                hero.ChangeHeroGold(-d.Gold);
+                // v4.290 记账修复: 原先裸 ChangeHeroGold, 连 Treasury.Gold 都不动、也不进科目 ——
+                //   改走统一入口(TreasurySpend 同时改 Treasury.Gold 与 hero.Gold) 并补记账。
+                EconomyWorld.TreasurySpend(d.Gold);
+                try { Fiscal.AddCourtPaid(d.Gold); } catch { }
                 LastDay[id] = Politics.Today();
                 if (d.Att != null)
                     for (int g = 0; g < d.Att.Length && g < InterestGroups.GroupCount; g++)

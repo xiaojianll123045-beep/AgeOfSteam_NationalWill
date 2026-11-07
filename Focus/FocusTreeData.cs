@@ -218,6 +218,10 @@ namespace FeudalInternalAffairs
         private static void Gold(int amount)
         {
             if (Hero.MainHero != null) GiveGoldAction.ApplyBetweenCharacters(null, Hero.MainHero, amount, true);
+            // v4.290 记账修复: 这一笔原先完全不入财政账 —— giver=null 表示"凭空创造"(不扣任何人),
+            //   次日又被 EconomyBehavior 的国库基线静默吸收, 于是国库凭空多出一笔而账本零记录
+            //   (f_market 一次 +12000)。记进"宫廷与外交往来"收入侧, 至少让财政页看得见。
+            try { if (amount > 0) Fiscal.AddCourtGot(amount); } catch { }
         }
 
         private static void Prosperity(float amount)

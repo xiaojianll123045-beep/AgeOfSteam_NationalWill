@@ -63,6 +63,7 @@ namespace FeudalInternalAffairs
                 case "diplomacy": return 540f;
                 case "build": return 480f;
                 case "national": return 520f;   // v4.150: 国家总页加宽
+                case "navy": return 860f;       // v4.268: 海军页(与军务页同宽)
                 default: return 500f;
             }
         }
@@ -201,6 +202,7 @@ namespace FeudalInternalAffairs
                 if (Open.ContainsKey("diplomacy")) return 540f;
                 if (Open.ContainsKey("build")) return 480f;
                 if (Open.ContainsKey("national")) return 520f;   // v4.150: 国家总页加宽
+                if (Open.ContainsKey("navy")) return 860f;       // v4.268: 海军页(消息流避让按真实宽度算)
             }
             catch { }
             return 0f;
@@ -301,6 +303,16 @@ namespace FeudalInternalAffairs
 
         internal static void ClearSpots() { Spots.Clear(); }
 
+        // v4.263: 持久热区 —— 教程浮窗这类"不属于任何侧边栏"的常驻窗口把按钮注册在这里,
+        //   各面板的 ClearSpots() 不会清掉它(否则教程窗按钮会被面板刷新顺手清空 -> 点了没反应)
+        private static readonly List<Spot> Persistent = new List<Spot>();
+        internal static void ClearPersistentSpots() { Persistent.Clear(); }
+        internal static void AddSpotPersistent(float x, float y, float w, float h, Action act)
+        {
+            try { Persistent.Add(new Spot { X = x, Y = y, W = w, H = h, Act = act }); }
+            catch { }
+        }
+
         internal static void AddSpot(float x, float y, float w, float h, Action act)
         {
             // 热区坐标全部按"面板内相对坐标"登记, 这里统一加上停靠偏移(面板在导航栏右侧)
@@ -334,12 +346,27 @@ namespace FeudalInternalAffairs
                 if (_leftWasDown) return;   // 只在按下那一瞬触发一次
                 _leftWasDown = true;
                 var m = TaleWorlds.InputSystem.Input.MousePositionPixel;
-                for (int i = 0; i < Spots.Count; i++)
+                // v4.263: 先判持久热区(教程浮窗等最上层窗口), 再判当前面板的热区
+                for (int i = Persistent.Count - 1; i >= 0; i--)
+                {
+                    var ps = Persistent[i];
+                    if (m.X >= ps.X && m.X <= ps.X + ps.W && m.Y >= ps.Y && m.Y <= ps.Y + ps.H)
+                    {
+                        DLog.Info("热区点击: 命中(浮窗) (" + (int)m.X + "," + (int)m.Y + ")");   // v4.267: 每次点击都记 -> 降噪, 不进正式日志
+                        _pendingAct = ps.Act;
+                        return;
+                    }
+                }
+                // v4.257: 命中判定改成"**后登记的热区优先**" —— 面板互斥切换时, 正在播关闭动画的旧面板
+                //   仍会每帧重注册热区(它比新面板更早进入 Open), 而原来是先入者优先 -> 点新面板的按钮
+                //   会被旧面板的热区吃掉(典型: 点刚打开的[成立军团]命中了上一页的[关闭])。
+                //   后登记优先后, 新面板的热区天然压过旧面板, 无需改动各页面板。
+                for (int i = Spots.Count - 1; i >= 0; i--)
                 {
                     var s = Spots[i];
                     if (m.X >= s.X && m.X <= s.X + s.W && m.Y >= s.Y && m.Y <= s.Y + s.H)
                     {
-                        DLog.Force("热区点击: 命中 (" + (int)m.X + "," + (int)m.Y + ")");
+                        DLog.Info("热区点击: 命中 (" + (int)m.X + "," + (int)m.Y + ")");   // v4.267: 每次点击都记 -> 降噪, 不进正式日志
                         _pendingAct = s.Act;   // 下一帧再执行
                         return;
                     }
@@ -382,6 +409,70 @@ namespace FeudalInternalAffairs
         {
             try { return TaleWorlds.Engine.Screen.RealScreenResolution.X; }
             catch { return 1920f; }
+        }
+
+        // ==================== v4.290: 设计单位 -> 像素 ====================
+        // 问题(实机探针确证, 1920×1200: UsableArea=(1,1) CustomScale=1.020408):
+        //   Gauntlet 的 prefab 里 SuggestedWidth/Height 与 Margin* 都是**设计单位**, 进布局时要乘
+        //   UIContext.CustomScale(见 GauntletUI: ScaledSuggestedWidth/ScaledMargin* = _scaleToUse × 原值)。
+        //   而热区一直用 `ScreenHeight() - d`(d = 距底边的设计距离), 把设计单位当像素用了。
+        //   偏移量 = d × (CustomScale − 1), 所以:
+        //     事件面板 d=72  -> 1.5px  (看得出来但不明显)
+        //     军团小窗 d=576 -> 11.8px (按钮高仅 46, 于是"中间能点、边缘点不动")
+        //   1440p 下 CustomScale≈1.333, d=576 会偏 192px —— 屏幕下半部热区基本报废。
+        // 下面用与 UIContext.UpdateScale() 相同的算法复刻 CustomScale(不需要 GauntletLayer 引用):
+        //   Scale = 画布高 / 1080; 画布宽高比 < 16:9×0.98 时再乘 (宽高比 / 该参考比)
+        //   本机复刻值 = (1200/1080) × (1.6/1.7422) = 1.02041 —— 与探针实测逐位吻合。
+        private static float _uiScale = -1f;
+
+        internal static float UiScale()
+        {
+            if (_uiScale > 0f) return _uiScale;
+            try
+            {
+                float h = ScreenHeight(), w = ScreenWidth();
+                if (h <= 1f) { _uiScale = 1f; return _uiScale; }
+                float s = h / 1080f;
+                try
+                {
+                    float ar = w / h;
+                    float refAr = (1920f / 1080f) * 0.98f;
+                    if (ar < refAr) s *= ar / refAr;
+                }
+                catch { }
+                _uiScale = s > 0.05f ? s : 1f;
+            }
+            catch { _uiScale = 1f; }
+            return _uiScale;
+        }
+
+        // 把"距屏幕底边 d 个设计单位"换算成真实屏幕 y。
+        // 用法: 原来写 `sh - 660 + 84` 的, 现在写 `PanelScreen.FromBottom(660f - 84f)`。
+        internal static float FromBottom(float d)
+        {
+            try { return ScreenHeight() - d * UiScale(); }
+            catch { return ScreenHeight() - d; }
+        }
+
+        // 把"距屏幕右边 d 个设计单位"换算成真实屏幕 x。
+        internal static float FromRight(float d)
+        {
+            try { return ScreenWidth() - d * UiScale(); }
+            catch { return ScreenWidth() - d; }
+        }
+
+        // 把"距屏幕左边 d 个设计单位"换算成真实屏幕 x。
+        internal static float FromLeft(float d)
+        {
+            try { return d * UiScale(); }
+            catch { return d; }
+        }
+
+        // 把"距屏幕顶边 d 个设计单位"换算成真实屏幕 y。
+        internal static float FromTop(float d)
+        {
+            try { return d * UiScale(); }
+            catch { return d; }
         }
 
         // 每帧由 FeudalMapView 调用

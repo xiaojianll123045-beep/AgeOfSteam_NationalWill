@@ -59,6 +59,16 @@ namespace FeudalInternalAffairs
         internal static void Tick(float dt) { }
 
         // 热区(按 FeudalDrawer.xml 布局: 面板宽 560, 无 MarginTop)
+        //   ==================== v4.282: 新增"驻扎的海军"区块(底锚定) ====================
+        //   版面(prefab 与这里必须成对改; 数字同源于 SettlementDrawerVM.NavyReserve/NavyRowH):
+        //     标题行     底距 230 (h20)  —— 无热区
+        //     港口信息行 底距 210 (h18)  —— 无热区
+        //     舰队行 i   行顶 = sh - 204 + i*44 (h40, 行距 4; 最多 3 行)
+        //       行内 [查看] 面板 x 380 w64 h30(y = 行顶 + 5)  ·  [召回] 面板 x 452 w64 h30
+        //       ★ 用 MarginLeft 左锚定而不是右锚定: 本页既有的右锚定热区(±按钮 448/506)与
+        //         prefab 的 MarginRight 推算结果本身就差 ~10 像素(见下), 左锚定的行首是确定的(容器左缩进 14)。
+        //   ★ 建筑列表的可用高度因此少了 258 像素: 下面的守卫与 DrawerVMs.RowPage() 用**同一个常量**,
+        //     否则会出现"渲染了却点不动"的后几行。
         private static void RegisterSpots()
         {
             try
@@ -71,16 +81,34 @@ namespace FeudalInternalAffairs
                 {
                     PanelScreen.AddSpot(26f, sh - 26f - 42f, 124f, 42f, _vm.ExecuteBack);      // 返回树
                     PanelScreen.AddSpot(160f, sh - 26f - 42f, 150f, 42f, _vm.ExecuteCallOut);  // v4.100: 唤出军团
+                    // 建筑列表行(底部让出驻扎海军区块: 258 = 76 + 174 + 8)
                     int i = 0;
                     foreach (var row in _vm.Rows)
                     {
                         if (row == null) continue;
                         float y = 224f + i * 54f;
-                        if (y > sh - 120f) break;
+                        if (y + 54f > sh - SettlementDrawerVM.NavyReserve) break;
                         var r = row;
                         PanelScreen.AddSpot(448f, y + 6f, 42f, 42f, r.ExecuteRemove);          // −
                         PanelScreen.AddSpot(506f, y + 6f, 42f, 42f, r.ExecuteAdd);             // +
                         i++;
+                    }
+                    // v4.282: 驻扎的海军(最多 3 行; key = "fleet:<PartyId>", 按 key 反查, 不按下标)
+                    //   ★ 行顶 = sh - 208 + i*44(SettlementDrawerVM.NavyRowH), 按钮在行内垂直居中(h30 -> 行顶 + 5)。
+                    //     208 = 76(区块底距) + 132(ListPanel 高 = 3 行 × (40+4)); 与 prefab 的
+                    //     MarginBottom=76 / SuggestedHeight=132 / 行高 40 / 行距 4 **逐一对应**。
+                    if (_vm.ShowNavy)
+                    {
+                        int n = _vm.NavyRows != null ? _vm.NavyRows.Count : 0;
+                        for (int k = 0; k < n && k < SettlementDrawerVM.NavyRowMax; k++)
+                        {
+                            string key = _vm.NavyKeyAt(k);
+                            if (string.IsNullOrEmpty(key)) continue;
+                            float ry = sh - 203f + k * SettlementDrawerVM.NavyRowH;
+                            string kView = key, kRecall = key;
+                            PanelScreen.AddSpot(380f, ry, 64f, 30f, delegate { _vm.NavyActionByKey(kView, 0); RegisterSpots(); });    // [查看]
+                            PanelScreen.AddSpot(452f, ry, 64f, 30f, delegate { _vm.NavyActionByKey(kRecall, 1); RegisterSpots(); });  // [召回]
+                        }
                     }
                 }
                 else

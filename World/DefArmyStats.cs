@@ -29,33 +29,24 @@ namespace FeudalInternalAffairs
             try
             {
                 // v4.205: 组织度改为独立状态(V3): 默认满值, 战斗/缺粮扣减, 日恢复 1%
+                // v4.255(P0-5④): 所有部队统一口径 —— 我方军团读军团持久组织度,
+                //   其它部队(AI)读 ArmyDoctrine.PartyOrg(键 = 部队 StringId, 默认同样满值 100),
+                //   不再"我方读持久值 / AI 恒 100"
                 float org = 100f;
+                string lgKey = LegionKeyOf(p);
                 try
                 {
                     if (p != null && p.MobileParty != null)
                     {
-                        for (int i = 0; i < DefArmy.Legions.Count; i++)
-                        {
-                            var lp = DefArmy.LegionParty(DefArmy.Legions[i]);
-                            if (lp != null && lp == p.MobileParty) { org = ArmyDoctrine.OrgOf2(ArmyDoctrine.LegionKey(DefArmy.Legions[i])); break; }
-                        }
-                        if (p.MobileParty.Food < 20f) org = Math.Min(org, 70f);   // V3: 补给不足 -> 最大组织度惩罚
+                        var mp = p.MobileParty;
+                        if (lgKey != null) org = ArmyDoctrine.OrgOf2(lgKey);
+                        else org = ArmyDoctrine.PartyOrgOf(mp.StringId, 100f);
+                        if (mp.Food < 20f) org = Math.Min(org, 70f);   // V3: 补给不足 -> 最大组织度惩罚
                     }
                 }
                 catch { }
                 // 是否为我方编制军团(DefArmy.Legions)
-                try
-                {
-                    if (p != null && p.MobileParty != null)
-                    {
-                        for (int i = 0; i < DefArmy.Legions.Count; i++)
-                        {
-                            var lp = DefArmy.LegionParty(DefArmy.Legions[i]);
-                            if (lp != null && lp == p.MobileParty) { org += 10f; break; }
-                        }
-                    }
-                }
-                catch { }
+                if (lgKey != null) org += 10f;
                 // v4.202: 超编扣组织度 + 老兵度加成
                 try
                 {
@@ -65,6 +56,11 @@ namespace FeudalInternalAffairs
                         org += ArmyDoctrine.VetOfParty(p.MobileParty) / 5f;
                         // v4.241: 电报机(支援槽 2, 效果"组织度 +5")
                         if (DefArmy.HasSupport(p.MobileParty, 2)) org += 5f;
+                        // v4.266: 军事科技组织度加成(总参谋部 +4 / 军事统计 +3) —— 战报与部队 HUD 的组织度
+                        Kingdom kk = null;
+                        try { kk = p.MapFaction as Kingdom; } catch { }
+                        if (kk == null) { try { kk = Research.PlayerKingdom(); } catch { } }
+                        org += Research.OrgBonus(kk);
                     }
                 }
                 catch { }
@@ -73,6 +69,22 @@ namespace FeudalInternalAffairs
                 return org;
             }
             catch { return 50f; }
+        }
+
+        // v4.255: 该部队对应的军团键(非我方军团编制 -> null)
+        private static string LegionKeyOf(PartyBase p)
+        {
+            try
+            {
+                if (p == null || p.MobileParty == null) return null;
+                for (int i = 0; i < DefArmy.Legions.Count; i++)
+                {
+                    var lp = DefArmy.LegionParty(DefArmy.Legions[i]);
+                    if (lp != null && lp == p.MobileParty) return ArmyDoctrine.LegionKey(DefArmy.Legions[i]);
+                }
+            }
+            catch { }
+            return null;
         }
 
         // ==================== v27 装备因子 ====================

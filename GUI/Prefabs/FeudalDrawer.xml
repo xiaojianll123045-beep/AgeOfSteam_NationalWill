@@ -119,9 +119,12 @@
               </Children>
             </Widget>
 
-            <!-- ===== 态B: 建筑列表(可滚动) ===== -->
+            <!-- ===== 态B: 建筑列表(可滚动) =====
+                 v4.282: MarginBottom 92 -> 258 —— 底部让出"驻扎的海军"区块(258 = 76 + 174 + 8)。
+                 这个数字与 SettlementDrawerVM.NavyReserve / UI\SettlementDrawer.cs 的行热区守卫**同源**,
+                 改一处必须改三处(VM 常量 / 本文件 / 热区监听)。 -->
             <Widget IsVisible="@IsBuildMode" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                    MarginTop="224" MarginBottom="92" MarginLeft="14" MarginRight="14">
+                    MarginTop="224" MarginBottom="258" MarginLeft="14" MarginRight="14">
               <Children>
                 <ScrollablePanel Id="RowsScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                  AutoHideScrollBars="true" ClipRect="RowsClip" InnerPanel="RowsClip\RowsList" VerticalScrollbar="..\RowsBar">
@@ -190,6 +193,62 @@
                 </ScrollbarWidget>
               </Children>
             </Widget>
+
+            <!-- ================= v4.282: 驻扎的海军(底锚定区块, 只在态B显示) =================
+                 用户要求: "城市详情页扩充, 海军可以驻扎在城市内(仅沿海城市)"。
+                 版面(面板宽 560; 底栏按钮占 sh-68..sh-26, 故区块底边 = 底距 76):
+                   标题行      MarginBottom=230 h20  —— "驻扎的海军(N 支)"
+                   港口信息行  MarginBottom=210 h18  —— 沿海/船坞等级/可造与未解锁(内陆城镇如实说明)
+                   舰队行 i    MarginBottom=164/120/76 h40(行距 4, 最多 3 行)
+                     行内: 图标 x12 / 名称 x46 / 数值 x46(第二行) / [查看] MarginLeft=366 / [召回] MarginLeft=438
+                 热区(UI\SettlementDrawer.cs 的 RegisterSpots, 改一处必须改两处):
+                   [查看] = 面板 380, sh-203+i*44, 64, 30      → _vm.NavyActionByKey(key, 0)
+                   [召回] = 面板 452, sh-203+i*44, 64, 30      → _vm.NavyActionByKey(key, 1)
+                   (行顶 = sh-208 + i*44; 行内按钮垂直居中 h30 -> 顶边 = 行顶 + 5 = sh-203 + i*44)
+                   ★ 行内按钮用 MarginLeft 左锚定(容器左缩进 14): 本页既有的右锚定 ± 按钮与热区
+                     推算本身就差约 10 像素, 左锚定没有这个不确定性。
+                 ★ 渲染复用本页既有行风格: 同一张 fia_ui_row 底图 + ListPanel + 同名笔刷/字号。 -->
+            <TextWidget IsVisible="@IsBuildMode" WidthSizePolicy="Fixed" SuggestedWidth="240" HeightSizePolicy="Fixed" SuggestedHeight="20"
+                        HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="26" MarginBottom="230"
+                        Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#E9CD74FF" Text="@NavyTitle" />
+            <TextWidget IsVisible="@IsBuildMode" WidthSizePolicy="Fixed" SuggestedWidth="520" HeightSizePolicy="Fixed" SuggestedHeight="18" ClipContents="true"
+                        HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="26" MarginBottom="210"
+                        Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#8FD8E8FF" Text="@NavyInfo" />
+            <ListPanel IsVisible="@ShowNavy" DataSource="{NavyRows}" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="132"
+                       HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="14" MarginRight="14" MarginBottom="76"
+                       StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="40" MarginBottom="4" Sprite="fia_ui_row">
+                  <Children>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="26" SuggestedHeight="26"
+                            HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="12" Sprite="@Icon" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="170" HeightSizePolicy="Fixed" SuggestedHeight="20" ClipContents="true"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="46" MarginTop="1"
+                                Brush="MapTextBrushGal" Brush.FontSize="17" Brush.FontColor="#F0E4C8FF" Text="@Name" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="310" HeightSizePolicy="Fixed" SuggestedHeight="18" ClipContents="true"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="46" MarginTop="21"
+                                Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="@NumsColor" Text="@Nums" />
+                    <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="330" HeightSizePolicy="Fixed" SuggestedHeight="18" ClipContents="true"
+                                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="192" MarginTop="21"
+                                Brush="MapTextBrushGal" Brush.FontSize="13" Brush.FontColor="@NoteColor" Text="@Note" />
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="64" SuggestedHeight="30"
+                                  HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="366" Brush="Fia.Button" UpdateChildrenStates="true">
+                      <Children>
+                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#E9CD74FF" Text="查看" />
+                      </Children>
+                    </ButtonWidget>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="64" SuggestedHeight="30"
+                                  HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="438" Brush="Fia.Button" UpdateChildrenStates="true">
+                      <Children>
+                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="fia_ui_button" />
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#C96A5AFF" Text="召回" />
+                      </Children>
+                    </ButtonWidget>
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </ListPanel>
 
             <!-- 底栏(态B): 返回树 -->
             <ButtonWidget IsVisible="@IsBuildMode" DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"

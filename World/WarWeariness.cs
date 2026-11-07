@@ -106,11 +106,19 @@ namespace FeudalInternalAffairs
                 string k = Key(who.StringId, vs.StringId);
                 float cur;
                 Wear.TryGetValue(k, out cur);
-                float add = casualties * 0.05f;
+                float add = casualties * 0.05f * WearGainMult(who);
                 if (add > 25f) add = 25f;
                 SetWear(who.StringId, vs.StringId, cur + add);
             }
             catch { }
+        }
+
+        // v4.266: 厌战累积系数 —— 军事科技"战争宣传" -20%(宣传机器把伤亡叙事化, 国内厌战涨得慢)。
+        //   落点: Daily 的"战时自然累积 0.35/日" + AddBattleWear 的伤亡累积;
+        //   玩家在国家面板/外交页"厌战 %"与 AI 的停战倾向(AiDiplomacy/WarPlan 读 MaxWearOf)上直接可见。
+        private static float WearGainMult(Kingdom k)
+        {
+            try { return 1f - Research.WarWearinessSave(k); } catch { return 1f; }
         }
 
         // ================= 每日 =================
@@ -150,7 +158,7 @@ namespace FeudalInternalAffairs
                     }
                     else
                     {
-                        cur += 0.35f;   // 战时自然累积
+                        cur += 0.35f * WearGainMult(mine);   // 战时自然累积; v4.266: 战争宣传 -20%
                         // 玩家主动求和被拒 -> 14 天成长减免(甚至回落)
                         if (pk != null && mine == pk)
                         {

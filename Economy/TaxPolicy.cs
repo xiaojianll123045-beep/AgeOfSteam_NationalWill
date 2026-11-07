@@ -129,8 +129,19 @@ namespace FeudalInternalAffairs
                 {
                     if (s == null) continue;
                     float tf = Politics.SettlementTaxFactor(s);   // 第 21 章: 愤怒领主抗命拒税
-                    if (s.Town != null && s.IsTown) pollBase += s.Town.Prosperity * 0.05f * tf;
-                    else if (s.Village != null) landBase += s.Village.Hearth * 0.02f * tf;
+                    // v4.290 重新标定: 这两个系数原来是 0.05 / 0.02, 那是**在"原版税收仍存在"前提下**
+                    //   设计的"额外加税"; 现在 AddSettlementIncome 已对玩家氏族整条零化
+                    //   (见 KingdomTraitPatches.PlayerSettlementIncomeTakeover), mod 变成唯一税源,
+                    //   不重新标定会让玩家收入从"原版 2700 + mod 150~500"直接掉到 150~500, 国家当场破产。
+                    //   标定目标 = 默认档位(Mult[2]=1 / Mult[1]=0.5)实收 ≈ 原来原版那两笔:
+                    //     · 人头税(城镇): 原版 DefaultSettlementTaxModel = 0.35 × Prosperity/天
+                    //         ⇒ 系数 = 0.35 / 0.5 = 0.70  (默认低档 ×0.5 后正好回到 0.35)
+                    //     · 土地税(村庄): 原版 CalculateVillageIncome = TradeTaxAccumulated/5
+                    //         ≈ 5 天产值 × 0.6~0.9 ÷ 5 ⇒ 与 Hearth 同量级约 0.23
+                    //   ⇒ 默认档 = 原版水平; 玩家往高档推会**超过**原版(这是设计意图: 多收税换激进/抗命),
+                    //     往低档推则低于原版。两个数字都可直接调。
+                    if (s.Town != null && s.IsTown) pollBase += s.Town.Prosperity * 0.70f * tf;
+                    else if (s.Village != null) landBase += s.Village.Hearth * 0.23f * tf;
                 }
                 // 市场税: 本国市场当日成交量价值 × 5%
                 var n = EconomyWorld.National;
@@ -147,6 +158,17 @@ namespace FeudalInternalAffairs
                     }
                 }
                 marketBase *= LawSystem.MarketTaxMult();   // v5.0-P22: 关税政策(贸易法)
+                // v4.290: 原版那条阿塞莱"商路"关税 +25%(KingdomTraitPatches.AseraiTradeIncome.Tariffs)
+                //   挂在 CalculateTownIncomeFromTariffs 上, 而该方法已随 AddSettlementIncome 一起被零化
+                //   (见 KingdomTraitPatches.PlayerSettlementIncomeTakeover)。这里按同一系数搬到市场税上,
+                //   语义等价、加成不丢。瓦兰迪亚那条佣兵 +30% 挂在 CalculateClanIncome 上, 按反编译它
+                //   本来就不在日结链路上(日结走私有的 CalculateClanIncomeInternal), 属既有的死补丁, 不受影响。
+                try
+                {
+                    if (pk != null && KingdomTraits.CultureIdOf(pk) == KingdomTraits.AseraiCultureId)
+                        marketBase *= 1f + KingdomTraits.AseraiTradeIncomeBonus;
+                }
+                catch { }
                 float titheBase = (landBase + pollBase) * 0.4f;
                 float[] bases = { landBase, pollBase, titheBase, marketBase };
                 float pMult = Politics.TaxIncomeMult();   // 第 21 章: 王权/权威合法性影响实收

@@ -17,6 +17,14 @@ namespace FeudalInternalAffairs
     {
         private static readonly Dictionary<string, JobSpec> Specs = BuildSpecs();
         private static readonly Dictionary<PopRecord, float> IncomeCache = new Dictionary<PopRecord, float>();
+        // v4.269: 逐定居点的临时表改为**复用 + Clear**(原来每个定居点都 new 5 个 Dictionary —— 全图 500+ 次/日,
+        //   纯 GC 压力/卡顿源)。语义等价性: 这 5 张表在每个定居点开头被整体清空, 之后只按 key 读写;
+        //   唯一的遍历(wageSum -> avgWage)只做 key 覆盖写, 结果与遍历顺序无关, 因此复用与新建逐值等价。
+        private static readonly Dictionary<string, float> _need = new Dictionary<string, float>();
+        private static readonly Dictionary<string, float> _supply = new Dictionary<string, float>();
+        private static readonly Dictionary<string, float> _fill = new Dictionary<string, float>();
+        private static readonly Dictionary<string, float> _wageSum = new Dictionary<string, float>();
+        private static readonly Dictionary<string, float> _wageCnt = new Dictionary<string, float>();
         internal static bool HasRun;   // 是否已结算过(区分"未结算"与"失业0收入")
         internal static int LastWageTotal, LastCostTotal;   // 昨日汇总(统计页用)
         private static bool _warnedSpec;
@@ -60,7 +68,8 @@ namespace FeudalInternalAffairs
                     hired.Clear(); avgWage.Clear();
 
                     // 1) 需求: 职业 -> 岗位数
-                    var need = new Dictionary<string, float>();
+                    var need = _need;
+                    need.Clear();   // v4.269: 复用同一张表(见 _need 注释)
                     for (int i = 0; i < sb.Groups.Count; i++)
                     {
                         var g = sb.Groups[i];
@@ -77,7 +86,8 @@ namespace FeudalInternalAffairs
 
                     // 2) 供给: 该定居点各职业的工作人口
                     var pops = Pops.Of(kv.Key);
-                    var supply = new Dictionary<string, float>();
+                    var supply = _supply;
+                    supply.Clear();   // v4.269: 复用同一张表
                     if (pops != null)
                         for (int i = 0; i < pops.Count; i++)
                         {
@@ -91,7 +101,8 @@ namespace FeudalInternalAffairs
                     ConvertToLowJobs(kv.Key, pops, need, supply);
 
                     // 3) 到岗率(职业级) + 平均工资
-                    var fill = new Dictionary<string, float>();
+                    var fill = _fill;
+                    fill.Clear();   // v4.269: 复用同一张表
                     foreach (var nd in need)
                     {
                         float sup; supply.TryGetValue(nd.Key, out sup);
@@ -99,7 +110,8 @@ namespace FeudalInternalAffairs
                         fill[nd.Key] = f;
                     }
                     // 工资: 各建筑按自身利润率出价(文档 19.7.3), 取该职业的加权平均
-                    var wageSum = new Dictionary<string, float>(); var wageCnt = new Dictionary<string, float>();
+                    var wageSum = _wageSum; var wageCnt = _wageCnt;   // v4.269: 复用同一对表
+                    wageSum.Clear(); wageCnt.Clear();
                     for (int i = 0; i < sb.Groups.Count; i++)
                     {
                         var g = sb.Groups[i];

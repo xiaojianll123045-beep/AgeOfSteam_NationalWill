@@ -115,67 +115,91 @@ namespace FeudalInternalAffairs
             // T1
             new TechDef { Id="navigation", Name="航海术", Tree=1, Era=1, Effect="税收 +4%, 贸易优势 +5", Tax=0.04f, Trade=5f },
             new TechDef { Id="standing_army", Name="常备军", Tree=1, Era=1, Effect="军事 +7%", Mil=0.07f },
-            new TechDef { Id="admiralty", Name="海军部", Tree=1, Era=1, Req="navigation", Effect="军事 +5%, 税收 +3%", Mil=0.05f, Tax=0.03f },
-            new TechDef { Id="army_reserves", Name="预备役", Tree=1, Era=1, Req="line_infantry", Effect="军事 +5%, 征召 +10%", Mil=0.05f, Conscript=0.10f },
+            new TechDef { Id="admiralty", Name="海军部", Tree=1, Era=1, Req="navigation", Effect="军事 +5%, 税收 +3% · 海军: 舰队上限 +2, 舰船维护费 -5%", Mil=0.05f, Tax=0.03f },
+            new TechDef { Id="army_reserves", Name="预备役", Tree=1, Era=1, Req="line_infantry", Effect="军事 +5% · 征召 +10% · 征兵池 +9% / 动员 +15%", Mil=0.05f, Conscript=0.10f },
             new TechDef { Id="drydocks", Name="干船坞", Tree=1, Era=1, Req="navigation", Effect="税收 +5%", Tax=0.05f },
             new TechDef { Id="gunsmithing", Name="枪械制造", Tree=1, Era=1, Req="standing_army", Effect="军事 +6%", Mil=0.06f },
-            new TechDef { Id="mandatory_service", Name="义务兵役", Tree=1, Era=1, Req="standing_army", Effect="征召 +12%", Mil=0.04f, Conscript=0.12f },
+            new TechDef { Id="mandatory_service", Name="义务兵役", Tree=1, Era=1, Req="standing_army", Effect="征召 +12% · 征兵池 +12%", Mil=0.04f, Conscript=0.12f },
             new TechDef { Id="military_drill", Name="军事操典", Tree=1, Era=1, Req="standing_army", Effect="军事 +7%", Mil=0.07f },
             new TechDef { Id="artillery", Name="火炮", Tree=1, Era=1, Req="gunsmithing", Effect="军事 +8%", Mil=0.08f },
             // T2
             new TechDef { Id="line_infantry", Name="线列步兵", Tree=1, Era=1, Req="mandatory_service", Effect="军事 +9%", Mil=0.09f },
             new TechDef { Id="napoleonic", Name="拿破仑战术", Tree=1, Era=1, Req="artillery", Effect="军事 +9%", Mil=0.09f },
             new TechDef { Id="field_works", Name="野战工事", Tree=1, Era=2, Req="napoleonic", Effect="军事 +9%", Mil=0.09f },
-            new TechDef { Id="general_staff", Name="总参谋部", Tree=1, Era=2, Req="army_reserves", Effect="军事 +9%", Mil=0.09f },
+            new TechDef { Id="general_staff", Name="总参谋部", Tree=1, Era=2, Req="army_reserves", Effect="军事 +9% · 编制 +36 / 训练 +2 / 军粮 -3%", Mil=0.09f },
             new TechDef { Id="logistics", Name="后勤学", Tree=1, Era=2, Req="army_reserves", Effect="征召 +12%, 军事 +4%", Mil=0.04f, Conscript=0.12f },
             new TechDef { Id="percussion_cap", Name="击发雷管", Tree=1, Era=2, Req="gunsmithing", Effect="军事 +9%", Mil=0.09f },
             new TechDef { Id="rifling", Name="膛线", Tree=1, Era=2, Req="percussion_cap", Effect="军事 +10%", Mil=0.10f },
             new TechDef { Id="shell_gun", Name="炮弹炮", Tree=1, Era=2, Req="artillery", Effect="军事 +10%", Mil=0.10f },
-            new TechDef { Id="hydraulic_cranes", Name="液压起重机", Tree=1, Era=2, Req="drydocks", Effect="税收 +6%, 产出 +4%", Tax=0.06f, Output=0.04f },
+            new TechDef { Id="hydraulic_cranes", Name="液压起重机", Tree=1, Era=2, Req="drydocks", Effect="税收 +6%, 产出 +4% · 海军: 造船成本 -5%, 造船速度 +15%", Tax=0.06f, Output=0.04f },
             // T3
             new TechDef { Id="breech_artillery", Name="后装炮", Tree=1, Era=3, Req="rifling", Effect="军事 +12%", Mil=0.12f },
             new TechDef { Id="electric_telegraph", Name="电报", Tree=1, Era=3, Req="logistics", Effect="军事 +8%, 税收 +5%", Mil=0.08f, Tax=0.05f },
-            new TechDef { Id="enlistment", Name="征兵办公室", Tree=1, Era=3, Req="logistics", Effect="征召 +15%", Mil=0.05f, Conscript=0.15f },
-            new TechDef { Id="floating_harbor", Name="浮式港口", Tree=1, Era=3, Req="gantry_cranes", Effect="税收 +7%, 贸易优势 +5", Tax=0.07f, Trade=5f },
-            new TechDef { Id="gantry_cranes", Name="龙门吊", Tree=1, Era=3, Req="hydraulic_cranes", Effect="产出 +8%, 税收 +4%", Output=0.08f, Tax=0.04f },
-            new TechDef { Id="ironclad", Name="铁甲舰", Tree=1, Era=3, Req="admiralty", Effect="军事 +11%", Mil=0.11f },
-            new TechDef { Id="jeune_ecole", Name="青年学派", Tree=1, Era=3, Req="self_torpedoes", Effect="军事 +10%", Mil=0.10f },
-            new TechDef { Id="self_torpedoes", Name="自航鱼雷", Tree=1, Era=3, Req="logistics", Effect="军事 +9%", Mil=0.09f },
+            new TechDef { Id="enlistment", Name="征兵办公室", Tree=1, Era=3, Req="logistics", Effect="征召 +15% · 征兵池 +15%", Mil=0.05f, Conscript=0.15f },
+            new TechDef { Id="floating_harbor", Name="浮式港口", Tree=1, Era=3, Req="gantry_cranes", Effect="税收 +7%, 贸易优势 +5 · 海军: 海运容量 +20%, 巡逻收益 +20%, 封锁效率 +5%, 舰队上限 +1, 维护费 -3%", Tax=0.07f, Trade=5f },
+            new TechDef { Id="gantry_cranes", Name="龙门吊", Tree=1, Era=3, Req="hydraulic_cranes", Effect="产出 +8%, 税收 +4% · 海军: 造船成本 -10%, 造船速度 +20%", Output=0.08f, Tax=0.04f },
+            new TechDef { Id="ironclad", Name="铁甲舰", Tree=1, Era=3, Req="admiralty", Effect="军事 +11% · 海军: 战力 +18%, 封锁 +10%, 造船成本 -3%, 解锁重型船体(需 3 级造船厂)", Mil=0.11f },
+            new TechDef { Id="jeune_ecole", Name="青年学派", Tree=1, Era=3, Req="self_torpedoes", Effect="军事 +10% · 海军: 战力 +10%, 巡逻收益 +15%", Mil=0.10f },
+            new TechDef { Id="self_torpedoes", Name="自航鱼雷", Tree=1, Era=3, Req="logistics", Effect="军事 +9% · 海军: 战力 +9%, 封锁效率 +15%", Mil=0.09f },
             new TechDef { Id="modern_nursing", Name="现代护理", Tree=1, Era=3, Req="general_staff", Effect="激进 -0.03%/日", Radical=-0.0003f },
             new TechDef { Id="repeaters", Name="连发枪", Tree=1, Era=3, Req="rifling", Effect="军事 +12%", Mil=0.12f },
-            new TechDef { Id="military_stats", Name="军事统计", Tree=1, Era=3, Req="electric_telegraph", Effect="军事 +10%, 权威 +1/月", Mil=0.10f, Authority=1f },
+            new TechDef { Id="military_stats", Name="军事统计", Tree=1, Era=3, Req="electric_telegraph", Effect="军事 +10% · 权威 +1/月 · 编制 +24 / 训练 +3 / 军饷 -4%", Mil=0.10f, Authority=1f },
             // T4
             new TechDef { Id="bolt_action", Name="栓动步枪", Tree=1, Era=4, Req="repeaters", Effect="军事 +15%", Mil=0.15f },
             new TechDef { Id="trench_works", Name="战壕工事", Tree=1, Era=4, Req="general_staff", Effect="军事 +13%", Mil=0.13f },
-            new TechDef { Id="war_propaganda", Name="战争宣传", Tree=1, Era=4, Req="enlistment", Effect="征召 +15%, 激进 +0.02%/日", Conscript=0.15f, Radical=0.0002f },
-            new TechDef { Id="wargaming", Name="兵棋推演", Tree=1, Era=4, Req="military_stats", Effect="军事 +14%", Mil=0.14f },
+            new TechDef { Id="war_propaganda", Name="战争宣传", Tree=1, Era=4, Req="enlistment", Effect="征召 +15% · 征兵池 +6% · 厌战 -12% · 激进 +0.02%/日", Conscript=0.15f, Radical=0.0002f },
+            new TechDef { Id="wargaming", Name="兵棋推演", Tree=1, Era=4, Req="military_stats", Effect="军事 +14% · 编制 +18 / 训练 +4 / 战术进攻 +3%", Mil=0.14f },
             new TechDef { Id="auto_mg", Name="自动机枪", Tree=1, Era=4, Req="bolt_action", Effect="军事 +16%", Mil=0.16f },
-            new TechDef { Id="defense_depth", Name="纵深防御", Tree=1, Era=4, Req="trench_works", Effect="军事 +14%", Mil=0.14f },
-            new TechDef { Id="submarine", Name="潜艇", Tree=1, Era=4, Req="self_torpedoes", Effect="军事 +13%", Mil=0.13f },
-            new TechDef { Id="military_aviation", Name="军事航空", Tree=1, Era=4, Req="auto_mg", Effect="军事 +15%", Mil=0.15f },
+            new TechDef { Id="defense_depth", Name="纵深防御", Tree=1, Era=4, Req="trench_works", Effect="军事 +14% · 战术减伤 5%", Mil=0.14f },
+            new TechDef { Id="submarine", Name="潜艇", Tree=1, Era=4, Req="self_torpedoes", Effect="军事 +13% · 海军: 战力 +13%, 封锁效率 +30%, 维护费 +5%", Mil=0.13f },
+            new TechDef { Id="military_aviation", Name="军事航空", Tree=1, Era=4, Req="auto_mg", Effect="军事 +15% · 全军输出 +4% / 训练 +2", Mil=0.15f },
 
             // v4.173 补齐 V3 官方全量(+21; 军事树官方 58)
-            new TechDef { Id="paddle_steamer", Name="明轮船", Tree=1, Era=1, Req="admiralty", Effect="军事 +5%", Mil=0.05f },
-            new TechDef { Id="triage", Name="急救分诊", Tree=1, Era=2, Req="logistics", Effect="军事 +4%", Mil=0.04f },
-            new TechDef { Id="power_of_the_purse", Name="财权", Tree=1, Era=2, Req="admiralty", Effect="军事 +5%, 税收 +3%", Mil=0.05f, Tax=0.03f },
-            new TechDef { Id="screw_frigate", Name="螺旋桨护卫舰", Tree=1, Era=2, Req="paddle_steamer", Effect="军事 +6%", Mil=0.06f },
+            new TechDef { Id="paddle_steamer", Name="明轮船", Tree=1, Era=1, Req="admiralty", Effect="军事 +5% · 海军: 战力 +5%, 海运容量 +10%, 造船速度 +10%", Mil=0.05f },
+            new TechDef { Id="triage", Name="急救分诊", Tree=1, Era=2, Req="logistics", Effect="军事 +4% · 伤员惩罚 -5% / 治疗 +18%", Mil=0.04f },
+            new TechDef { Id="power_of_the_purse", Name="财权", Tree=1, Era=2, Req="admiralty", Effect="军事 +5%, 税收 +3% · 海军: 维护费 -10%, 封锁效率 +10%", Mil=0.05f, Tax=0.03f },
+            new TechDef { Id="screw_frigate", Name="螺旋桨护卫舰", Tree=1, Era=2, Req="paddle_steamer", Effect="军事 +6% · 海军: 战力 +6%, 海运容量 +15%, 造船速度 +5%", Mil=0.06f },
             new TechDef { Id="handcranked_mg", Name="手摇机枪", Tree=1, Era=3, Req="repeaters,breech_artillery", Effect="军事 +10%", Mil=0.10f },
-            new TechDef { Id="monitor", Name="浅水炮舰", Tree=1, Era=3, Req="ironclad,breech_artillery", Effect="军事 +9%", Mil=0.09f },
-            new TechDef { Id="concrete_dockyards", Name="混凝土船坞", Tree=1, Era=4, Req="floating_harbor", Effect="税收 +6%", Tax=0.06f },
-            new TechDef { Id="pre_dreadnought", Name="前无畏舰", Tree=1, Era=4, Req="ironclad", Effect="军事 +11%", Mil=0.11f },
-            new TechDef { Id="sea_lane_strategies", Name="海路战略", Tree=1, Era=4, Req="jeune_ecole", Effect="军事 +10%, 贸易优势 +5", Mil=0.10f, Trade=5f },
-            new TechDef { Id="landing_craft", Name="登陆艇", Tree=1, Era=4, Req="jeune_ecole,monitor", Effect="军事 +8%", Mil=0.08f },
-            new TechDef { Id="dreadnought", Name="无畏舰", Tree=1, Era=4, Req="pre_dreadnought,sea_lane_strategies,concrete_dockyards,military_aviation", Effect="军事 +14%", Mil=0.14f },
-            new TechDef { Id="aircraft_carrier", Name="航空母舰", Tree=1, Era=5, Req="dreadnought", Effect="军事 +15%", Mil=0.15f },
-            new TechDef { Id="battleship", Name="战列舰", Tree=1, Era=5, Req="dreadnought", Effect="军事 +15%", Mil=0.15f },
-            new TechDef { Id="destroyer", Name="驱逐舰", Tree=1, Era=5, Req="monitor", Effect="军事 +13%", Mil=0.13f },
-            new TechDef { Id="chemical_warfare", Name="化学战", Tree=1, Era=5, Req="auto_mg", Effect="军事 +12%, 激进 +0.02%/日", Mil=0.12f, Radical=0.0002f },
-            new TechDef { Id="concrete_fortifications", Name="混凝土要塞", Tree=1, Era=5, Req="defense_depth", Effect="军事 +12%", Mil=0.12f },
-            new TechDef { Id="flamethrowers", Name="喷火器", Tree=1, Era=5, Req="trench_works,auto_mg", Effect="军事 +12%", Mil=0.12f },
-            new TechDef { Id="mobile_armor", Name="装甲部队", Tree=1, Era=5, Req="concrete_fortifications,nco_training", Effect="军事 +16%", Mil=0.16f },
-            new TechDef { Id="nco_training", Name="士官训练", Tree=1, Era=5, Req="trench_works,wargaming", Effect="军事 +13%", Mil=0.13f },
-            new TechDef { Id="stormtroopers", Name="突击队", Tree=1, Era=5, Req="wargaming,trench_works", Effect="军事 +14%", Mil=0.14f },
-            new TechDef { Id="battlefleet_tactics", Name="现代舰队战术", Tree=1, Era=5, Req="battleship,sea_lane_strategies", Effect="军事 +14%", Mil=0.14f },
+            new TechDef { Id="monitor", Name="浅水炮舰", Tree=1, Era=3, Req="ironclad,breech_artillery", Effect="军事 +9% · 海军: 战力 +9%, 封锁效率 +25%", Mil=0.09f },
+            new TechDef { Id="concrete_dockyards", Name="混凝土船坞", Tree=1, Era=4, Req="floating_harbor", Effect="税收 +6% · 海军: 造船成本 -15%, 造船速度 +15%, 维护费 -5%, 舰队上限 +1", Tax=0.06f },
+            // v4.273(审计 #6): 这 3 项与 ironclad 一样受"船坞 3 级"限制(见 Navy\NavalTech.cs:224-235 的
+            //   保守版 MaxHullTier: 船坞不到 3 级时科技解锁不外溢), 但只有 ironclad 写了括注 -> 四处措辞统一。
+            new TechDef { Id="pre_dreadnought", Name="前无畏舰", Tree=1, Era=4, Req="ironclad", Effect="军事 +11% · 海军: 战力 +11%, 封锁 +10%, 造船成本 -5%, 解锁重型船体(需 3 级造船厂)", Mil=0.11f },
+            new TechDef { Id="sea_lane_strategies", Name="海路战略", Tree=1, Era=4, Req="jeune_ecole", Effect="军事 +10%, 贸易优势 +5 · 海军: 海运容量 +30%, 封锁 +20%, 维护费 -5%, 舰队上限 +1, 战力 +5%", Mil=0.10f, Trade=5f },
+            new TechDef { Id="landing_craft", Name="登陆艇", Tree=1, Era=4, Req="jeune_ecole,monitor", Effect="军事 +8% · 海军: 战力 +8%, 海运容量 +10%, 造船速度 +10%", Mil=0.08f },
+            new TechDef { Id="dreadnought", Name="无畏舰", Tree=1, Era=4, Req="pre_dreadnought,sea_lane_strategies,concrete_dockyards,military_aviation", Effect="军事 +14% · 海军: 战力 +14%, 封锁 +15%, 造船成本 -8%, 造船速度 +10%, 解锁重型船体(需 3 级造船厂)", Mil=0.14f },
+            new TechDef { Id="aircraft_carrier", Name="航空母舰", Tree=1, Era=5, Req="dreadnought", Effect="军事 +15% · 海军: 战力 +15%, 封锁 +20%, 巡逻收益 +25%, 维护费 +5%", Mil=0.15f },
+            new TechDef { Id="battleship", Name="战列舰", Tree=1, Era=5, Req="dreadnought", Effect="军事 +15% · 海军: 战力 +15%, 封锁 +15%, 造船成本 -5%, 解锁重型船体(需 3 级造船厂)", Mil=0.15f },
+            new TechDef { Id="destroyer", Name="驱逐舰", Tree=1, Era=5, Req="monitor", Effect="军事 +13% · 海军: 战力 +13%, 封锁 +20%, 造船速度 +5%", Mil=0.13f },
+            new TechDef { Id="chemical_warfare", Name="化学战", Tree=1, Era=5, Req="auto_mg", Effect="军事 +12% · 解锁毒气炮弹 · 战术进攻 +3% · 激进 +0.02%/日", Mil=0.12f, Radical=0.0002f },
+            new TechDef { Id="concrete_fortifications", Name="混凝土要塞", Tree=1, Era=5, Req="defense_depth", Effect="军事 +12% · 战术减伤 6%", Mil=0.12f },
+            new TechDef { Id="flamethrowers", Name="喷火器", Tree=1, Era=5, Req="trench_works,auto_mg", Effect="军事 +12% · 战术进攻 +3% / 减伤 2%", Mil=0.12f },
+            new TechDef { Id="mobile_armor", Name="装甲部队", Tree=1, Era=5, Req="concrete_fortifications,nco_training", Effect="军事 +16% · 编制 +24 / 训练 +2 / 战术进攻 +5%", Mil=0.16f },
+            new TechDef { Id="nco_training", Name="士官训练", Tree=1, Era=5, Req="trench_works,wargaming", Effect="军事 +13% · 编制 +30 / 训练 +5", Mil=0.13f },
+            new TechDef { Id="stormtroopers", Name="突击队", Tree=1, Era=5, Req="wargaming,trench_works", Effect="军事 +14% · 编制 +12 / 训练 +2 / 战术进攻 +4%", Mil=0.14f },
+            new TechDef { Id="battlefleet_tactics", Name="现代舰队战术", Tree=1, Era=5, Req="battleship,sea_lane_strategies", Effect="军事 +14% · 海军: 战力 +14%, 封锁 +20%, 海运 +10%, 舰队上限 +2, 维护费 -5%", Mil=0.14f },
+
+            // ---- v4.266 军事树"空节点"落点索引 ----
+            //   以下 16 项此前除科技页的数值文案外没有任何落点(研究完拿不到任何东西); 海军 23 项未做, 不在此列。
+            //   数值表见本文件 "v4.266 军事科技落点" 一节; 这里只记"落在哪个公式 / 玩家在哪看得到"。
+            //   army_reserves           预备役      征兵池 ×1.09(DefArmy.ConscriptPool) · 动员窗口 +15%(WarMobilization.Call) · 军粮 -2%(DefArmy.FoodMultOf)
+            //   mandatory_service       义务兵役    征兵池 ×1.12(DefArmy.ConscriptPool; 征召上限原已有)
+            //   general_staff           总参谋部    编制上限 +36(ArmyDoctrine.CommandLimitOf) · 训练 +2(DefArmy.TrainMultOf) · 军粮 -3% · 军官 +3%(ArmyDoctrine.OfficerMult) · 组织度 +2(DefArmyStats.OrgOf)
+            //   enlistment              征兵办公室  征兵池 ×1.15(DefArmy.ConscriptPool; 征召上限原已有)
+            //   military_stats          军事统计    编制上限 +24 · 训练 +3 · 军官 +2% · 军饷 -4%(DefArmy.WageMultOf) · 组织度 +2
+            //   war_propaganda          战争宣传    征兵池 ×1.06 · 厌战累积 -12%(WarWeariness.Daily/AddBattleWear)
+            //   wargaming               兵棋推演    编制上限 +18 · 训练 +4 · 战术进攻 +3%(ArmyDoctrine.TacticOf outMult)
+            //   defense_depth           纵深防御    战术减伤 5%(ArmyDoctrine.TacticOf takeMult)
+            //   military_aviation       军事航空    军官/全军输出 +4%(ArmyDoctrine.OfficerMult, 空中侦察与炮校射) · 训练 +2
+            //   triage                  急救分诊    伤员惩罚 -5%(ArmyDoctrine.WoundedMult) · 伤员日治疗 +18%(ArmyDoctrine.Daily)
+            //   chemical_warfare        化学战      毒气炮弹装备(Equipment.gas_shell, 每 200 人 1 发; v4.268 Dmg 205 < 主炮 210, 只提供稀缺需求) · 战术进攻 +3%
+            //   concrete_fortifications 混凝土要塞  战术减伤 6%(ArmyDoctrine.TacticOf takeMult)
+            //   flamethrowers           喷火器      战术进攻 +3% · 战术减伤 2%(无独立可生产型号: 兵种需求槽/Soldiers.cs 属他人改动范围, 故不新增装备)
+            //   mobile_armor            装甲部队    战术进攻 +5% · 编制上限 +24 · 训练 +2
+            //   nco_training            士官训练    编制上限 +30 · 训练 +5(士官体系 -> 全军团训练度, 军务页"战斗系数"随之上升)
+            //   stormtroopers           突击队      战术进攻 +4% · 编制上限 +12 · 训练 +2
+            //   注: 化学战/喷火器的"士气打击"没有落点 —— BattleSim.MoraleOrgTick 的 moraleMult 只吃战斗条件
+            //   (堑壕战/暴风), TacticOf 的 moraleMult 出参在坐镇指挥里未被使用(仅 UI 展示), 而 BattleSim 属禁改文件。
 
             // ================= 社会 64(V3 Society technology) =================
             // T1
@@ -888,6 +912,111 @@ namespace FeudalInternalAffairs
             }
             catch { return 0; }
         }
+
+        // ================= v4.266: 军事科技落点(把"空节点"接进既有公式) =================
+        //   背景: 审计发现军事树 58 项里, 海军类 23 项(跳过)之外仍有 16 项除科技页数值外没有任何落点
+        //   (研究完没有任何新东西可用)。这里集中提供"某国是否已完成某军事科技"+ 各类加成,
+        //   由 ArmyDoctrine / DefArmy / WarEconomy / WarWeariness / WarMobilization 在**既有公式**里乘/加,
+        //   不在 UI 或结算代码里散落 id 判断。所有方法对未知 id / 异常一律返回中性值(0 或 1)。
+        internal static bool Mil(Kingdom k, string id)
+        {
+            try { return id != null && IsDone(k, id); } catch { return false; }
+        }
+        internal static bool Mil(string id) { return Mil(PlayerKingdom(), id); }   // 兼容: 玩家国(国防军口径)
+
+        // 表驱动求和: ids[i] 已完成则累加 per[i]
+        private static float MilSum(Kingdom k, string[] ids, float[] per)
+        {
+            try
+            {
+                float v = 0f;
+                for (int i = 0; i < ids.Length && i < per.Length; i++) if (Mil(k, ids[i])) v += per[i];
+                return v;
+            }
+            catch { return 0f; }
+        }
+
+        // v4.266 平衡校准(用户决策①): 下表数值已统一 ×0.6 —— 口径是"有感觉但不滚雪球",
+        //   目标量级: 进攻 ≈ +17% / 减伤 ≈ -13% / 训练 ≈ +20 / 征兵池 ≈ ×1.40 / 军粮 ≈ -12% / 编制 ≈ +145。
+        //   如需再调, 只动本节的 per[] 与注释, 落点代码不用改。
+        //
+        // ① 编制上限(+人): 总参谋部 36 / 士官训练 30 / 军事统计 24 / 装甲部队 24 / 兵棋推演 18 / 突击队 12(合计 144)
+        //    落点: ArmyDoctrine.CommandLimitOf —— 军务页 / 部队面板显示的"编制上限"
+        private static readonly string[] CmdIds = { "general_staff", "nco_training", "military_stats", "mobile_armor", "wargaming", "stormtroopers" };
+        private static readonly float[] CmdVals = { 36f, 30f, 24f, 24f, 18f, 12f };
+        internal static int CommandLimitBonus(Kingdom k) { return (int)MilSum(k, CmdIds, CmdVals); }
+
+        // ② 训练度(0~100 直接加值): 士官训练 5 / 兵棋推演 4 / 军事统计 3 / 装甲部队 2 / 突击队 2 / 总参谋部 2 / 军事航空 2(合计 20)
+        //    落点: DefArmy.TrainMultOf —— 军务页"训练度 xx/100 -> 战斗系数 ×y"
+        private static readonly string[] TrainIds = { "nco_training", "wargaming", "military_stats", "mobile_armor", "stormtroopers", "general_staff", "military_aviation" };
+        private static readonly float[] TrainVals = { 5f, 4f, 3f, 2f, 2f, 2f, 2f };
+        internal static float TrainingBonus(Kingdom k) { return MilSum(k, TrainIds, TrainVals); }
+
+        // ③ 战术进攻倍率(乘子): 装甲部队 +5% / 突击队 +4% / 兵棋推演 +3% / 化学战 +3% / 喷火器 +3%(合计 +18%)
+        //    落点: ArmyDoctrine.TacticOf 的 outMult —— 坐镇指挥输出(战报/部队 HUD 显示战术倍率)
+        private static readonly string[] AtkIds = { "mobile_armor", "stormtroopers", "wargaming", "chemical_warfare", "flamethrowers" };
+        private static readonly float[] AtkVals = { 0.05f, 0.04f, 0.03f, 0.03f, 0.03f };
+        internal static float TacticOffense(Kingdom k) { return MilSum(k, AtkIds, AtkVals); }
+
+        // ④ 战术承受减免(乘子减免): 混凝土要塞 -6% / 纵深防御 -5% / 喷火器 -2%(合计 -13%)
+        //    落点: ArmyDoctrine.TacticOf 的 takeMult —— 我方被打时的减伤
+        private static readonly string[] DefIds = { "concrete_fortifications", "defense_depth", "flamethrowers" };
+        private static readonly float[] DefVals = { 0.06f, 0.05f, 0.02f };
+        internal static float TacticDefense(Kingdom k) { return MilSum(k, DefIds, DefVals); }
+
+        // 注: "化学战/喷火器"的士气打击(原打算落 TacticOf 的 moraleMult)已放弃 ——
+        //   BattleSim.MoraleOrgTick 的 moraleMult 只吃战斗条件(堑壕战/暴风), TacticOf 的 moraleMult 出参
+        //   在坐镇指挥里没有被使用(只有 UI 展示), 而 BattleSim 属禁改文件。故这两项的落地改为
+        //   outMult(③) + 化学战的毒气炮弹装备(见 DefArmy.AddTechGearNeed / CannonStatsOf)。
+
+        // ⑥ 军官统率/全军输出: 军事航空 +4% / 总参谋部 +3% / 军事统计 +2%(合计 +9%)
+        //    落点: ArmyDoctrine.OfficerMult —— 坐镇指挥"全军团输出"乘子(上限 1.8, v4.266 由 1.6 提高)
+        //    (军事航空的"侦察/校射优势"落在这里: 追击系数本身在 BattleSim 内计算, 不改那份文件)
+        private static readonly string[] OffIds = { "military_aviation", "general_staff", "military_stats" };
+        private static readonly float[] OffVals = { 0.04f, 0.03f, 0.02f };
+        internal static float OfficerBonus(Kingdom k) { return MilSum(k, OffIds, OffVals); }
+
+        // ⑦ 伤员惩罚减轻(绝对值): 急救分诊 0.05 / 现代护理 0.03
+        //    落点: ArmyDoctrine.WoundedMult —— 战斗输出里的"伤员 ×"乘子
+        private static readonly string[] WoundIds = { "triage", "modern_nursing" };
+        private static readonly float[] WoundVals = { 0.05f, 0.03f };
+        internal static float WoundRelief(Kingdom k) { return MilSum(k, WoundIds, WoundVals); }
+
+        // ⑧ 伤员治疗速度倍率: 急救分诊 +18% / 现代护理 +15%
+        //    落点: ArmyDoctrine.Daily 的伤员每日治疗(WoundedHealDaily) —— 部队面板伤员数
+        private static readonly string[] HealIds = { "triage", "modern_nursing" };
+        private static readonly float[] HealVals = { 0.18f, 0.15f };
+        internal static float WoundHealMult(Kingdom k) { return 1f + MilSum(k, HealIds, HealVals); }
+
+        // ⑨ 军粮节约(消耗减免): 后勤学 -7% / 总参谋部 -3% / 预备役 -2%(合计 -12%)
+        //    落点: DefArmy.FoodMultOf(军团日耗粮) 与 WarEconomy.ArmyFoodDaysOf(军粮可支撑天数)
+        private static readonly string[] FoodIds = { "logistics", "general_staff", "army_reserves" };
+        private static readonly float[] FoodVals = { 0.07f, 0.03f, 0.02f };
+        internal static float FoodSave(Kingdom k) { return MilSum(k, FoodIds, FoodVals); }
+
+        // ⑩ 军饷节约: 军事统计 -4%
+        //    落点: DefArmy.WageMultOf —— 军务页/财政页的日军饷
+        internal static float WageSave(Kingdom k) { return Mil(k, "military_stats") ? 0.04f : 0f; }
+
+        // ⑪ 征兵池加成: 征兵办公室 +15% / 义务兵役 +12% / 预备役 +9% / 战争宣传 +6%(合计 ×1.42)
+        //    落点: DefArmy.ConscriptPool —— 征兵面板"该聚落可征人口"
+        private static readonly string[] PoolIds = { "enlistment", "mandatory_service", "army_reserves", "war_propaganda" };
+        private static readonly float[] PoolVals = { 0.15f, 0.12f, 0.09f, 0.06f };
+        internal static float ConscriptPoolMult(Kingdom k) { return 1f + MilSum(k, PoolIds, PoolVals); }
+
+        // ⑫ 厌战累积减缓: 战争宣传 -12%
+        //    落点: WarWeariness.Daily / AddBattleWear —— 国家面板"厌战 %"
+        internal static float WarWearinessSave(Kingdom k) { return Mil(k, "war_propaganda") ? 0.12f : 0f; }
+
+        // ⑬ 动员窗口延长: 预备役 +15%
+        //    落点: WarMobilization.Call —— 动员持续天数(动员状态剩余天数)
+        internal static float MobilizeDaysBonus(Kingdom k) { return Mil(k, "army_reserves") ? 0.15f : 0f; }
+
+        // ⑭ 组织度加成(点): 总参谋部 +2 / 军事统计 +2
+        //    落点: DefArmyStats.OrgOf —— 部队组织度(战报/部队 HUD)
+        private static readonly string[] OrgIds = { "general_staff", "military_stats" };
+        private static readonly float[] OrgVals = { 2f, 2f };
+        internal static float OrgBonus(Kingdom k) { return MilSum(k, OrgIds, OrgVals); }
 
         // ================= 存档(文档 28.10 A): FIA_Tech = 按国已完成位图 + 有进度的项 =================
         // 格式: v3;<扩散判定日>;<王国id>~<位图Base64>~<进度 id:val|...>~<cur0,cur1,cur2>~<sp0,sp1,sp2>~<来源 tech:src|...>;...

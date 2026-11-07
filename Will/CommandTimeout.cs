@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Library;
 
 namespace FeudalInternalAffairs
@@ -47,6 +48,7 @@ namespace FeudalInternalAffairs
             try
             {
                 if (p == null || !p.IsActive) return;
+                SettleGoals.Remove(p);      // v4.290: 纯点命令, 清掉可能残留的聚落目标
                 Points[p] = point;
                 Refire[p] = RefireSeconds;
                 StartPos[p] = p.Position;
@@ -55,9 +57,43 @@ namespace FeudalInternalAffairs
             catch { }
         }
 
+        // ==================== v4.290: 聚落目标 ====================
+        // 背景: "前往聚落/驻防"这条命令原先走 Touch(p, 城门位置), 于是 1 秒后由重发段调用
+        //   SetMoveGoToPoint —— 而它会 ResetAllMovementParameters(), 把 SetMoveGoToSettlement
+        //   刚建立的三件接线(TargetSettlement / ShortTermBehavior / Ai.AiBehaviorInteractable)全部清掉。
+        //   结果: 部队被"手动驾驶"推到城门外就停住, EncounterManager 那道闸
+        //   (要求 ShortTermBehavior==GoToSettlement 且 ShortTermTargetSettlement==s)永远进不去。
+        // 修法: 记住这是一条"去聚落"的命令, 重发时改调 SetMoveGoToSettlement / SetMoveBesiegeSettlement,
+        //   让接线每秒被重新建立(而不是被清掉)。手动驾驶段不受影响 —— 它直接改 Position, 不碰接线。
+        private static readonly Dictionary<MobileParty, Settlement> SettleGoals = new Dictionary<MobileParty, Settlement>();
+        private static readonly Dictionary<MobileParty, bool> SettleHostile = new Dictionary<MobileParty, bool>();
+
+        // drivePoint: 手动驾驶要推到的位置(非敌国=城门, 敌国=市中心), 与 SetMoveGoToSettlement 的 MoveTargetPoint 保持一致
+        internal static void TouchSettlement(MobileParty p, Settlement s, bool hostile, CampaignVec2 drivePoint)
+        {
+            Touch(p);
+            try
+            {
+                if (p == null || !p.IsActive || s == null) return;
+                SettleGoals[p] = s;
+                SettleHostile[p] = hostile;
+                Points[p] = drivePoint;
+                Refire[p] = RefireSeconds;
+                StartPos[p] = p.Position;
+                _pilotDiag = false;
+            }
+            catch { }
+        }
+
         internal static void Tick(float dt)
         {
-            if (Timers.Count == 0) return;
+            // v4.290 修复: 早退条件必须把 Points/Refire 一并算进去。
+            //   原先只看 Timers, 而 Timers 只在"该部队仍被选中或已编入军团"时续命(见下面清理段) ——
+            //   玩家下完命令 10 秒内取消选中/改选别的部队, Timers 就空了, 于是:
+            //     ① Tick 直接 return, 后面的"重发"与"手动驾驶"全被跳过 -> 部队停在半路;
+            //     ② Points 里的条目再也清不掉 -> IsCommanded() 恒 true
+            //        -> DefArmy.CanAutoMove / DefArmyAi.LegionTick 永远跳过该军团 -> 军事总监永不接管。
+            if (Timers.Count == 0 && Points.Count == 0 && Refire.Count == 0) return;
             try
             {
                 // v4.246 诊断: 指挥期间每 3 秒打印一次各部队的"速度值 + 驱动方式 + 人数",
@@ -142,6 +178,17 @@ namespace FeudalInternalAffairs
                         var p = keys[i];
                         float left;
                         if (!Refire.TryGetValue(p, out left)) continue;
+                        // v4.272(海运守卫): 海运中的军团不重发旧(陆地)目标。
+                        //   本循环每 1 秒把 Points 里的旧目标用 SetMoveGoToPoint 重发一次, 而
+                        //   SetMoveGoToPoint 会把 DefaultBehavior 改成 GoToPoint + DesiredAiNavigationType=Default
+                        //   -> 正好覆盖海运出发时设的 SetMoveGoToSettlement(目的港, Naval)
+                        //   -> 原版 AI 会把运兵队指回陆地旧目标(或让海上路径失效)。
+                        //   这里连同 Points 一起清掉: 海运的推进由 NavalTransport + 原版 AI 负责, 不需要旧命令。
+                        if (p != null && NavalTransport.InConvoy(p.StringId))
+                        {
+                            Refire.Remove(p); Points.Remove(p); StartPos.Remove(p); LastPos.Remove(p); Still.Remove(p);
+                            continue;
+                        }
                         left -= dt;
                         if (left > 0f) { Refire[p] = left; continue; }
                         Refire[p] = RefireSeconds;
@@ -153,7 +200,25 @@ namespace FeudalInternalAffairs
                         }
                         try
                         {
-                            p.SetMoveGoToPoint(pt, MobileParty.NavigationType.Default);
+                            // v4.290 修复: 按目标类型分派。
+                            //   去聚落的命令必须用 SetMoveGoToSettlement/SetMoveBesiegeSettlement 重发 ——
+                            //   若沿用 SetMoveGoToPoint, 它会 ResetAllMovementParameters() 把入城接线
+                            //   (TargetSettlement / ShortTermBehavior / Ai.AiBehaviorInteractable)全清掉,
+                            //   于是 EncounterManager 的闸永远进不去, 部队停在城门外就再没下文。
+                            Settlement sg;
+                            if (SettleGoals.TryGetValue(p, out sg) && sg != null)
+                            {
+                                bool hs;
+                                if (!SettleHostile.TryGetValue(p, out hs)) hs = false;
+                                if (hs) p.SetMoveBesiegeSettlement(sg, MobileParty.NavigationType.Default);
+                                else p.SetMoveGoToSettlement(sg, MobileParty.NavigationType.Default, false);
+                                FixProbe.HitRefireSettle++;   // v4.290 探针: 走对了(进城/围城的必要条件)
+                            }
+                            else
+                            {
+                                p.SetMoveGoToPoint(pt, MobileParty.NavigationType.Default);
+                                FixProbe.HitRefirePoint++;
+                            }
                         }
                         catch { }
                     }
@@ -167,6 +232,29 @@ namespace FeudalInternalAffairs
                     {
                         var p = pkeys[i];
                         if (p == null || !p.IsActive) { Still.Remove(p); LastPos.Remove(p); Piloting.Remove(p); continue; }
+                        // v4.272(海运守卫, 与审计 A2 同级): 海运中的军团**绝不接手驾驶**。
+                        //   原因: Points 里可能还留着出发前的陆地目标(玩家点过"前往某城"), 而海运出发时
+                        //   没有任何地方清它 -> 军团在海上只要 0.5 秒没动, 这段"手动驾驶兜底"就会逐帧
+                        //   把 Position 推向陆地旧目标(而且 new CampaignVec2(nv, true) 还把落点标成"在陆上"),
+                        //   直接把海运打散(船还在、人被拖上岸)。
+                        //   海运军团由原版 AI 推进(见 NavalTransport.Depart 的 SetMoveGoToSettlement +
+                        //   DefArmyAi.AiGuard 的海运放行), 这里把它的旧命令与驾驶状态一并清掉, 驾驶权交回海运。
+                        //   注: 只影响海运中的军团(通常 0~3 支), 陆地指挥路径一字未动。
+                        if (NavalTransport.InConvoy(p.StringId))
+                        {
+                            Points.Remove(p); Refire.Remove(p); StartPos.Remove(p);
+                            LastPos.Remove(p); Still.Remove(p); Piloting.Remove(p);
+                            continue;
+                        }
+                        // v4.254: 部队被并入原版军团(p.Army!=null) -> 驾驶权交回军团, 不再每秒重发旧目标。
+                        //   原来只有 Timers 循环里"军团成员续命", 但 Points/Refire 仍在跑: 一边与首领调动对打,
+                        //   一边让 IsCommanded 恒为 true -> CanAutoMove 恒 false -> 连[交还总监]都救不回来。
+                        if (p.Army != null)
+                        {
+                            Points.Remove(p); Refire.Remove(p); StartPos.Remove(p);
+                            LastPos.Remove(p); Still.Remove(p); Piloting.Remove(p);
+                            continue;
+                        }
                         CampaignVec2 target;
                         if (!Points.TryGetValue(p, out target)) continue;
                         var cur = p.Position;
@@ -205,7 +293,12 @@ namespace FeudalInternalAffairs
                             LastPos[p] = cur;
                             float st;
                             Still.TryGetValue(p, out st);
-                            if (moved >= 0f && moved > 0.002f) { Still[p] = 0f; continue; }   // native 在驱动, 不插手
+                            // v4.254: "native 在驱动"的阈值改成与期望速度挂钩 —— 原来是 2 毫米/帧
+                            //   (60fps 下仅 0.12 米/秒, 位置抖一下就算"在走"), 于是手动兜底几乎永不接管
+                            //   (日志实证:"移动兜底" 0 次, 而部队确实停在半路)。现在要求达到期望速度的 25%。
+                            float driveThresh = DefArmy.SpeedLock * dt * 0.25f;
+                            if (driveThresh < 0.002f) driveThresh = 0.002f;
+                            if (moved >= 0f && moved > driveThresh) { Still[p] = 0f; continue; }   // native 在驱动, 不插手
                             st += dt;
                             if (st < 0.5f) { Still[p] = st; continue; }   // v4.94: 0.5 秒未动即接管
                             Piloting.Add(p);
@@ -225,7 +318,10 @@ namespace FeudalInternalAffairs
                             CampaignVec2 last2;
                             if (LastPos.TryGetValue(p, out last2)) moved2 = cur.ToVec2().Distance(last2.ToVec2());
                             LastPos[p] = cur;
-                            if (moved2 > 0.002f)
+                            // v4.254: 交回判定同样按"期望速度的 25%"算, 避免位置抖动被当成"native 恢复了"
+                            float driveThresh2 = DefArmy.SpeedLock * dt * 0.25f;
+                            if (driveThresh2 < 0.002f) driveThresh2 = 0.002f;
+                            if (moved2 > driveThresh2)
                             {
                                 Piloting.Remove(p);   // native 已恢复 -> 交回驾驶权, 不叠加
                                 Still[p] = 0f;
@@ -264,6 +360,27 @@ namespace FeudalInternalAffairs
             catch { return false; }
         }
 
+        // v4.290: 让某一支部队退出"点命令"驾驶。
+        //   交战(Engage)走的是无点 Touch, 不清 Points —— 若该军团此前收过"前往/驻防/巡逻",
+        //   1 秒重发会把 SetMoveEngageParty 刚设好的 DefaultBehavior / ShortTermBehavior /
+        //   AiBehaviorInteractable 全部改回 GoToPoint+null, 并把部队继续拉向那个旧目标
+        //   (玩家看到"已命令 N 支部队攻击 X", 部队却朝反方向走)。交战/追击前先调它。
+        internal static void ReleasePoint(MobileParty p)
+        {
+            if (p == null) return;
+            try
+            {
+                Points.Remove(p);
+                Refire.Remove(p);
+                StartPos.Remove(p);
+                Still.Remove(p);
+                LastPos.Remove(p);
+                SettleGoals.Remove(p);      // v4.290: 交战/追击前也要退掉聚落目标
+                SettleHostile.Remove(p);
+            }
+            catch { }
+        }
+
         internal static void Clear()
         {
             Timers.Clear();
@@ -273,6 +390,8 @@ namespace FeudalInternalAffairs
             Still.Clear();
             LastPos.Clear();
             Piloting.Clear();
+            SettleGoals.Clear();    // v4.290
+            SettleHostile.Clear();
         }
     }
 }

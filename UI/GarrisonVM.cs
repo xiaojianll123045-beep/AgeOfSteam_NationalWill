@@ -123,7 +123,11 @@ namespace FeudalInternalAffairs
                 }
                 catch { }
 
-                _milText = "原版驻军 " + garrisonMen.ToString("N0") + " 人 · 国防军守备营 " + oursMen.ToString("N0") + " 人"
+                // v4.266: 守备营上限(基础 600 + 军营 @garrison) —— 军营的"驻军上限"从此在这里可见
+                int gcap = 600;
+                try { gcap = MilBuildings.GarrisonCapOf(target); } catch { }
+                _milText = "原版驻军 " + garrisonMen.ToString("N0") + " 人 · 国防军守备营 " + oursMen.ToString("N0")
+                    + "/" + gcap.ToString("N0") + " 人"
                     + (_partyRows > 0 ? " · 城内我军 " + _partyRows + " 支(可命令出城)" : " · 城内没有我方部队");
                 _garrisonText = garrisonMen.ToString("N0");
                 _oursText = oursMen.ToString("N0");

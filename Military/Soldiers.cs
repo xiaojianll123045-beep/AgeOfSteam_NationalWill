@@ -48,6 +48,118 @@ namespace FeudalInternalAffairs
             try { return p != null ? p.StringId : null; } catch { return null; }
         }
 
+        // ==================== v4.267: 逐人表只服务"我方"(存档体积) ====================
+        //   问题: BattleSim.SnapshotSide 对**每一支**参战部队调 DefArmy.ShareOf -> Soldiers.Ensure,
+        //         于是每一支 AI 部队都被建了一份逐人表(1000 人 ≈ 4KB), 长期游玩 FIA_Soldiers 无限膨胀。
+        //   做法: "我方"(玩家家族部队 + 国防军 fia_def_* + 玩家王国领主军)照旧建表/存表/熟练度成长;
+        //         其余(敌国/中立 AI)改为"按原版兵种折算"的轻量口径(每次现算, 不建表、不入档), 折算规则
+        //         与 FillFromRoster 完全一致, 所以它们拿到的兵种构成/占比/熟练 与本改动之前**逐人表首次
+        //         生成的结果一致** -> 战斗力不掉。膨胀主要来自"全世界部队", 玩家国部队数量有限。
+        internal static bool IsPlayerSideParty(MobileParty p)
+        {
+            try
+            {
+                if (p == null) return false;
+                if (p.IsMainParty) return true;                                  // 玩家主队
+                var owner = p.Owner;
+                if (owner != null && owner.Clan != null && owner.Clan == Clan.PlayerClan) return true;   // 玩家家族部队
+                // 国防军(fia_def_)与部队管理分裂出的新队(fia_amg_): 由 mod 用 CreateParty 建的玩家方部队。
+                //   注意: 它们在 InitializeMobilePartyAtPosition 之前 Owner 还是空, 只靠家族判定会漏掉 ->
+                //   所以这里按前缀兜底(原版 AI 部队的 StringId 不会以 fia_ 开头, 不会误收)。
+                if (p.StringId != null && p.StringId.StartsWith("fia_", StringComparison.Ordinal)) return true;
+                if (DefArmy.LegionOf(p) != null) return true;
+                // v4.267: 玩家王国的领主军 —— 玩家看得到、能临时指挥, 逐人明细值得保留。两种口径任一命中即可:
+                //   ① MapFaction(战斗中/军团里都稳)  ② ActualClan.Kingdom(军队里被临时抽调时 MapFaction 可能变)
+                var pk = PlayerKingdom();
+                if (pk != null)
+                {
+                    if (ReferenceEquals(p.MapFaction, pk)) return true;
+                    var clan = p.ActualClan;
+                    if (clan != null && ReferenceEquals(clan.Kingdom, pk)) return true;
+                }
+                // 正在跟玩家王国交战的敌国部队: 明确不建表(全世界部队里数量最多的一类)。
+                return !IsEnemyOfPlayer(p);
+            }
+            catch { return false; }
+        }
+
+        // 玩家王国(内政侧缓存的 NationKingdom; 没有则回退玩家家族所属王国)
+        private static Kingdom PlayerKingdom()
+        {
+            try
+            {
+                var b = NationalWillOrders.Behavior;
+                if (b != null && b.NationKingdom != null) return b.NationKingdom;
+                var c = Clan.PlayerClan;
+                if (c != null && c.Kingdom != null) return c.Kingdom;
+            }
+            catch { }
+            return null;
+        }
+
+        // v4.267: 玩家王国的交战国集合(按 "王国数 + 游戏日" 指纹缓存, 避免每支部队都遍历一遍全世界王国)。
+        //   只用于"明确排除敌国", 所以指纹窗口内(同一天)新宣战的敌国最多晚一天被排除, 无正确性风险。
+        private static List<Kingdom> _enemyKingdoms;
+        private static int _enemyStamp = -1;
+
+        private static bool IsEnemyOfPlayer(MobileParty p)
+        {
+            try
+            {
+                var pk = PlayerKingdom();
+                if (pk == null) return false;
+                int now = Kingdom.All != null ? Kingdom.All.Count : 0;
+                int day = 0;
+                try { day = (int)TaleWorlds.CampaignSystem.CampaignTime.Now.ToDays; } catch { }
+                int stamp = now * 100000 + (day & 0xFFFF);   // 王国数变了 / 换天了 -> 重建
+                if (_enemyKingdoms == null || _enemyStamp != stamp)
+                {
+                    var list = new List<Kingdom>();
+                    for (int i = 0; i < now; i++)
+                    {
+                        var k = Kingdom.All[i];
+                        if (k == null || k.IsEliminated || ReferenceEquals(k, pk)) continue;
+                        bool war = false;
+                        try { war = pk.IsAtWarWith(k); } catch { }
+                        if (war) list.Add(k);
+                    }
+                    _enemyKingdoms = list;
+                    _enemyStamp = stamp;
+                }
+                var kp = p.MapFaction as Kingdom;
+                if (kp == null) return false;
+                for (int i = 0; i < _enemyKingdoms.Count; i++)
+                    if (ReferenceEquals(_enemyKingdoms[i], kp)) return true;
+            }
+            catch { }
+            return false;
+        }
+
+        // 武器/骑乘分支 -> 兵种下标: 与 FillFromRoster 同一套规则(不重复实现, 避免两条口径漂移)
+        internal static int UnitIndexOfTroop(CharacterObject c)
+        {
+            try
+            {
+                if (c == null) return -1;
+                int branch = c.IsMounted ? (c.IsRanged ? 3 : 2) : (c.IsRanged ? 1 : 0);
+                int idx = Equipment.UnitOfBranch(branch, c.Tier);
+                return (idx >= 0 && idx < UnknownUnit) ? idx : 0;
+            }
+            catch { return -1; }
+        }
+
+        // 按名册现算一份**临时**逐人表(绝不进 Data/存档): AI 部队的轻量口径
+        internal static PartySoldiers DerivedFromRoster(MobileParty p)
+        {
+            try
+            {
+                var rec = new PartySoldiers();
+                FillFromRoster(rec, p != null ? p.MemberRoster : null);
+                return rec;
+            }
+            catch { return null; }
+        }
+
         internal static int UnitIndexOf(string unitId)
         {
             try
@@ -73,20 +185,64 @@ namespace FeudalInternalAffairs
         }
 
         // 懒初始化(28.5): 无记录时按 27.12 从当前名单折算(兵种 + 等级初始熟练)
+        //   v4.267: **只给玩家方建表** —— 非玩家方(含全部 AI 部队)一律返回 null, 所以 FIA_Soldiers 不会再被
+        //   AI 部队撑大(原来 BattleSim 快照对每支参战部队调 ShareOf -> Ensure, 几十上百支部队各建一份)。
+        //   注意: 老存档里已存在的表由 Load 统一丢弃(不载入, 见 Load), 因此这里不会误用到旧 AI 表。
         internal static PartySoldiers Ensure(MobileParty p)
         {
             try
             {
                 string id = IdOf(p);
                 if (string.IsNullOrEmpty(id)) return null;
+                if (!IsPlayerSideParty(p)) return null;   // v4.267: AI 不建表(改走按原版兵种折算的轻量口径)
                 PartySoldiers rec;
                 if (Data.TryGetValue(id, out rec) && rec != null) return rec;
                 rec = new PartySoldiers();
-                try { FillFromRoster(rec, p.MemberRoster); } catch { }
+                try { FillFromRoster(rec, p.MemberRoster); }
+                catch (Exception ex) { DLog.Force("逐人表折算异常 " + id + ": " + ex.Message); }   // v4.267: 建表是关键路径, 不再静默
                 Data[id] = rec;
                 return rec;
             }
-            catch { return null; }
+            catch (Exception ex) { DLog.Force("逐人表建表异常: " + ex.Message); return null; }   // v4.267
+        }
+
+        // v4.267: 读取用入口 —— 玩家方 = 数据库里的真表(懒初始化); 其它 = 按名册现算的**临时**表(不入档)。
+        //   用它替代"读路径"上直接调 Ensure 的写法: 语义不变(折算规则与首次建表完全一致), 但 AI 不再产生记录。
+        internal static PartySoldiers EnsureLight(MobileParty p)
+        {
+            try
+            {
+                string id = IdOf(p);
+                if (string.IsNullOrEmpty(id)) return null;
+                if (IsPlayerSideParty(p)) return Ensure(p);
+                return DerivedFromRoster(p);   // AI: 现算, 不缓存
+            }
+            catch (Exception ex) { DLog.Force("逐人表折算异常: " + ex.Message); return null; }   // v4.267
+        }
+
+        // AI 部队的"兵种人数"轻量口径: 按原版名册 + 分支/等级折算(不建表、不入档)。
+        //   BattleSim 的快照里每支部队会被查 5~6 次占比, 用调用方传入的 cache 摊掉重复折算。
+        internal static Dictionary<int, int> LightUnitMen(MobileParty p, Dictionary<string, Dictionary<int, int>> cache)
+        {
+            try
+            {
+                var rec = EnsureLight(p);
+                if (rec == null) return null;
+                string id = IdOf(p);
+                Dictionary<int, int> r = null;
+                if (cache != null && !string.IsNullOrEmpty(id) && cache.TryGetValue(id, out r) && r != null) return r;
+                r = new Dictionary<int, int>();
+                for (int i = 0; i < rec.List.Count; i++)
+                {
+                    int u = rec.List[i].Unit;
+                    int old;
+                    r.TryGetValue(u, out old);
+                    r[u] = old + 1;
+                }
+                if (cache != null && !string.IsNullOrEmpty(id)) cache[id] = r;
+                return r;
+            }
+            catch (Exception ex) { DLog.Force("逐人表轻量折算异常: " + ex.Message); return null; }   // v4.267
         }
 
         internal static PartySoldiers Get(MobileParty p)
@@ -121,20 +277,24 @@ namespace FeudalInternalAffairs
         private static void FillFromRoster(PartySoldiers rec, TroopRoster roster)
         {
             if (rec == null || roster == null) return;
-            foreach (var e in roster.GetTroopRoster())
+            try
             {
-                var c = e.Character;
-                if (c == null || c.IsHero || e.Number <= 0) continue;
-                int branch = c.IsMounted ? (c.IsRanged ? 3 : 2) : (c.IsRanged ? 1 : 0);
-                int tier = c.Tier;
-                if (tier < 1) tier = 1;
-                if (tier > 6) tier = 6;
-                int idx = Equipment.UnitOfBranch(branch, tier);
-                if (idx < 0 || idx >= UnknownUnit) idx = 0;
-                byte prof = InitProf(tier);
-                for (int i = 0; i < e.Number; i++)
-                    rec.List.Add(new SoldierRec { Unit = (byte)idx, Prof = prof });
+                foreach (var e in roster.GetTroopRoster())
+                {
+                    var c = e.Character;
+                    if (c == null || c.IsHero || e.Number <= 0) continue;
+                    int idx = UnitIndexOfTroop(c);
+                    if (idx < 0 || idx >= UnknownUnit) idx = 0;
+                    int tier = c.Tier;
+                    if (tier < 1) tier = 1;
+                    if (tier > 6) tier = 6;
+                    byte prof = InitProf(tier);
+                    for (int i = 0; i < e.Number; i++)
+                        rec.List.Add(new SoldierRec { Unit = (byte)idx, Prof = prof });
+                }
             }
+            // v4.267: 折算失败原来会静默留下"空表"(看起来就是 0 兵) -> 进正式日志
+            catch (Exception ex) { DLog.Force("逐人表名册折算异常: " + ex.Message); }
         }
 
         // v4.236: 按"设计编成"直接写逐人表(不按花名册折算) —— 建军设计器成立军团时用,
@@ -146,6 +306,7 @@ namespace FeudalInternalAffairs
                 if (p == null || kindCounts == null) return false;
                 string id = IdOf(p);
                 if (string.IsNullOrEmpty(id)) return false;
+                if (!IsPlayerSideParty(p)) return false;   // v4.267: 建军设计器只对玩家方(国防军)成立军团
                 var rec = new PartySoldiers();
                 for (int k = 0; k < kindCounts.Length && k < Equipment.Units.Count; k++)
                 {
@@ -228,6 +389,7 @@ namespace FeudalInternalAffairs
             try
             {
                 if (p == null || p.MemberRoster == null) return 0;
+                if (!IsPlayerSideParty(p)) return 0;   // v4.267: AI 已不持有逐人表 -> 不需要(也不允许)对账扩表
                 var rec = Get(p);
                 if (rec == null) return 0;
                 int rosterMen = RosterMenOf(p);
@@ -298,9 +460,11 @@ namespace FeudalInternalAffairs
             avgProf = new Dictionary<string, float>(StringComparer.Ordinal);
             try
             {
-                var rec = Ensure(p);
+                // v4.267: 玩家方 = 库里的真表(先与名册对账, v4.234); AI = 按名册现算的临时表
+                //   (折算规则与旧版首日建表完全一致 -> 兵种人数/平均熟练不变, 只是不产生存档记录)
+                var rec = EnsureLight(p);
                 if (rec == null) return;
-                Reconcile(p);   // v4.234: 读之前先与名册对账(与名册一致才不会被低报)
+                if (IsPlayerSideParty(p)) Reconcile(p);
                 if (rec.List.Count == 0) return;
                 var sums = new Dictionary<string, long>(StringComparer.Ordinal);
                 for (int i = 0; i < rec.List.Count; i++)
@@ -456,9 +620,12 @@ namespace FeudalInternalAffairs
         {
             try
             {
+                // v4.267: 玩家方先懒初始化 + 与名册对账(分裂/合并上限都读这里); AI 没有逐人表 ->
+                //   直接用名册非英雄人数(与旧版 AI 空表首次折算的结果同值), 且不会因为调用而长出表来。
+                if (!IsPlayerSideParty(p)) return Math.Max(0, RosterMenOf(p));
                 var rec = Ensure(p);
-                if (rec == null) return 0;
-                Reconcile(p);   // v4.234: 与名册对账后再报数(分裂上限/合并上限都读这里)
+                if (rec == null) return Math.Max(0, RosterMenOf(p));
+                Reconcile(p);
                 return rec.List.Count;
             }
             catch { return 0; }
@@ -524,7 +691,15 @@ namespace FeudalInternalAffairs
                     if (s.Prof >= 100) continue;
                     float g = amount * ProfGrowRate(s.Prof);
                     if (g < 0.02f) continue;
-                    s.Prof = ProfClamp((int)Math.Round(s.Prof + g));
+                    // v4.256: g 通常 ≤0.15(日常操练 0.15/人/日), 而 Math.Round(p+0.15)==p 恒成立 ->
+                    //   取整把增长全吞了(审计: 熟练度实际硬上限=85, "精锐期 85~100"整段是死区)。
+                    //   改成小数部分按概率进位: 期望增长仍等于 g, 但不再被取整吃掉。
+                    int inc = (int)g;
+                    float frac = g - inc;
+                    if (frac > 0f && TaleWorlds.Core.MBRandom.RandomFloat < frac) inc++;
+                    if (inc <= 0) continue;
+                    s.Prof = ProfClamp(s.Prof + inc);
+                    rec.List[i] = s;      // v4.255(P0-4): SoldierRec 是结构体, 必须写回 —— 原来只改副本, 熟练度永远不涨
                     up++;
                 }
                 return up;
@@ -555,6 +730,7 @@ namespace FeudalInternalAffairs
                     var s = rec.List[i];
                     int k = s.Kills + add;
                     s.Kills = (ushort)(k > 65535 ? 65535 : k);
+                    rec.List[i] = s;      // v4.255(P0-4): 结构体写回, 原来个人击杀永远不累计
                     left -= add;
                 }
             }
@@ -619,9 +795,16 @@ namespace FeudalInternalAffairs
             try
             {
                 Data.Clear();
+                DropCaches();   // v4.267: 读档时部队索引/敌国集合必须重建
                 if (string.IsNullOrEmpty(data)) return;
                 var parts = data.Split(';');
                 if (parts.Length < 2 || parts[0] != "v1") return;
+                // v4.267: 先全部解析出来。老档里 AI 部队的逐人表**跳过加载**(它们现在走"按原版兵种折算"的
+                //   轻量口径; 载入只会在下次存档时把几十上百支 AI 部队的逐人表原样写回去 = 存档继续膨胀)。
+                //   读档兼容: 找不到部队/判不出玩家方的只是不加载, 不报错、不改动原档(下次存档自然瘦身);
+                //   玩家家族部队与国防军(fia_def_/fia_amg_)一律照旧载入, 熟练度/老兵/击杀行为完全不变。
+                var ids = new List<string>();
+                var recs = new List<PartySoldiers>();
                 for (int i = 1; i < parts.Length; i++)
                 {
                     string line = parts[i];
@@ -629,16 +812,97 @@ namespace FeudalInternalAffairs
                     int at = line.IndexOf('|');
                     if (at <= 0 || at >= line.Length - 1) continue;
                     var rec = Decode(line.Substring(at + 1));
-                    if (rec != null) Data[line.Substring(0, at)] = rec;
+                    if (rec == null) continue;
+                    ids.Add(line.Substring(0, at));
+                    recs.Add(rec);
+                }
+                // v4.267 安全阀: 存档系统调用 SyncData 的时机可能早于部队枚举就绪 —— 若**一条都匹配不上**
+                //   (说明当下根本查不到部队, 而不是"这些都是 AI 部队"), 就退回"全量载入", 宁可多留一点体积,
+                //   也绝不误删玩家方的熟练度/老兵/击杀。
+                int matched = 0;
+                for (int i = 0; i < ids.Count; i++)
+                    if (PartyOf(ids[i]) != null) { matched++; break; }
+                if (matched == 0)
+                {
+                    for (int i = 0; i < ids.Count; i++) Data[ids[i]] = recs[i];
+                    if (ids.Count > 0)
+                        DLog.Force("逐人熟练度: 读档时查不到部队(枚举未就绪?) -> 全量载入 " + ids.Count + " 条, 稍后由 PruneNonPlayer 过滤");
+                    return;
+                }
+                for (int i = 0; i < ids.Count; i++)
+                {
+                    var mp = PartyOf(ids[i]);
+                    if (mp == null || !IsPlayerSideParty(mp)) continue;
+                    Data[ids[i]] = recs[i];
                 }
                 DLog.Force("逐人熟练度: 读档 部队=" + Data.Count);
             }
             catch (Exception ex) { DLog.Force("逐人熟练度读档异常: " + ex.Message); }
         }
 
+        // v4.267: 存档 id -> 现存部队(找不到返回 null, 由调用方跳过)。
+        //   读档时一次要查几十上百条, 这里用"部队枚举指纹"做一次 O(n) 建索引, 避免每次线性扫描变成 O(n²)。
+        private static Dictionary<string, MobileParty> _partyIndex;
+        private static int _partyAllCount = -1;
+
+        internal static MobileParty PartyOf(string partyId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(partyId)) return null;
+                var all = MobileParty.All;
+                if (all == null) return null;
+                if (_partyIndex == null || _partyAllCount != all.Count)
+                {
+                    _partyIndex = new Dictionary<string, MobileParty>(StringComparer.Ordinal);
+                    for (int i = 0; i < all.Count; i++)
+                    {
+                        var p = all[i];
+                        if (p == null || string.IsNullOrEmpty(p.StringId)) continue;
+                        _partyIndex[p.StringId] = p;
+                    }
+                    _partyAllCount = all.Count;
+                }
+                MobileParty hit;
+                return _partyIndex.TryGetValue(partyId, out hit) ? hit : null;
+            }
+            catch (Exception ex) { DLog.Force("逐人熟练度部队查找异常: " + ex.Message); }   // v4.267: 读档路径
+            return null;
+        }
+
+        // v4.267: 兜底清理 —— 读档过滤(Load)已经在源头跳过非玩家方记录; 这里在进地图后再扫一次, 处理
+        //   "读档时部队还没建出来"这类极端情况。只删**确实存在且不是玩家方**的记录(找不到的保留, 不误删);
+        //   玩家家族部队与国防军一律保留(不动既有熟练度成长/老兵占比/击杀统计)。
+        internal static int PruneNonPlayer()
+        {
+            int n = 0;
+            try
+            {
+                var drop = new List<string>();
+                foreach (var kv in Data)
+                {
+                    var mp = PartyOf(kv.Key);
+                    if (mp == null) continue;              // 暂时找不到的(如队伍已解散/未重建)不动, 免得误删
+                    if (IsPlayerSideParty(mp)) continue;
+                    drop.Add(kv.Key);
+                }
+                for (int i = 0; i < drop.Count; i++) { Data.Remove(drop[i]); n++; }
+                if (n > 0) DLog.Force("逐人熟练度: 清理非玩家方(旧档 AI 部队)记录 " + n + " 条");
+            }
+            catch (Exception ex) { DLog.Force("逐人熟练度清理异常: " + ex.Message); }
+            return n;
+        }
+
         internal static void Reset()
         {
-            try { Data.Clear(); } catch { }
+            try { Data.Clear(); DropCaches(); } catch { }   // v4.267: 连部队/敌国索引一起失效
+        }
+
+        // v4.267: 战役级缓存(部队 id 索引 / 敌国集合)统一失效
+        private static void DropCaches()
+        {
+            _partyIndex = null; _partyAllCount = -1;
+            _enemyKingdoms = null; _enemyStamp = -1;
         }
 
         // 紧凑字节: [人数 int32][每人: 兵种 1 + 熟练 1 + 击杀 2]
@@ -718,6 +982,8 @@ namespace FeudalInternalAffairs
                 {
                     SyncChunks.Save(dataStore, "FIA_Soldiers", Soldiers.Save());
                     SyncChunks.Save(dataStore, "FIA_LordArmy", LordArmy.Save());   // 28.4 家族欠饷借债
+                    // v4.255(P0-6): 亲自指挥期间"暂时移出"的玩家部队兵员落盘(不然战斗中存档/退出 = 永久丢兵)
+                    SyncChunks.Save(dataStore, "FIA_CmdRoster", BattleCommand.SavePendingRoster());
                     bool converted = DefArmy.Converted;
                     dataStore.SyncData("FIA_Converted", ref converted);
                 }
@@ -725,6 +991,7 @@ namespace FeudalInternalAffairs
                 {
                     Soldiers.Load(SyncChunks.Load(dataStore, "FIA_Soldiers"));
                     LordArmy.Load(SyncChunks.Load(dataStore, "FIA_LordArmy"));
+                    BattleCommand.LoadPendingRoster(SyncChunks.Load(dataStore, "FIA_CmdRoster"));   // v4.255(P0-6)
                     bool converted = false;
                     dataStore.SyncData("FIA_Converted", ref converted);
                     DefArmy.Converted = converted;
@@ -741,7 +1008,8 @@ namespace FeudalInternalAffairs
                 LordArmy.Reset();
                 DefArmy.Converted = false;
             }
-            catch { }
+            // v4.267: 建档(逐人表复位)是关键路径, 出问题不再静默
+            catch (Exception ex) { DLog.Force("逐人熟练度新档复位异常: " + ex.Message); }
         }
 
         private void OnSessionLaunched(CampaignGameStarter starter)
@@ -754,6 +1022,10 @@ namespace FeudalInternalAffairs
         {
             DefArmy.EnsureConverted();   // 旧档缺 FIA_Converted -> 宽容补跑一次(28.12)
             try { DefArmy.TempFillIfReady(); } catch { }   // TEMP: 读档后玩家王国已确定 -> 补给一次
+            try { BattleCommand.OnGameLoadedRestore(); } catch { }   // v4.255(P0-6): 补放回上次"参战暂存"的兵员
+            // v4.267: 读档后清理老档遗留的 AI 部队逐人表(玩家方/国防军一律保留)
+            try { Soldiers.PruneNonPlayer(); }
+            catch (Exception ex) { DLog.Force("逐人熟练度读档清理异常: " + ex.Message); }
         }
 
         private void OnDailyTick()

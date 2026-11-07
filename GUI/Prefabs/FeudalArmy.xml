@@ -310,19 +310,22 @@
                             HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="44" MarginTop="396"
                             Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="部队(图标 + 番号)" />
                 <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="120" HeightSizePolicy="Fixed" SuggestedHeight="26"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="348" MarginTop="396" TextHorizontalAlignment="Right"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="280" MarginTop="396" TextHorizontalAlignment="Right"
                             Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="兵力" />
                 <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="56" HeightSizePolicy="Fixed" SuggestedHeight="26"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="472" MarginTop="396" TextHorizontalAlignment="Right"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="399" MarginTop="396" TextHorizontalAlignment="Right"
                             Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="士气" />
                 <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="56" HeightSizePolicy="Fixed" SuggestedHeight="26"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="532" MarginTop="396" TextHorizontalAlignment="Right"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="454" MarginTop="396" TextHorizontalAlignment="Right"
                             Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="组织" />
                 <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="70" HeightSizePolicy="Fixed" SuggestedHeight="26"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="592" MarginTop="396" TextHorizontalAlignment="Right"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="510" MarginTop="396" TextHorizontalAlignment="Right"
                             Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="装备" />
-                <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="80" HeightSizePolicy="Fixed" SuggestedHeight="26"
-                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="666" MarginTop="396" TextHorizontalAlignment="Right"
+                <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="70" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="585" MarginTop="396" TextHorizontalAlignment="Right"
+                            Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="训练" />
+                <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="60" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="660" MarginTop="396" TextHorizontalAlignment="Right"
                             Brush="MapTextBrushGal" Brush.FontSize="18" Brush.FontColor="#E9CD74FF" Text="老兵" />
 
                 <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="808" HeightSizePolicy="Fixed" SuggestedHeight="30"

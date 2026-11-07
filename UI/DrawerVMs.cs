@@ -315,6 +315,37 @@ namespace FeudalInternalAffairs
         }
     }
 
+    // ===================== v4.282: 驻扎的海军行(城市详情页) =====================
+    //   用户要求: "城市详情页扩充, 海军可以驻扎在城市内(仅沿海城市)" —— 这一块就列在该城**驻泊**的舰队。
+    //   渲染方式**复用本页既有的行风格**(DrawerRowVM 那一套): 同一张 fia_ui_row 底图、同样的
+    //   图标 + 名称 + 数值 排版、右侧同样两枚小按钮(行内按钮点击同样走 SettlementDrawer 的热区轮询)。
+    //   ★ 操作按钮的定位用**稳定 key**(舰队 PartyId)而不是行号 —— 与海军页 v4.279 的模式一致:
+    //     舰队可能在这 2 秒刷新窗口里离港/被歼灭, 按 key 反查才不会点错目标。
+    public class DrawerNavyRowVM : ViewModel
+    {
+        private readonly string _name, _icon, _nums, _numsColor, _note, _noteColor;
+        internal readonly string Key;
+
+        internal DrawerNavyRowVM(string key, string icon, string name, string nums, string numsColor,
+            string note, string noteColor)
+        {
+            Key = key ?? "";
+            _icon = string.IsNullOrEmpty(icon) ? "fia_bld_port" : icon;
+            _name = name ?? "";
+            _nums = nums ?? "";
+            _numsColor = string.IsNullOrEmpty(numsColor) ? "#D8C9A0FF" : numsColor;
+            _note = note ?? "";
+            _noteColor = string.IsNullOrEmpty(noteColor) ? "#8FD8E8FF" : noteColor;
+        }
+
+        [DataSourceProperty] public string Icon { get { return _icon; } }
+        [DataSourceProperty] public string Name { get { return _name; } }
+        [DataSourceProperty] public string Nums { get { return _nums; } }
+        [DataSourceProperty] public string NumsColor { get { return _numsColor; } }
+        [DataSourceProperty] public string Note { get { return _note; } }
+        [DataSourceProperty] public string NoteColor { get { return _noteColor; } }
+    }
+
     // ===================== 抽屉主 VM =====================
     public class SettlementDrawerVM : PanelVMBase
     {
@@ -330,11 +361,32 @@ namespace FeudalInternalAffairs
         private readonly List<DrawerRowVM> _allRows = new List<DrawerRowVM>();
         internal int Scroll;
 
+        // ==================== v4.282: 驻扎的海军(城市详情页) ====================
+        //   版面(与 GUI\Prefabs\FeudalDrawer.xml、UI\SettlementDrawer.cs 的热区一一对应):
+        //     标题行     底距 230 (h20)  "驻扎的海军" + 本城驻扎支数
+        //     港口信息行 底距 210 (h18)  此城是不是沿海港口 / 船坞等级 / 能造什么(如实说明未解锁)
+        //     舰队行 i   底距 164/120/76  最多 3 行(行高 40, 行距 4) —— 每行 [查看] [召回]
+        //   ★ 建筑列表的可用高度因此被"让出" `NavyReserve`(258 = 76 + 174 + 8) 像素; 这个常量在这里
+        //     定义、由 SettlementDrawer 注册热区与 RowPage() 共同使用, 三处**只有一个数字来源**。
+        internal const float NavyReserve = 258f;
+        internal const float NavyRowH = 44f;
+        internal const int NavyRowMax = 3;
+
+        private string _navyTitle = "", _navyInfo = "";
+        private bool _navyShow;
+        private readonly List<DrawerNavyRowVM> _allNavyRows = new List<DrawerNavyRowVM>();
+
+        [DataSourceProperty] public MBBindingList<DrawerNavyRowVM> NavyRows { get; private set; }
+        [DataSourceProperty] public bool ShowNavy { get { return _navyShow; } }
+        [DataSourceProperty] public string NavyTitle { get { return _navyTitle; } }
+        [DataSourceProperty] public string NavyInfo { get { return _navyInfo; } }
+
         internal SettlementDrawerVM(Action onClose)
         {
             _onClose = onClose;
             Nodes = new MBBindingList<DrawerNodeVM>();
             Rows = new MBBindingList<DrawerRowVM>();
+            NavyRows = new MBBindingList<DrawerNavyRowVM>();
             BuildTree();
             Title = "定居点";
             Subtitle = "左键点树里的名字查看建筑";
@@ -548,9 +600,153 @@ namespace FeudalInternalAffairs
                 IsBuildMode = true;
                 ApplyFilter();
                 UpdateMilitary(s);
+                UpdateNavy(s);   // v4.282: 驻扎的海军区块(与建筑列表同页, 见 NavyReserve 的版面说明)
                 DLog.Info("抽屉: 显示 " + Title + " 的建筑 " + _allRows.Count + " 项");
             }
             catch (Exception ex) { DLog.Force("抽屉建筑列表失败: " + ex.Message); }
+        }
+
+        // ==================== v4.282: 驻扎的海军区块 ====================
+        //   内容三行: ①本城驻泊的舰队(每行 舰数/战力/水手 + [查看][召回]) ②港口与船坞实况
+        //   ③没有舰队时的一句引导(而不是留一片空白让人以为坏了)。
+        //   ★ 只对**沿海城镇**显示"港口/船坞"实况; 内陆城镇如实写"不是沿海港口, 海军无法进驻"。
+        internal void UpdateNavy(Settlement s)
+        {
+            try
+            {
+                _allNavyRows.Clear();
+                NavyRows.Clear();
+                _navyShow = false;
+                _navyTitle = ""; _navyInfo = "";
+                if (s == null) return;
+                var target = s.IsVillage && s.Village != null && s.Village.Bound != null ? s.Village.Bound : s;
+                if (target == null) return;
+
+                _navyShow = true;
+                _navyTitle = "驻扎的海军";
+
+                bool coastal = false;
+                try { coastal = target.HasPort && target.IsTown; } catch { }
+                var list = new List<NavalTaskForce.Force>();
+                try { list = NavalTaskForce.MooredAt(target); } catch { }
+
+                _navyTitle = "驻扎的海军(" + list.Count + " 支)";
+
+                // ---- ② 港口/船坞实况(顺便回答"这城能造什么船、为什么不能造") ----
+                if (!coastal)
+                {
+                    _navyInfo = NavalBridge.Usable
+                        ? "此城不是沿海港口 —— 海军只能进驻沿海城镇(港口由海战 DLC 的地图数据决定)"
+                        : "未检测到海战 DLC —— 海军功能整体停用";
+                }
+                else
+                {
+                    var k = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                    int lvl = 0;
+                    try { lvl = NavalBridge.ShipyardLevel(target); } catch { }
+                    string yardInfo;
+                    if (lvl <= 0) yardInfo = "无造船厂建筑(不能造船/不能加装升级件) —— 可在建筑列表里排建[造船厂]";
+                    else
+                    {
+                        int can = 0, locked = 0, stock = 0;
+                        try
+                        {
+                            var offers = NavalFleet.Offers(target, k);
+                            for (int i = 0; i < offers.Count; i++)
+                            {
+                                if (offers[i] == null) continue;
+                                if (offers[i].Buildable) { can++; if (offers[i].Days == 0) stock++; }
+                                else locked++;
+                            }
+                        }
+                        catch { }
+                        yardInfo = "造船厂 " + lvl + " 级(1级轻/2级中/3级重) · 在售 " + stock + " 型 · 可造 " + can + " 型"
+                                 + (locked > 0 ? " · 未解锁 " + locked + " 型(需更高船坞等级/海军科技)" : "");
+                    }
+                    _navyInfo = "沿海港口 · " + yardInfo;
+                }
+
+                // ---- ① 驻泊舰队行 ----
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var f = list[i];
+                    if (f == null) continue;
+                    var p = NavalTaskForce.PartyOf(f);
+                    if (p == null) continue;
+                    int ships, crew, sailors;
+                    float power, ratio, morale, upkeep, wage;
+                    bool moored;
+                    NavalTaskForce.Stats(p, out ships, out power, out ratio, out crew, out sailors, out morale,
+                        out upkeep, out wage, out moored);
+                    string nm = MapSelection.NameOf(p);
+                    string st = NavalTaskForce.MoorStateText(f);
+                    string nums = "舰 " + ships + " 艘 · 战力 " + (int)power + " · 水手 " + sailors + "/" + crew;
+                    _allNavyRows.Add(new DrawerNavyRowVM(
+                        "fleet:" + f.PartyId, NavalBridge.IconNavalPort, nm, nums,
+                        moored ? "#E9CD74FF" : "#D8C9A0FF",
+                        st + " · 完整度 " + (int)Math.Round(ratio * 100f) + "%" + (moored ? " · 维护 -35%" : ""),
+                        moored ? "#8FD8E8FF" : "#A89C7ACC"));
+                }
+                if (_allNavyRows.Count == 0)
+                    _navyInfo += " ｜ 本城暂无驻扎舰队: 到海军页[舰队]页签选一支舰队, 点[进驻城市]后在地图上点本城";
+
+                for (int i = 0; i < _allNavyRows.Count && i < NavyRowMax; i++) NavyRows.Add(_allNavyRows[i]);
+                if (_allNavyRows.Count > NavyRowMax)
+                    _navyInfo += " ｜ 另有 " + (_allNavyRows.Count - NavyRowMax) + " 支未列出(到海军页看全部)";
+
+                OnPropertyChangedWithValue(NavyRows, "NavyRows");
+                OnPropertyChangedWithValue(_navyShow, "ShowNavy");
+                OnPropertyChangedWithValue(_navyTitle, "NavyTitle");
+                OnPropertyChangedWithValue(_navyInfo, "NavyInfo");
+            }
+            catch (Exception ex) { DLog.Force("抽屉驻扎海军区块异常: " + ex.Message); }
+        }
+
+        // 驻扎舰队的行内操作(key = "fleet:<PartyId>"; action: 0 = 查看, 1 = 召回/离港)
+        //   ★ 按 key 反查而不是按行号: 舰队可能在面板 2 秒刷新窗口内离港/被歼灭(与海军页 v4.279 同一理由)。
+        internal void NavyActionByKey(string key, int action)
+        {
+            try
+            {
+                var cur = _current;
+                var target = cur != null && cur.IsVillage && cur.Village != null && cur.Village.Bound != null
+                    ? cur.Village.Bound : cur;
+                string pid = !string.IsNullOrEmpty(key) && key.StartsWith("fleet:", StringComparison.Ordinal)
+                    ? key.Substring(6) : "";
+                NavalTaskForce.Force hit = null;
+                var list = target != null ? NavalTaskForce.MooredAt(target) : new List<NavalTaskForce.Force>();
+                for (int i = 0; i < list.Count; i++)
+                    if (list[i] != null && list[i].PartyId == pid) { hit = list[i]; break; }
+                if (hit == null)
+                {
+                    MapSelection.Message("驻扎海军: 该舰队已不在本城(可能已离港/被歼灭) —— 列表已刷新");
+                    UpdateNavy(target);
+                    return;
+                }
+                var p = NavalTaskForce.PartyOf(hit);
+                if (p == null) { MapSelection.Message("驻扎海军: 舰队不在场"); UpdateNavy(target); return; }
+
+                if (action == 0)
+                {
+                    // [查看]: 切到海军页并定位这支舰队(PanelScreen 会自动关掉本抽屉 —— 侧边栏互斥)
+                    MapSelection.Message("驻扎海军: 打开海军页定位「" + MapSelection.NameOf(p) + "」");
+                    NavyPanel.OpenAtFleet(hit.PartyId);
+                    return;
+                }
+                // [召回]: 解除驻扎(离港)。母港保留 —— 舰队转为在港待命, 地图上仍归你指挥。
+                string msg = NavalTaskForce.Unmoor(p);
+                try { PanelScreen.JumpToSettlement(target); } catch { }
+                MapSelection.Message(msg);
+                UpdateNavy(target);
+            }
+            catch (Exception ex) { DLog.Force("抽屉驻扎海军操作异常: " + ex.Message); }
+        }
+
+        // 热区用: 第 i 行(屏幕可见行)的 key
+        internal string NavyKeyAt(int i)
+        {
+            try { return i >= 0 && i < NavyRows.Count ? NavyRows[i].Key : null; }
+            catch { return null; }
         }
 
         private int LimitOf(Settlement s)
@@ -675,7 +871,9 @@ namespace FeudalInternalAffairs
             float h = 0f;
             try { h = PanelScreen.ScreenHeight(); } catch { }
             if (h <= 100f) h = 1080f;
-            int n = (int)((h - 224f - 92f) / 54f);
+            // v4.282: 列表底部要**让出驻扎海军区块**(NavyReserve = 258)。这里与 SettlementDrawer 注册
+            //   热区时的守卫用同一个常量 —— 否则会出现"VM 渲染了 14 行, 后 3 行没有热区, 点不动"。
+            int n = (int)((h - 224f - NavyReserve) / 54f);
             return n < 3 ? 3 : n;
         }
 
@@ -727,7 +925,7 @@ namespace FeudalInternalAffairs
                 if (_buildMode)
                 {
                     if (_current != null) ShowBuildings(_current);
-                    else UpdateMilitary(null);
+                    else { UpdateMilitary(null); UpdateNavy(null); }   // v4.282: 海军区块一并清空
                     return;
                 }
                 foreach (var n in _allNodes) n.RefreshTexts();

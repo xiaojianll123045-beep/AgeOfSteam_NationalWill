@@ -82,10 +82,11 @@ namespace FeudalInternalAffairs
                 try { physicallyDown = TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton); } catch { }
                 if (physicallyDown) return;
                 _leftDown = false;
-                DLog.Force("框选: 检测到左键释放帧丢失, 自动复位(相机输入恢复)");
+                // v4.254: 降为 Info —— 快速点击本来就会走到这里(日志里积了 1131 次), 不是异常
+                DLog.Info("框选: 左键按下标记残留已复位(相机输入恢复)");
             }
             SetCameraInput(true);
-            DLog.Force("框选: 相机输入已自动恢复(防吞左键指挥)");
+            DLog.Info("框选: 相机输入已自动恢复");
         }
 
         // 返回 true = 这次左键算"拖框"(不要当点击处理)
@@ -96,7 +97,9 @@ namespace FeudalInternalAffairs
                 // v4.240: 按下点落在自建页面上 -> 整个手势作废(不当地图单击/框选/指挥), 直到松手
                 //   (原来只判"有面板打开就早退", 单击标记 LastReleaseWasClick 会保留开面板前的旧值:
                 //    在页面里按下、拖到地图上松开 -> 被当成一次地图单击, 选中部队会被指挥走)
-                if (pressed && (PanelScreen.IsMouseOnPanel() || PanelScreen.AnyOpen))
+                // v4.264: 按下点落在教程浮窗上 -> 整个手势作废(不框选/不指挥) —— 与"面板上按下"同一套机制。
+                //   这是"左右键穿透"的主因: 拦截原来只管住了"下命令", 没管住"手势启动"。
+                if (pressed && (PanelScreen.IsMouseOnPanel() || PanelScreen.AnyOpen || TutorialWindow.IsMouseOn()))
                 {
                     _leftStartedOnPanel = true;
                     ClearClickFlag();
@@ -121,6 +124,17 @@ namespace FeudalInternalAffairs
                 {
                     _startPixel = mouse;
                     _dragging = false;
+                    // v4.254: 同一帧内"按下 + 松开"(快速点击)必须当成一次完整单击就地结算 ——
+                    //   原来这里只置 _leftDown = true 就 return, 同一帧的 released 分支不会执行,
+                    //   LastReleaseWasClick 保留上一次的旧值(或残留按下标记被 EnsureCameraInputOn 自愈清掉),
+                    //   于是快速点击经常被吞(用户"点了没反应"), 日志里积了 1131 次"释放帧丢失"。
+                    if (released)
+                    {
+                        _leftDown = false;
+                        LastReleaseWasClick = true;
+                        SetCameraInput(true);
+                        return false;
+                    }
                     _leftDown = true;
                     // v4.75l: 按下瞬间就关掉原版相机输入 -> 根除"框选起手一瞬间移动屏幕"老 bug
                     // (原版判定"左键拖动平移"比我们的 20px 框选阈值更早, 关晚了会漏 1-2 帧真实位移;
@@ -385,7 +399,7 @@ namespace FeudalInternalAffairs
             try
             {
                 // v4.213: 只有"鼠标落在自建页面上"才吃右键; 起点在页面上 -> 整个手势作废(不穿透)
-                if (pressed && PanelScreen.IsMouseOnPanel())
+                if (pressed && (PanelScreen.IsMouseOnPanel() || TutorialWindow.IsMouseOn()))
                 {
                     _rightStartedOnPanel = true;
                     _panning = false;
@@ -425,7 +439,10 @@ namespace FeudalInternalAffairs
                     float mx = TaleWorlds.InputSystem.Input.MouseMoveX;
                     float my = TaleWorlds.InputSystem.Input.MouseMoveY;
                     _panAccum += Math.Abs(mx) + Math.Abs(my);
-                    if (!_panning && (dx * dx + dy * dy > 300f || _panAccum > 20f))
+                    // v4.256: 进入平移的门槛从"累计鼠标移动 20 像素"提到 60。原来 20 像素太低 ——
+                    //   右键单击时手自然微动就会超过, 于是几乎每次右键单击都被判成"平移"并 return true,
+                    //   小队菜单/国防军菜单**从来没弹出过**(界面审计实证: 日志里"右键: 选中=" 0 条)。
+                    if (!_panning && (dx * dx + dy * dy > 300f || _panAccum > 60f))
                     {
                         _panning = true;
                         _panLogged = false;
@@ -443,10 +460,14 @@ namespace FeudalInternalAffairs
                     bool wasPanning = _panning;
                     _panning = false;
                     _rightDown = false;
+                    // v4.256: 按下点到松开点的**总位移**很小(< 12 像素)时, 即使中途进过 pan 也算单击 ——
+                    //   与上面提高门槛一起, 保证"右键点一下"稳定判为单击(菜单才弹得出来)。
+                    float tdx = mouse.X - _startPixel.X, tdy = mouse.Y - _startPixel.Y;
+                    if (tdx * tdx + tdy * tdy < 144f) wasPanning = false;
                     if (!_relLogged)
                     {
                         _relLogged = true;
-                        DLog.Force("右键: 松开(平移=" + wasPanning + ")");
+                        DLog.Force("右键: 松开(平移=" + wasPanning + " 位移=" + ((int)Math.Sqrt(tdx * tdx + tdy * tdy)) + ")");
                     }
                     return wasPanning;
                 }

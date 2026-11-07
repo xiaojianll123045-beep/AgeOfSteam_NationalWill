@@ -281,6 +281,7 @@ namespace FeudalInternalAffairs
             try
             {
                 EconomyWorld.Reset();
+                DailySettlement.DropCaches();   // v4.267: 换战役 -> 定居点索引/库存缓存一并失效
                 EconomyWorld.EnsureContainers();
                 PresetBuildings();
                 InitTreasury();
@@ -299,6 +300,7 @@ namespace FeudalInternalAffairs
             try
             {
                 EconomyWorld.EnsureContainers();
+                DailySettlement.DropCaches();   // v4.267: 读档 -> 重建定居点索引(旧对象可能已随上一档失效)
                 Pops.EnsureInit("读档补齐");   // 旧存档无 FIA_Pops 时补建
                 RailSystem.Reset();   // v4.161: 铁路(下帧重新建网)
                 // 旧存档(本系统还没有数据) -> 自动初始化: 预置建筑 + 市场初值(11.2)
@@ -465,7 +467,8 @@ namespace FeudalInternalAffairs
                 if (day == _lastDay) return;
                 OnDailyTick();
             }
-            catch { }
+            // v4.267: 日结驱动本身出问题原来完全静默(整个跨日结算会悄悄停摆) -> 必须进正式日志
+            catch (Exception ex) { DLog.Force("经济日结驱动异常(OnTick): " + ex.Message); }
         }
 
         // 每日结算时序(11.3): P1 只做数据维护与日志; P2 起接入产出/市场/建造/军需/财政
@@ -481,6 +484,22 @@ namespace FeudalInternalAffairs
                 {
                     var hero = Hero.MainHero;
                     EconomyWorld.Treasury.LastGold = EconomyWorld.Treasury.Gold;
+                    // v4.290 诊断: 这条基线原先**无条件**用 hero.Gold 覆盖 Treasury.Gold, 后果链是:
+                    //   ① Hero.Gold 的 setter 硬钳 Max(0,value) -> 国库的负值当场消失;
+                    //   ② Credit.Debt = Max(0,-Treasury.Gold) 次日读到 0 -> 债务不跨日累积,
+                    //      讨债(连续 7 天)/破产(连续 14 天)几乎不可达;
+                    //   ③ 一旦真触发破产清债, Credit 会 TreasuryAdd(bail/d2) —— 而那笔债**从未真的
+                    //      从 hero.Gold 扣走**, 等于给玩家加上"从未失去的钱" = 凭空印钱;
+                    //   ④ 所有"国库不足时实际少付"的支出(建筑维护/关税/利息/年金/军费...), 账本仍记全额。
+                    //   现在**不改变行为**, 只把这笔被免除的钱打进日志, 让"未付支出"不再静默消失。
+                    //   ⚠ 要不要把它变成**真实债务**(保留负值, 交给 Credit 的利率/讨债/破产链)是设计决策:
+                    //     改了会让未付支出跨日累积、玩家可能陷入还不清的债; 回退只需删掉下面这个 if。
+                    if (EconomyWorld.Treasury.Gold < 0)
+                    {
+                        FixProbe.NoteUnpaid(-(long)EconomyWorld.Treasury.Gold);   // 累计进 [日诊断]
+                        DLog.Force("国库: 本日未付支出 " + (-EconomyWorld.Treasury.Gold)
+                            + " 第纳尔被日初基线免除(债务不跨日累积, 破产链因此几乎不可达)");
+                    }
                     EconomyWorld.Treasury.Gold = hero != null ? hero.Gold : 0;
                     // 关键顺序: 先记录"日初基线"(财政页"今日值"= 当前累计 - 日初基线), 再跑当日结算
                     Fiscal.DayRoll();
@@ -488,7 +507,16 @@ namespace FeudalInternalAffairs
                     InvestmentPool.DayReset();
                 });
                 // 建筑产出 / 消耗 -> 本地市场(11.3 步骤 2~3)
-                DailyScheduler.Add("建筑产出", delegate { DailySettlement.Run(); });
+                // v4.267: "建筑产出"整步原来要 2295ms, 分帧调度器对"单步就是 2 秒"无效(跨日那帧仍顿一下)。
+                //   现在按定居点切成 Parts 片登记, 每片只跑一部分定居点 -> 单步耗时降到原来的 1/Parts,
+                //   真正吃上每帧 3ms 的预算。片 0 做清流量+建缓存, 最后一片做 PopJob/MarketSim/日志收尾,
+                //   全部拼起来与 DailySettlement.Run() 一次性跑完**完全等价**(见 DailySettlement.RunPart 注释)。
+                for (int _p = 0; _p < DailySettlement.Parts; _p++)
+                {
+                    int _pp = _p;   // 闭包捕获: 别让所有步骤都拿到同一个 i
+                    DailyScheduler.Add("建筑产出 " + (_pp + 1) + "/" + DailySettlement.Parts,
+                        delegate { DailySettlement.RunPart(_pp, DailySettlement.Parts); });
+                }
                 // v4.251: 建筑维护费(玩家国, 从国库出) —— "完全不管经济就崩盘"缺的那条持续成本
                 DailyScheduler.Add("建筑维护", delegate
                 {
@@ -550,7 +578,19 @@ namespace FeudalInternalAffairs
                     DailyScheduler.Add("月结·财政政治", delegate
                     {
                         try { InvestmentPool.Monthly(); Fiscal.Month(); Guilds.MonthlyFee(); TaxPolicy.Month(); InterestGroups.Monthly(day); Institutions.Monthly(); Politics.Month(day); } catch { }
-                        try { int trib = PowerBlocs.EmpireTribute(); if (trib > 0) { EconomyWorld.TreasuryAdd(trib); Fiscal.Export += trib; } } catch { }   // v5.0-P27: 附庸贡金
+                        // v5.0-P27: 附庸贡金
+                        // v4.290 记账修复: 原先记进 Fiscal.Export("出口收入"), 于是月度"出口收入"里混着贡金、
+                        //   贸易类统计失真。改记"宫廷与外交往来"收入侧(与条约/赔款同科目)。
+                        //   注: 这里仍只对**玩家**集团直接 TreasuryAdd —— AI 集团那条在 PowerBlocs.cs 里
+                        //   走 WarEconomy.SpendPublic(成员) -> AddPublic(领袖) 的真实转移(已核),
+                        //   而玩家集团这条目前没有对应的"从成员国扣款"点(成员国凭空少缴)。
+                        //   补扣款会直接改动 AI 成员国的金库, 属平衡决策, 留待确认后再动。
+                        try
+                        {
+                            int trib = PowerBlocs.EmpireTribute();
+                            if (trib > 0) { EconomyWorld.TreasuryAdd(trib); Fiscal.AddCourtGot(trib); }
+                        }
+                        catch { }
                     });
                     DailyScheduler.Add("月结·AI 扩军", delegate { try { AiDevelopment.Monthly(day); } catch { } });   // v4.106: AI 国家自己扩军
                     DailyScheduler.Add("月结·AI 军团", delegate { try { AiDevelopment.MonthlyArmy(day); } catch { } });   // v4.110: AI 军团集结
@@ -580,6 +620,9 @@ namespace FeudalInternalAffairs
                     });
                     DailyScheduler.Add("月结·AI 战略", delegate { try { foreach (var k in Kingdom.All) { if (k != null && !k.IsEliminated) AiDirector.Monthly(k); } } catch { } });   // v5.0: AI 战略层月结(目标/威胁/预算/战争意愿)
                 }
+                // v4.290 探针: 把当天所有计数/状态汇总成一行 [日诊断]。
+                //   必须排在所有当日结算之后 —— 用户跑几天后只需抓日志里所有 "[日诊断]" 行。
+                DailyScheduler.Add("日诊断", delegate { FixProbe.DailyReport(day); });
                 DailyScheduler.Add("落盘标记", delegate
                 {
                     EconomyWorld.MarkDirty();

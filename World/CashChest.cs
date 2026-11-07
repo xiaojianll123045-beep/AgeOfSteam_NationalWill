@@ -25,7 +25,25 @@ namespace FeudalInternalAffairs
                 if (days > 400) days = 400;   // 防读档跨度过大
                 float mint = 0f;
                 try { mint = MintRight.DailyIncome * 0.25f; } catch { }
-                Chest = Chest * (float)Math.Pow(1.0 + DailyRate, days) + mint * days;
+                // v4.290 修复: 这 25% 铸币原先**凭空创造**(只加 Chest, 不冲减任何地方) ——
+                //   而 MintRight 已经把铸币收入 100% 记进国库(TreasuryAdd + Fiscal.AddMint),
+                //   于是整个体系凭空多出 25% 的货币。改为从国库**划转**: 先扣再进钱箱, 总量守恒。
+                //   国库不够时**不分红**(而不是凭空造), 避免又开一个隐性的负国库入口。
+                int mintTotal = (int)Math.Max(0f, mint * days);
+                if (mintTotal > 0)
+                {
+                    try
+                    {
+                        if (EconomyWorld.Treasury.Gold >= mintTotal)
+                        {
+                            EconomyWorld.TreasurySpend(mintTotal);
+                            Fiscal.AddCourtPaid(mintTotal);
+                        }
+                        else mintTotal = 0;
+                    }
+                    catch { mintTotal = 0; }
+                }
+                Chest = Chest * (float)Math.Pow(1.0 + DailyRate, days) + mintTotal;
                 LastDay = today;
             }
             catch { }
@@ -39,7 +57,12 @@ namespace FeudalInternalAffairs
                 var hero = Hero.MainHero;
                 if (hero == null) return "找不到君主。";
                 if (hero.Gold < amount) return "金币不足(需 " + amount + ", 现有 " + hero.Gold + ")。";
-                hero.ChangeHeroGold(-amount);
+                // v4.290 记账修复: 原先只调 hero.ChangeHeroGold, 既不动 Treasury.Gold 也不进任何科目 ——
+                //   于是"存入当天国库数字不降、取出当天不升", 要等次日国库基线(EconomyBehavior.cs:487
+                //   用 hero.Gold 覆盖 Treasury.Gold)才悄悄补平, 期间财政页的"今日净额"与科目明细对不上。
+                //   改走统一入口: TreasurySpend/TreasuryAdd 本来就同时改两边, 并在这里补记账。
+                EconomyWorld.TreasurySpend(amount);
+                try { Fiscal.AddCourtPaid(amount); } catch { }
                 Chest += amount;
                 return "已存入钱箱 " + amount + " 第纳尔, 现有 " + ((int)Chest) + "。";
             }
@@ -55,8 +78,9 @@ namespace FeudalInternalAffairs
                 int take = (int)Math.Min(amount, Chest);
                 Chest -= take;
                 var hero = Hero.MainHero;
-                if (hero != null) hero.ChangeHeroGold(take);
-                else { try { EconomyWorld.TreasuryAdd(take); } catch { } }
+                // v4.290 记账修复: 同 Deposit —— 走统一入口, 并记进科目(与上面的支出侧配对)。
+                if (hero != null) { EconomyWorld.TreasuryAdd(take); try { Fiscal.AddCourtGot(take); } catch { } }
+                else { try { EconomyWorld.TreasuryAdd(take); } catch { } Fiscal.AddCourtGot(take); }
                 return "已从钱箱取出 " + take + " 第纳尔, 剩余 " + ((int)Chest) + "。";
             }
             catch (Exception ex) { return "取出失败: " + ex.Message; }

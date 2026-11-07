@@ -1379,6 +1379,7 @@ namespace FeudalInternalAffairs
                 if (_isArmy) { _status = "军团部队请去军务页操作"; Notify("StatusLine"); return; }
                 if (PanelInputGuard.AnyPopupActive()) return;
                 var cands = new List<MobileParty>();
+                int skippedFleetCand = 0;   // v4.279(第 1 项): 被挡下的舰队候选数
                 try
                 {
                     var c = Campaign.Current;
@@ -1390,6 +1391,16 @@ namespace FeudalInternalAffairs
                             if (q == null || !q.IsActive || ReferenceEquals(q, _party)) continue;
                             if (q.IsMainParty || q.IsCaravan || q.IsVillager || q.IsMilitia || q.IsGarrison) continue;
                             if (q.Army != null) continue;
+                            // ==================== v4.279(第 1 项 ★ 不可逆损失): 舰队不能作为合并目标 ====================
+                            //   这是与 ArmyManagePanel.CountMergeableSelected/MergeSelected **同一类**的第 5 个入口
+                            //   (小窗[合并]按钮 -> ExecuteMerge). 舰队司令挂在玩家氏族下, 前面那几个过滤条件
+                            //   对它全部通过, 于是舰队会出现在"选择要并入的部队"列表里; 一旦选中:
+                            //     ArmyMoves.Merge -> DestroyPartyAction.ApplyForDisbanding
+                            //       -> MobileParty.RemoveParty() -> `DestroyShipAction.Apply(Ships[i])`
+                            //   ⇒ **整支舰队与全部舰船被永久销毁**, 且无二次确认。这里直接不列为候选。
+                            bool isFleet = false;
+                            try { isFleet = NavalTaskForce.IsTaskForce(q); } catch { }
+                            if (isFleet) { skippedFleetCand++; continue; }
                             if (!NationalWillOrders.IsOurs(q)) continue;
                             float d2 = _party.Position.DistanceSquared(q.Position);
                             if (d2 > 150f * 150f) continue;
@@ -1398,7 +1409,15 @@ namespace FeudalInternalAffairs
                     }
                 }
                 catch { }
-                if (cands.Count == 0) { _status = "附近没有可合并的部队(150 距离内, 需本国非军团部队)"; Notify("StatusLine"); return; }
+                if (cands.Count == 0)
+                {
+                    // v4.279(第 1 项): 附近只有舰队时要说清原因(否则玩家只看到"附近没有可合并的部队")
+                    _status = skippedFleetCand > 0
+                        ? ("附近只有 " + skippedFleetCand + " 支舰队 —— 舰队不能与陆军合并(合并会永久销毁整支舰队与全部舰船)")
+                        : "附近没有可合并的部队(150 距离内, 需本国非军团部队)";
+                    Notify("StatusLine");
+                    return;
+                }
                 cands.Sort(delegate (MobileParty a, MobileParty b)
                 {
                     try { return _party.Position.DistanceSquared(a.Position).CompareTo(_party.Position.DistanceSquared(b.Position)); }
@@ -1940,7 +1959,10 @@ namespace FeudalInternalAffairs
                 try { dst.ActualClan = src.ActualClan; } catch { }
                 try { dst.Party.SetCustomName(new TextObject("第 " + squad + " 队")); } catch { }
                 if (home != null) { try { dst.SetCustomHomeSettlement(home); } catch { } }
-                try { dst.Ai.SetDoNotMakeNewDecisions(true); dst.SetMoveModeHold(); } catch { }
+                // v4.258: 不再对新分出的部队设 SetDoNotMakeNewDecisions(true)+SetMoveModeHold() ——
+                //   v4.90 已确认该标志会让 native 侧疑似冻结移动, 于是"分裂小队"后新部队永久停在原地、
+                //   点它也不会走。合并/分裂后的部队应保持在玩家指挥下, 而不是被冻住。
+                try { dst.Ai.SetDoNotMakeNewDecisions(false); } catch { }
 
                 int dstMen = b != null ? b.List.Count : movedRec;
                 msg = "分裂完成: 「" + MapSelection.NameOf(src) + "」分出 " + movedRec + " 人 → 「第 " + squad + " 队」("

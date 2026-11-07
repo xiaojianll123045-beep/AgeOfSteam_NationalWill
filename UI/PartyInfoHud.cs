@@ -43,6 +43,9 @@ namespace FeudalInternalAffairs
             {
                 if (p == null) { Hide(); return; }
                 Party = p;
+                // v4.276: 舰队走海军专属展示 —— 军团那套(组织度/战术/兵种配比/损耗)对舰队没有意义
+                //   (ArmyDoctrine 的键按 DefLegion 建, 舰队根本不在登记表里), 硬套只会显示一堆恒定值。
+                if (NavalTaskForce.IsTaskForce(p)) { ShowFleet(p); return; }
                 int men = 0;
                 try { men = DefArmy.RegularsOf(p); } catch { }   // 显示口径 = 名册 − 将军
                 DefLegion mine = null;
@@ -161,12 +164,97 @@ namespace FeudalInternalAffairs
             }
             catch (Exception ex) { DLog.Force("部队小窗失败: " + ex.Message); Hide(); }
         }
+
+        // ==================== v4.276: 舰队属性小窗 ====================
+        //   与陆军小窗共用同一个层/同一个 VM, 只换内容 —— 属性口径来自 NavalTaskForce.Stats
+        //   (舰数/总战力/耐久完整度/船员/水手/士气/日维护), 与地图右键菜单和海军页指挥条同源。
+        //   注意这里**不显示** [管理/解散/扩容/分裂/合并] 那一排按钮: 它们走陆军部队管理, 对舰队无效。
+        internal void ShowFleet(MobileParty p)
+        {
+            try
+            {
+                var f = NavalTaskForce.ForceOf(p);
+                int ships, crew, sailors;
+                float power, ratio, morale, upkeep, wage;
+                NavalTaskForce.Stats(p, out ships, out power, out ratio, out crew, out sailors, out morale, out upkeep, out wage);
+
+                _title = MapSelection.NameOf(p) + "  ·  舰队 · " + (f != null ? f.Task : "?");
+
+                var sb = new System.Text.StringBuilder();
+                sb.Append("母港 ").Append(f != null && !string.IsNullOrEmpty(f.HomePortName) ? f.HomePortName : "未知");
+                // v4.277(第 3 项): 母港推断失败时必须明说怎么办, 不能只显示一个"未知"
+                if (f == null || string.IsNullOrEmpty(f.HomePortId)) sb.Append("(右键[指定母港…]可指定)");
+                sb.Append(" · 指挥官 ");
+                try { sb.Append(p.LeaderHero != null && p.LeaderHero.Name != null ? p.LeaderHero.Name.ToString() : "—"); }
+                catch { sb.Append("—"); }
+                sb.Append('\n');
+
+                sb.Append("——— 舰队状态 ———\n");
+                sb.Append("舰船 ").Append(ships).Append(" 艘 · 总战力 ").Append((int)power)
+                  .Append(" · 耐久完整度 ").Append((int)Math.Round(ratio * 100f)).Append("%\n");
+                // ==================== v4.286c(用户反馈③: "舰队怎么显示 0 人") ====================
+                //   0 水手原来是"只显示 0" —— 玩家读成"这舰队是空的/不能用"。现在三件事一起说清:
+                //     ① 缺员多少人(载员上限 - 实际水手)  ② 满编军饷是多少(否则"军饷 0"被读成"海军不花钱")
+                //     ③ 缺员的**真实**后果(见下面那句: 不影响战力/航行/运力 —— 这是查证过的, 不是安慰话)
+                int lack = crew - sailors;
+                sb.Append("水手 ").Append(sailors).Append(" / 载员上限 ").Append(crew)
+                  .Append(lack > 0 ? ("(缺 " + lack + " 人)") : "(满编)")
+                  .Append(" · 士气 ").Append((int)morale).Append('\n');
+                float fullWage = 0f;
+                try { fullWage = crew * NavalTaskForce.WageRate(); } catch { }
+                sb.Append("日耗 船维护 ").Append(upkeep.ToString("0.#")).Append(" + 水手军饷 ").Append(wage.ToString("0.#"))
+                  .Append(" = 合计 ").Append((upkeep + wage).ToString("0.#")).Append(" 第纳尔/日");
+                if (lack > 0)
+                    sb.Append("(军饷按**实际水手 ").Append(sailors).Append(" 人**计; 满编 ").Append(crew)
+                      .Append(" 人约 ").Append((upkeep + fullWage).ToString("0.#")).Append(" 第纳尔/日)");
+                else
+                    sb.Append("(军饷与陆军同口径, 每日从国库扣并入财政[军费])");
+                sb.Append('\n');
+                if (lack > 0)
+                    sb.Append("⚠ 缺员 ").Append(lack).Append(" 人 —— 当前机制下**不影响**战力/航行/海运运力")
+                      .Append("(战力 = Σ 单舰战力 × 科技 × 提督系数, 运力 = Σ 各船载员上限), 只让军饷按实际人头算。")
+                      .Append("补齐办法: 到海军页点[组建舰队]重新编成 —— 它会按建议编制(").Append(crew)
+                      .Append(" 人 = 各船载员上限之和)先从本国其它聚落守备营如实抽调; 抽不齐会拒绝组建并告诉你还差多少。\n");
+
+                sb.Append("——— 舰船明细 ———\n");
+                var list = NavalBridge.ShipsOf(p);
+                int show = list.Count < 4 ? list.Count : 4;
+                for (int i = 0; i < show; i++)
+                {
+                    var s = list[i];
+                    if (s == null) continue;
+                    string nm = NavalBridge.HullName(s);
+                    try { if (s.Name != null && !string.IsNullOrEmpty(s.Name.ToString())) nm = s.Name.ToString(); } catch { }
+                    sb.Append(nm).Append(" · ").Append(NavalBridge.HullTypeName(NavalBridge.HullType(s))).Append("舰 · ")
+                      .Append((int)NavalBridge.HitPoints(s)).Append('/').Append((int)NavalBridge.MaxHitPoints(s))
+                      .Append(" · 战力 ").Append((int)NavalBridge.ShipPowerScore(s)).Append('\n');
+                }
+                if (list.Count > show) sb.Append("… 另有 ").Append(list.Count - show).Append(" 艘\n");
+                sb.Append("指挥: 左键海面=开过去 · 左键港口=开往/封锁敌港 · 右键=舰队菜单(回港/巡航/封锁/解散)");
+
+                _body = sb.ToString();
+                _showRail = false;         // 铁路状态对舰队无意义
+                _showActions = false;      // 陆军部队管理按钮对舰队无效(舰队在地图上右键指挥)
+                _showEditActions = false;
+                _railStatus = "";
+                _visible = true;
+                OnPropertyChangedWithValue(_title, "Title");
+                OnPropertyChangedWithValue(_body, "Body");
+                OnPropertyChangedWithValue(_railStatus, "RailStatus");
+                OnPropertyChangedWithValue(_showRail, "ShowRailStatus");
+                OnPropertyChangedWithValue(_showActions, "ShowActions");
+                OnPropertyChangedWithValue(_showEditActions, "ShowEditActions");
+                OnPropertyChangedWithValue(_visible, "IsVisible");
+            }
+            catch (Exception ex) { DLog.Force("舰队小窗失败: " + ex.Message); Hide(); }
+        }
     }
 
     // 小窗 HUD(独立 Gauntlet 层, 左下角, 不暂停游戏)
     internal static class PartyInfoHud
     {
         private static GauntletLayer _layer;
+        private static bool _coordProbed;   // v4.290: 坐标系探针(只打一次)
         private static PartyInfoVM _vm;
         private static MapScreen _map;
         internal static bool Enabled = true;
@@ -211,6 +299,36 @@ namespace FeudalInternalAffairs
             try
             {
                 if (_layer == null || _vm == null) return;
+                // ==================== v4.290 坐标系探针 ====================
+                // 目的: 判定 prefab 里的 SuggestedWidth/Margin* 到底是不是像素。
+                //   UIContext.UpdateScale() 里 Scale = TwoDimensionContext.Height / 1080,
+                //   而 prefab 的 Margin* 进布局时要乘 UIContext.CustomScale(= Scale * ScaleModifier)。
+                //   若 UsableArea == (1,1)  -> CustomScale = 屏高/1080 ≠ 1 -> 底部锚定热区有 d×(Scale-1) 的偏移
+                //                              (d = 距屏幕底边的设计距离; 军团小窗 d=576, 本机 1920x1200 偏 ~11.8px)
+                //   若 UsableArea ≈ (屏宽比, 屏高比) -> CustomScale = 1 -> prefab 单位就是像素, 热区正确
+                // 只打一次; 用户重启后看日志里这一行即可定案。
+                if (!_coordProbed)
+                {
+                    _coordProbed = true;
+                    try
+                    {
+                        float cs = -1f;
+                        try
+                        {
+                            if (_layer != null && _layer.UIContext != null) cs = _layer.UIContext.CustomScale;
+                        }
+                        catch { }
+                        var ua = TaleWorlds.ScreenSystem.ScreenManager.UsableArea;
+                        var res = TaleWorlds.InputSystem.Input.Resolution;
+                        DLog.Force("[坐标探针] ScreenH=" + PanelScreen.ScreenHeight()
+                            + " ScreenW=" + PanelScreen.ScreenWidth()
+                            + " InputRes=(" + res.X + "," + res.Y + ")"
+                            + " UsableArea=(" + ua.X + "," + ua.Y + ")"
+                            + " CustomScale=" + cs
+                            + " | UsableArea=(1,1) 则底部锚定热区需乘 Scale");
+                    }
+                    catch (Exception ex) { DLog.Force("[坐标探针] 失败: " + ex.Message); }
+                }
                 var list = MapSelection.SelectedList;
                 int n = list != null ? list.Count : 0;
                 if (n != 1)
@@ -282,9 +400,12 @@ namespace FeudalInternalAffairs
             {
                 if (_vm == null || !_vm.IsVisible || !_vm.ShowActions) return false;
                 var m = TaleWorlds.InputSystem.Input.MousePositionPixel;
-                float sh = PanelScreen.ScreenHeight();
-                float y = sh - WinTop + BtnY0;
-                return m.X >= BtnRowX0 && m.X <= BtnRowX0 + BtnStep * 4f + BtnW && m.Y >= y && m.Y <= y + BtnH;
+                // v4.290: prefab 单位是设计单位, 必须换算 —— 本机 CustomScale=1.0204,
+                //   本面板距底边 576 设计单位, 不换算会偏 11.8px(按钮高仅 46)。
+                float sc = PanelScreen.UiScale();
+                float y = PanelScreen.FromBottom(WinTop - BtnY0);
+                float x0 = BtnRowX0 * sc, step = BtnStep * sc, bw = BtnW * sc, bh = BtnH * sc;
+                return m.X >= x0 && m.X <= x0 + step * 4f + bw && m.Y >= y && m.Y <= y + bh;
             }
             catch { return false; }
         }
@@ -298,15 +419,17 @@ namespace FeudalInternalAffairs
                 if (PanelScreen.AnyOpen || NationPickPanel.IsOpen) return;
                 if (PanelInputGuard.AnyPopupActive()) return;
                 PanelScreen.ClearSpots();
-                float sh = PanelScreen.ScreenHeight();
-                float y = sh - WinTop + BtnY0;
-                PanelScreen.AddSpotRaw(BtnRowX0, y, BtnW, BtnH, delegate { ArmyManagePanel.Open(Cap()); });
+                // v4.290: 与上面的命中判定用同一套换算(设计单位 -> 像素), 否则"能点但热区错位"。
+                float sc = PanelScreen.UiScale();
+                float y = PanelScreen.FromBottom(WinTop - BtnY0);
+                float x0 = BtnRowX0 * sc, step = BtnStep * sc, bw = BtnW * sc, bh = BtnH * sc;
+                PanelScreen.AddSpotRaw(x0, y, bw, bh, delegate { ArmyManagePanel.Open(Cap()); });
                 if (_vm.ShowEditActions)
                 {
-                    PanelScreen.AddSpotRaw(BtnRowX0 + BtnStep, y, BtnW, BtnH, delegate { Disband(Cap()); });
-                    PanelScreen.AddSpotRaw(BtnRowX0 + 2f * BtnStep, y, BtnW, BtnH, delegate { ArmyManagePanel.Open(Cap(), ArmyManageVM.ModeAdd); });
-                    PanelScreen.AddSpotRaw(BtnRowX0 + 3f * BtnStep, y, BtnW, BtnH, delegate { ArmyManagePanel.Open(Cap(), ArmyManageVM.ModeSplit); });
-                    PanelScreen.AddSpotRaw(BtnRowX0 + 4f * BtnStep, y, BtnW, BtnH, delegate { ArmyManagePanel.OpenWithMerge(Cap()); });
+                    PanelScreen.AddSpotRaw(x0 + step, y, bw, bh, delegate { Disband(Cap()); });
+                    PanelScreen.AddSpotRaw(x0 + 2f * step, y, bw, bh, delegate { ArmyManagePanel.Open(Cap(), ArmyManageVM.ModeAdd); });
+                    PanelScreen.AddSpotRaw(x0 + 3f * step, y, bw, bh, delegate { ArmyManagePanel.Open(Cap(), ArmyManageVM.ModeSplit); });
+                    PanelScreen.AddSpotRaw(x0 + 4f * step, y, bw, bh, delegate { ArmyManagePanel.OpenWithMerge(Cap()); });
                 }
             }
             catch { }

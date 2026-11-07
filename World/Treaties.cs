@@ -148,7 +148,13 @@ namespace FeudalInternalAffairs
                     if (t == null) { All.RemoveAt(i); continue; }
                     if (t.Broken || t.Left(today) <= 0) { All.RemoveAt(i); continue; }
                     int gain = t.Monthly > 0 ? t.Monthly : (t.Type == "trade" ? 800 : (t.Type == "invest" ? 1500 : (t.Type == "ally" ? 400 : 0)));
-                    if (gain > 0) { try { EconomyWorld.TreasuryAdd(gain); } catch { } }
+                    if (gain > 0)
+                    {
+                        try { EconomyWorld.TreasuryAdd(gain); } catch { }
+                        // v4.290 记账修复: 条约月收益原先裸 TreasuryAdd, 不进任何科目 ——
+                        //   财政页一行都不显示(贸易协定·苛刻 LevelGainMult 2.8 = 800×2.8 = 2240/月)。
+                        try { Fiscal.AddCourtGot(gain); } catch { }
+                    }
                 }
             }
             catch { }

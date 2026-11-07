@@ -57,11 +57,15 @@
               </ItemTemplate>
             </ListPanel>
 
-            <!-- 底部提示 + 开始游戏 -->
-            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+            <!-- 底部提示 + 开始游戏 (v4.286c: 提示改绑 @BottomHint —— 装得下就不提"滚轮", 装不下才给"第 x/y 屏") -->
+            <!-- v4.291: 原来是 CoverChildren + Center —— 文字比侧栏(宽 500)宽时会**溢出到边框外**。
+                 改成撑满父容器(留 24 边距)并允许换行, 这样任何文案/语言/字号下都不会出框。 -->
+            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                         HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="96"
+                        MarginLeft="24" MarginRight="24"
                         Brush="MapTextBrushGal" Brush.FontSize="15" Brush.FontColor="#D8C9A0FF"
-                        Text="滚轮上下滚动查看全部 · 点击其他领地可切换 · 选定后点下方按钮" />
+                        Brush.TextHorizontalAlignment="Center"
+                        Text="@BottomHint" />
             <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed"
                           SuggestedHeight="58" HorizontalAlignment="Left" VerticalAlignment="Bottom"
                           MarginLeft="24" MarginRight="24" MarginBottom="24" Brush="Fia.Button" UpdateChildrenStates="true">

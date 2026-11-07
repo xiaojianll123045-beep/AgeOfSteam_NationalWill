@@ -5,7 +5,7 @@ using TaleWorlds.CampaignSystem.Party;
 
 namespace FeudalInternalAffairs
 {
-    // 27.1 装备体系: 槽位/甲类/目录(39 件)
+    // 27.1 装备体系: 槽位/甲类/目录(40 件; v4.266 补化学战"毒气炮弹")
     internal enum EquipCat { Melee = 0, Ranged = 1, Artillery = 2, Armor = 3, Mount = 4, Support = 5 }
     internal enum EquipSlot { Main = 0, Side = 1, Armor = 2, Helmet = 3, Mount = 4, Support = 5 }
     internal enum ArmorClass { None = 0, Light = 1, Heavy = 2, Addon = 3 }
@@ -36,10 +36,11 @@ namespace FeudalInternalAffairs
         Carriage = 1 << 18,
         Grenade = 1 << 19,
         Tool = 1 << 20,
-        SupportGear = 1 << 21
+        SupportGear = 1 << 21,
+        SpecialAmmo = 1 << 23                  // v4.266: 特殊弹药(毒气炮弹) —— 按需配发, 不计入满足率分母
     }
 
-    // 27.1.2 装备目录(39 件, 数值照抄设计文档)
+    // 27.1.2 装备目录(40 件, 数值照抄设计文档; 第 40 件 = v4.266 化学战毒气炮弹)
     internal class EquipDef
     {
         internal string Id = "";
@@ -97,7 +98,7 @@ namespace FeudalInternalAffairs
 
     internal static class Equipment
     {
-        // ==================== 27.1.2 装备目录(39) ====================
+        // ==================== 27.1.2 装备目录(40) ====================
         // v4.241: Tech/TechId 全部改为与 World\Research.cs 军事树真实对齐(空 = 开局可用)
         internal static readonly List<EquipDef> All = new List<EquipDef>
         {
@@ -131,6 +132,11 @@ namespace FeudalInternalAffairs
             new EquipDef { Id="howitzer", Name="榴弹炮", Cat=EquipCat.Artillery, Tier=6, Dmg=230, Pen=120, Range=5, Reload=1.0f, Acc=1.05f, Price=2200, Materials="铁36", Tech="战壕工事", TechId="trench_works", Tags=EquipTag.Gun|EquipTag.HeavyGun },
             new EquipDef { Id="gatling", Name="加特林", Cat=EquipCat.Artillery, Tier=5, Dmg=100, Pen=70, Range=5, Reload=8.0f, Acc=0.90f, Price=900, Materials="铁20", Tech="手摇机枪", TechId="handcranked_mg", Tags=EquipTag.MachineGun },
             new EquipDef { Id="maxim", Name="马克沁", Cat=EquipCat.Artillery, Tier=6, Dmg=130, Pen=95, Range=5, Reload=12.0f, Acc=1.00f, Price=1600, Materials="铁28", Tech="自动机枪", TechId="auto_mg", Tags=EquipTag.MachineGun },
+            // v4.266: 化学战(军事树"空节点")的装备落点 —— 毒气炮弹; 由 DefArmy.AddTechGearNeed 按每 200 人 1 发
+            //   挂进军团装备需求, 进入装备快照后由 CannonStatsOf 取"最强一门炮"计入炮击阶段。
+            //   v4.268: Dmg 230 -> 205(低于后装线膛炮 210) —— 特种弹不做"主炮直接升级", 价值在稀缺需求 + 战术进攻 +3%。
+            //   只带 HeavyGun 标签且排在最后 -> PickForTag(HeavyGun) 仍选后装线膛炮, 不影响野战/攻城炮兵选型。
+            new EquipDef { Id="gas_shell", Name="毒气炮弹", Cat=EquipCat.Artillery, Tier=6, Dmg=205, Pen=125, Range=5, Reload=1.0f, Acc=1.00f, Price=2400, Materials="铁30 火药4", Tech="化学战", TechId="chemical_warfare", Tags=EquipTag.HeavyGun|EquipTag.SpecialAmmo },
 
             // ---- 护甲 / 马匹 / 支援(14) ----
             new EquipDef { Id="leather_armor", Name="皮甲", Cat=EquipCat.Armor, Tier=1, Prot=10, Weight=2, Price=30, Materials="皮3", Tech="", TechId="", Tags=EquipTag.LightArmor, ArmorClass=ArmorClass.Light },
@@ -293,10 +299,12 @@ namespace FeudalInternalAffairs
         internal static bool IsUnlocked(string id) { return IsUnlocked(Get(id)); }
 
         // v4.241: 附加件(钢盔) —— 解锁后按需配发, 但不计入满足率分母(27.1.1 "附加件、不占槽、可叠加")
+        // v4.266: 特殊弹药(毒气炮弹)同口径 —— 只有军械库有货才领用, 避免"新解锁的稀缺型号"永久压低满足率
         internal static bool IsOptional(string id)
         {
             var e = Get(id);
-            return e != null && (e.Tags & EquipTag.Helmet) != 0;
+            if (e == null) return false;
+            return (e.Tags & (EquipTag.Helmet | EquipTag.SpecialAmmo)) != 0;
         }
 
         internal static List<EquipDef> Unlocked()

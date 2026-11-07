@@ -253,6 +253,12 @@ namespace FeudalInternalAffairs
         }
 
         // ==================== 地图多选右键: 合并部队 ====================
+        //   v4.279(第 1 项): 舰队判定统一走这里(NavalTaskForce.IsTaskForce = `fia_navy_` 前缀)。
+        private static bool IsFleet(MobileParty p)
+        {
+            try { return NavalTaskForce.IsTaskForce(p); } catch { return false; }
+        }
+
         internal static int CountMergeableSelected()
         {
             int n = 0;
@@ -264,6 +270,16 @@ namespace FeudalInternalAffairs
                     var q = list[i];
                     if (q == null || !q.IsActive || q.Army != null) continue;
                     if (q.IsMainParty || q.IsCaravan || q.IsVillager || q.IsMilitia || q.IsGarrison) continue;
+                    // ==================== v4.279(第 1 项 ★ 不可逆损失): 舰队绝不参与合并 ====================
+                    //   舰队是 `fia_navy_` 的海上 MobileParty, 司令挂在玩家氏族下, 所以单看
+                    //   IsMainParty/IsCaravan/.../IsOurs 这五个条件**全部通过** —— 它会被算成"可合并部队",
+                    //   于是菜单里出现[合并部队]。而合并链是
+                    //     MergeSelected -> ArmyMoves.Merge -> DestroyPartyAction.ApplyForDisbanding(src, home)
+                    //       -> MobileParty.RemoveParty()
+                    //       -> `for (i...) DestroyShipAction.Apply(Ships[i])`   (反编译实证)
+                    //   ⇒ **整支舰队连同名下全部舰船被永久销毁**(不可逆), 而且没有二次确认。
+                    //   这里直接不计入(菜单项因此不会出现), 玩家只选舰队时由 MergeSelected 给出中文说明。
+                    if (IsFleet(q)) continue;
                     if (!NationalWillOrders.IsOurs(q)) continue;
                     n++;
                 }
@@ -278,15 +294,29 @@ namespace FeudalInternalAffairs
             {
                 var list = new List<MobileParty>();
                 var sel = MapSelection.SelectedList;
+                int skippedFleets = 0;   // v4.279(第 1 项): 被挡下的舰队数(要么给提示, 要么写进结果行)
                 for (int i = 0; i < sel.Count; i++)
                 {
                     var q = sel[i];
                     if (q == null || !q.IsActive || q.Army != null) continue;
                     if (q.IsMainParty || q.IsCaravan || q.IsVillager || q.IsMilitia || q.IsGarrison) continue;
+                    // v4.279(第 1 项 ★): 同 CountMergeableSelected —— 舰队并入陆军 = 整支舰队被销毁
+                    if (IsFleet(q)) { skippedFleets++; continue; }
                     if (!NationalWillOrders.IsOurs(q)) continue;
                     if (!list.Contains(q)) list.Add(q);
                 }
-                if (list.Count < 2) { MapSelection.Message("至少选中 2 支本国非军团部队"); return; }
+                if (list.Count < 2)
+                {
+                    // v4.279(第 1 项): 玩家"只选了舰队却点合并"时必须说明为什么没反应(原来是一句
+                    //   "至少选中 2 支本国非军团部队", 玩家看着自己明明选了 3 支, 完全不知所云)。
+                    if (skippedFleets > 0)
+                        MapSelection.Message("选中的 " + skippedFleets + " 支是舰队, **不能与陆军合并** —— "
+                            + "合并会走原版销毁流程, 把整支舰队与全部舰船永久销毁。"
+                            + "请再选至少 2 支本国陆军部队; 舰队请单选后用右键菜单[舰队指挥]。");
+                    else
+                        MapSelection.Message("至少选中 2 支本国非军团部队");
+                    return;
+                }
 
                 MobileParty main = list[0];
                 for (int i = 1; i < list.Count; i++)
@@ -309,7 +339,9 @@ namespace FeudalInternalAffairs
                     }
                 }
                 string text = "合并部队: " + ok + " 支并入「" + MapSelection.NameOf(main) + "」"
-                    + (fails.Length > 0 ? " ; " + fails.ToString() : "");
+                    + (fails.Length > 0 ? " ; " + fails.ToString() : "")
+                    // v4.279(第 1 项): 混选时被挡下的舰队也要在结果行里说明(不静默跳过)
+                    + (skippedFleets > 0 ? " ; 已跳过 " + skippedFleets + " 支舰队(舰队不能与陆军合并)" : "");
                 MapSelection.Message(text);
                 MapSelection.Select(main);
                 if (IsOpen && _vm != null) { _vm.Refresh(); RegisterSpots(); }

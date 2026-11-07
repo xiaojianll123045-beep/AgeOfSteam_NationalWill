@@ -30,7 +30,33 @@ namespace FeudalInternalAffairs
                 try
                 {
                     var p = PartyField != null ? PartyField.GetValue(__instance) as MobileParty : null;
-                    if (p != null && DefArmy.IsDefArmyParty(p)) return false;   // 国防军不参与原版 AI 决策
+                    if (p == null) return true;
+                    // v4.290 探针: 这个 Prefix 到底有没有被执行 —— 恒 0 说明 Harmony detour 没挂上
+                    //   (若哪天又怀疑"JIT 内联绕过", 看 [日诊断] 里的 AiGuard=hit/block 即可定案)。
+                    FixProbe.HitAiGuard++;
+                    // v4.272(审计 A1): **海运中的国防军军团必须放行**。
+                    //   原因(反编译实证): 全游戏唯一把 MobileParty.PartyMoveMode 置成 Point 的入口是
+                    //     MobilePartyAi.TickInternal -> GetBehaviors -> SetAiBehavior -> UpdateBehavior
+                    //     -> MobileParty.SetNavigationModePoint(...)      (UpdateBehavior / SetNavigationMode* 都是 internal,
+                    //                                                      外部 mod 无法直接调)
+                    //   而 MobileParty.GetTargetCampaignPosition 只在 `PartyMoveMode == MoveModeType.Point` 时才把
+                    //   MoveTargetPoint 当推进目标, 否则(MoveModeType.Hold)目标 = 自己当前位置 => **原地不动**。
+                    //   国防军平时靠"手动驾驶兜底"(CommandTimeout)走, 海运中那条路被玩家命令锁挡住(PlayerHold),
+                    //   于是必须借原版 AI 的手来设 PartyMoveMode —— 这里放行, 海运才有推进力。
+                    //   放行不会让军团乱跑: ①它的 DefaultBehavior 已被 NavalTransport.Depart 设成
+                    //   GoToSettlement(目的港, 海面目标), GetBehaviors 从 DefaultBehavior 起步, 目标港未到达时
+                    //   行为保持 GoToSettlement; ②DefArmyAi 其余各处(轮换/调遣/军事总监)本来就用
+                    //   PlayerHold 跳过它, 海运出发时也把它置成了 true。
+                    if (NavalTransport.InConvoy(p.StringId)) return true;        // 海运中: 放行, 让原版 AI 设 PartyMoveMode
+                    // v4.276: **玩家舰队同样必须放行**(用户: 像操控国防军一样操控海军)。
+                    //   舰队是地图上的实体部队(Navy\NavalTaskForce), 它的推进链路与海运**完全同构**:
+                    //   命令层用 SetMoveGoToSettlement/GoToPoint/PatrolAroundSettlement(..., Naval, ...)
+                    //   设好 DefaultBehavior/TargetPosition, 然后同样只能借原版 AI 的手把 PartyMoveMode
+                    //   放成 Point。所以这里与海运同一层级放行, 判据是"登记在册的 fia_navy_ 舰队"。
+                    //   "AI 不接管"由 NavalTaskForceAi 的两道补丁 + 舰队自己的 DoNotMakeNewDecisions 保证,
+                    //   与这里放行互不冲突(见 Navy\NavalTaskForceAi.cs 的长注释)。
+                    if (NavalTaskForce.InCommand(p.StringId)) return true;        // 舰队: 放行, 让它能真正起航
+                    if (DefArmy.IsDefArmyParty(p)) { FixProbe.HitAiGuardBlock++; return false; }   // 国防军不参与原版 AI 决策
                 }
                 catch { }
                 return true;
@@ -48,6 +74,9 @@ namespace FeudalInternalAffairs
                 try
                 {
                     if (mobileParty != null && DefArmy.IsDefArmyParty(mobileParty)) return false;
+                    // v4.276: 舰队在海上, 原版招募本来就不会触发(要进城); 这里显式排除只是防止
+                    //   舰队因意外靠港被原版塞进志愿兵(那会让"水手只能从守备营抽"的账目失真)。
+                    if (mobileParty != null && NavalTaskForce.IsTaskForce(mobileParty)) return false;
                 }
                 catch { }
                 return true;
@@ -751,7 +780,8 @@ namespace FeudalInternalAffairs
             try
             {
                 if (lg == null || string.IsNullOrEmpty(lg.Task)) return false;
-                return lg.Task.Contains("驻防") || lg.Task.Contains("巡逻");
+                // v4.290: 补"驻守" —— 与 DefArmy.Hourly 的 hasTask 保持同一口径(创建/交还写的都是"驻守")
+                return lg.Task.Contains("驻防") || lg.Task.Contains("巡逻") || lg.Task.Contains("驻守");
             }
             catch { return false; }
         }

@@ -924,7 +924,15 @@ namespace FeudalInternalAffairs
                     p.IsVisible = true;
                     if (to != null)
                     {
-                        try { p.Position = new CampaignVec2(to.Position.ToVec2(), true); } catch { }
+                        // v4.254: 玩家接管中的部队**连位置都不搬**。原来无条件 p.Position = 城中心,
+                        //   会把玩家正在指挥的军团瞬移进城(用户"部队莫名其妙进城/不见了"); 顺带把落点从
+                        //   城中心改成城门外, 免得 AI 部队一到达就站在城中央。
+                        if (!DefArmy.CanAutoMove(p))
+                        {
+                            DLog.Force(logTag + ": 到达 " + t.ToId + " —— 该部队由玩家接管, 不改道也不搬运位置");
+                            continue;
+                        }
+                        try { p.Position = new CampaignVec2(to.GatePosition.ToVec2(), true); } catch { }
                         bool enemy = false;
                         try { enemy = p.MapFaction != null && to.MapFaction != null && p.MapFaction.IsAtWarWith(to.MapFaction); } catch { }
                         if (enemy)
@@ -1132,6 +1140,9 @@ namespace FeudalInternalAffairs
                         if (lg == null) continue;
                         var p = DefArmy.LegionParty(lg);
                         if (p == null || !p.IsActive || InRailQueue(p.StringId)) continue;
+                        // v4.254: 玩家接管的军团不许被 AI 装军列 —— 装车会 p.IsVisible=false 让部队从地图上
+                        //   凭空消失, 再瞬移到城中心/进城(用户:"军团莫名其妙不见了/自己进城了"的 P0 来源)
+                        if (!DefArmy.CanAutoMove(p)) continue;
                         int men = DefArmy.LegionMen(lg);
                         if (men < 100) continue;   // 至少 1 运力单位
                         int last;

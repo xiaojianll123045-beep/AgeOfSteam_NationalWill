@@ -14,21 +14,43 @@ namespace FeudalInternalAffairs
         private const float Width = 860f;
         private static ArmyPanelVM _vm;
         private static float _acc;
-        private static bool _mapPicking;
 
-        internal static bool IsPickingSettlement { get { return _mapPicking; } }
+        // ==================== v4.282: 地图点选搬到公共机制 ====================
+        //   原来这里的 `_mapPicking` + `PollMapPick()` + MapClickPatches 三条转发分支, 是**只有军务页**
+        //   才有的私有实现; 海军页(造船港/敌港/海运两端港/进驻城市)需要同一能力, 于是抽成
+        //   `Map\SettlementPickMode.cs`(公共注册表: 进入/命中/取消/每帧兜底轮询/命中判定)。
+        //   本文件的对外签名(IsPickingSettlement / SetMapPicking / PickSettlement)一字不改 ——
+        //   UI\ArmyVM.cs 与 Map\MapClickPatches.cs 都不用动, 只是内部改成转发。
+        internal static bool IsPickingSettlement { get { return SettlementPickMode.Is(SettlementPickMode.OwnerArmy); } }
 
-        internal static void SetMapPicking(bool on) { _mapPicking = on; }
+        // true = 进入地图点选(回调进 ArmyVM.TryPickSettlement); false = 退出(只退自己这一份)
+        //   ★ prompt 传空: ArmyVM.StartMapPick 自己已经弹了地图消息(v4.98 的行为), 这里再弹一次就是两条。
+        internal static void SetMapPicking(bool on)
+        {
+            try
+            {
+                if (on)
+                {
+                    if (_vm == null) return;
+                    SettlementPickMode.Begin(SettlementPickMode.OwnerArmy, "", _vm.TryPickSettlement);
+                }
+                else if (SettlementPickMode.Is(SettlementPickMode.OwnerArmy))
+                {
+                    SettlementPickMode.Cancel();
+                }
+            }
+            catch { }
+        }
 
-        // 地图点击定居点 -> 转发给面板 VM(选择/取消)
+        // 地图点击定居点 -> 转发给面板 VM(选择/取消); 现在统一走公共注册表
         internal static void PickSettlement(Settlement s)
         {
             try
             {
-                if (_vm != null) _vm.TryPickSettlement(s);
-                else _mapPicking = false;
+                if (!SettlementPickMode.Is(SettlementPickMode.OwnerArmy)) return;   // 已被别的页顶掉 -> 不认
+                SettlementPickMode.Deliver(s);
             }
-            catch { _mapPicking = false; }
+            catch { SettlementPickMode.Cancel(); }
         }
 
         internal static bool IsOpen { get { return PanelScreen.IsOpen(Key); } }
@@ -43,10 +65,12 @@ namespace FeudalInternalAffairs
                     _vm = new ArmyPanelVM(Close);
                     _vm.OpenPanelAnim(Width);
                     PanelScreen.OpenPanel(Key, Movie, _vm,
-                        delegate { _mapPicking = false; },   // onClosed: 任何关闭路径(切页签/互斥/X)都清掉"地图点选"状态
+                        delegate { SetMapPicking(false); },   // onClosed: 任何关闭路径(切页签/互斥/X)都清掉"地图点选"状态
                         delegate (float dt) { if (_vm != null) _vm.TickAnim(dt); OnTick(dt); },
                         delegate { if (_vm != null) _vm.ClosePanelAnim(Width); });
-                    PanelScreen.SetScrollHandler(Key, delegate (int dir) { if (_vm != null) _vm.ScrollStep(dir); });
+                    // v4.256: 滚轮翻页后必须重登记热区 —— 原来只调 ScrollStep, 窗口里换了 3 行而热区仍指旧 3 行,
+                    //   最长 3 秒(下一次 OnTick 节流刷新前)内"点 A 行的按钮作用到 B 行", 解散类按钮尤其危险。
+                    PanelScreen.SetScrollHandler(Key, delegate (int dir) { if (_vm != null) { _vm.ScrollStep(dir); RegisterSpots(); } });
                     RegisterSpots();
                 }
                 else if (_vm != null) _vm.Refresh();
@@ -56,7 +80,7 @@ namespace FeudalInternalAffairs
 
         internal static void Close()
         {
-            try { _mapPicking = false; PanelScreen.ClosePanel(Key); }
+            try { SetMapPicking(false); PanelScreen.ClosePanel(Key); }
             catch { }
         }
 
@@ -90,45 +114,11 @@ namespace FeudalInternalAffairs
             catch { }
         }
 
-        // 地图点选: 军务页打开 + 待选状态 -> 左键点地图 = 选中光标下的聚落(点图标或附近地面都认)
+        // 地图点选: 军务页打开 + 待选状态 -> 左键点地图 = 选中光标下的聚落(点图标或附近地面都认)。
+        //   v4.282: 判定/取消(Esc/右键)/兜底轮询全部搬进公共机制, 这里只剩一行转发 —— 与海军页同一套。
         private static void PollMapPick()
         {
-            try
-            {
-                if (_vm == null || !_vm.PickingSettlement) return;
-                if (PanelScreen.IsMouseOnPanel()) return;
-                if (PanelInputGuard.AnyPopupActive()) return;
-                if (PanelInputGuard.SuppressAfterInquiry(TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton))) return;
-                if (!TaleWorlds.InputSystem.Input.IsKeyPressed(TaleWorlds.InputSystem.InputKey.LeftMouseButton)) return;
-                var mouse = TaleWorlds.InputSystem.Input.MousePositionPixel;
-                if (mouse.X < PanelScreen.PanelX || mouse.Y < 66f) return;   // 导航栏/顶部地图栏不算点地图
-
-                Settlement picked = null;
-                try
-                {
-                    var screen = MapScreen.Instance;
-                    var vis = screen != null ? screen.CurrentVisualOfTooltip as SettlementVisual : null;
-                    if (vis != null && vis.MapEntity != null) picked = vis.MapEntity.Settlement;
-                }
-                catch { }
-                if (picked == null)
-                {
-                    var pt = MapBoxSelect.CaptureGroundPoint();
-                    if (pt.z > -5000f)
-                    {
-                        float bd = 120f;
-                        foreach (var x in Settlement.All)
-                        {
-                            if (x == null) continue;
-                            float dx = x.Position.X - pt.x, dy = x.Position.Y - pt.y;
-                            float d = (float)Math.Sqrt(dx * dx + dy * dy);
-                            if (d < bd) { bd = d; picked = x; }
-                        }
-                    }
-                }
-                if (picked != null) { _vm.TryPickSettlement(picked); RegisterSpots(); return; }
-                MapSelection.Message("地图点选: 未命中聚落, 请点击城市图标(再点一次[地图点选]可取消)");
-            }
+            try { SettlementPickMode.Poll(); RegisterSpots(); }
             catch { }
         }
 
@@ -138,6 +128,7 @@ namespace FeudalInternalAffairs
             {
                 if (_vm == null) return;
                 _vm.SetTab(t);
+                _vm.ClearStatus();   // v4.258: 切页清掉上一页留下的操作结果(三个页签各有一份 @StatusText, 原来会串页显示)
                 RegisterSpots();   // 立即换算出新页签的热区, 避免 3 秒窗口内旧热区误触
             }
             catch { }

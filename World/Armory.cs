@@ -326,7 +326,8 @@ namespace FeudalInternalAffairs
             {
                 if (day == _lastDay) return;
                 _lastDay = day;
-                if (_orders.Count == 0) return;
+                // v4.266: 没有订单时也要跑"军工厂自动补产"(见 AutoProduce); 订单优先用产能
+                if (_orders.Count == 0) { try { AutoProduce(day, 0); } catch { } return; }
 
                 // 按所有者聚合, 每国独立产能
                 var byOwner = new Dictionary<string, List<int>>(StringComparer.Ordinal);
@@ -343,11 +344,13 @@ namespace FeudalInternalAffairs
                     idx.Add(i);
                 }
 
+                int ordersUsed = 0;   // v4.266: 当日订单实际吃掉的产能, 自动补产只用剩余部分
                 foreach (var kv in byOwner)
                 {
                     var kingdom = KingdomOfKey(kv.Key);
                     if (kingdom == null) continue;
                     int points = FactoryPointsOf(kingdom);
+                    int pointsAtStart = points;
                     if (points <= 0)
                     {
                         PushLog("无军用工厂: " + OwnerName(kv.Key) + " 订单停滞");
@@ -376,13 +379,139 @@ namespace FeudalInternalAffairs
                             AddKey(kv.Key, o.EquipId, 1);
                         }
                     }
+                    ordersUsed += pointsAtStart - points;
                 }
+
+                // v4.266: 军工厂自动补产(订单已优先吃掉产能)
+                try { AutoProduce(day, ordersUsed); } catch { }
 
                 // 清理已完成订单
                 for (int i = _orders.Count - 1; i >= 0; i--)
                     if (_orders[i] == null || _orders[i].Remaining <= 0) _orders.RemoveAt(i);
             }
             catch (Exception ex) { DLog.Force("军械库日结异常: " + ex.Message); }
+        }
+
+        // ==================== v4.266: 军工厂自动补产(用户决策④) ====================
+        //   口径: ①只看**玩家国**的国家军械库(DefArmy 国防军的领装处); AI 领主仍走自己的 Armory.Order, 不重复生产。
+        //        ②只补"已解锁"型号(科技没研究出来不会凭空产出 —— 这就是毒气炮弹等新型号的可获得路径)。
+        //        ③产量按**军械工业等级**缩放(v4.268): 1/2/3 级 -> 每型号 2/3/4 件/日, 每日总量 8/12/16 件;
+        //          **完全没有军械工业(等级 0)时不自动补产** —— 订单路径本就会报"无军用工厂: 订单停滞",
+        //          白送装备会架空"国家工业能力决定军备"的设定(且会对没有工厂的国家形成免费补给)。
+        //        ④补到"该国军团需求"为止, 之后自动停止 -> 不会无限刷装备。
+        //        ⑤材料与资金走 ProduceOne(与订单同一条扣费/扣料路径); 月结补装只是从军械库**领料**,
+        //          本方法只负责**入库**, 两者不重复扣钱也不重复发装。
+        private static int AutoPerModelOf(int level) { return level <= 1 ? 2 : (level == 2 ? 3 : 4); }
+        private static int AutoDailyCapOf(int level) { return level <= 1 ? 8 : (level == 2 ? 12 : 16); }
+        private static int _lastAutoProdDay = -1;
+
+        // 该国军械工业等级(0~MaxFactoryLevel): 取已建成军械工业/兵工厂的最高级
+        internal static int MilFactoryLevel(Kingdom k)
+        {
+            try
+            {
+                if (k == null) return 0;
+                int best = 0;
+                foreach (var s in k.Settlements)
+                {
+                    if (s == null || string.IsNullOrEmpty(s.StringId)) continue;
+                    var sb = EconomyWorld.Find(s.StringId);
+                    if (sb == null || sb.Groups == null) continue;
+                    for (int i = 0; i < sb.Groups.Count; i++)
+                    {
+                        var g = sb.Groups[i];
+                        if (g == null || g.Count <= 0 || !IsFactory(g.DefId)) continue;
+                        int lvl = g.Count > MaxFactoryLevel ? MaxFactoryLevel : g.Count;
+                        if (lvl > best) best = lvl;
+                    }
+                }
+                return best;
+            }
+            catch { return 0; }
+        }
+
+        private static void AutoProduce(int day, int ordersUsed)
+        {
+            try
+            {
+                if (day == _lastAutoProdDay) return;
+                _lastAutoProdDay = day;   // 先占位: 任何提前返回都不再重跑(每日至多一次)
+                var k = DefArmy.OurKingdom;
+                if (k == null) return;
+                string key = NationalOwner(k);
+                if (string.IsNullOrEmpty(key)) return;
+                int points = FactoryPointsOf(k) - Math.Max(0, ordersUsed);
+                if (points <= 0) return;
+                int level = MilFactoryLevel(k);
+                if (level <= 0) return;   // 没有军械工业 -> 不自动补产(见上③)
+                int perModel = AutoPerModelOf(level);
+                int budget = Math.Min(points, AutoDailyCapOf(level));
+
+                // 需求 = 全国防军军团需求合计(按型号)
+                var need = new Dictionary<string, int>(StringComparer.Ordinal);
+                for (int i = 0; i < DefArmy.Legions.Count; i++)
+                {
+                    var lg = DefArmy.Legions[i];
+                    if (lg == null) continue;
+                    var n = DefArmy.NeedOf(lg);
+                    if (n == null) continue;
+                    foreach (var kv in n)
+                    {
+                        if (kv.Value <= 0) continue;
+                        int old;
+                        need.TryGetValue(kv.Key, out old);
+                        need[kv.Key] = old + kv.Value;
+                    }
+                }
+                if (need.Count == 0) { _lastAutoProdDay = day; return; }
+                int made = 0;
+                int fails = 0;
+                foreach (var kv in need)
+                {
+                    if (budget <= 0 || fails >= 3) break;   // 连缺 3 次(多为缺材料/缺钱) -> 当日不再试, 免得白跑全表
+                    var def = Equipment.Get(kv.Key);
+                    if (def == null) continue;
+                    bool unlocked = false;
+                    try { unlocked = Equipment.IsUnlocked(def); } catch { }
+                    if (!unlocked) continue;                     // 未解锁型号不产出
+                    int have = CountKey(key, kv.Key) + PendingOf(key, kv.Key);
+                    int deficit = kv.Value - have;
+                    if (deficit <= 0) continue;
+                    int want = Math.Min(Math.Min(deficit, perModel), budget);
+                    bool any = false;
+                    for (int i = 0; i < want; i++)
+                    {
+                        string why;
+                        if (!ProduceOne(key, k, kv.Key, out why)) break;
+                        AddKey(key, kv.Key, 1);
+                        budget--; made++; any = true;
+                    }
+                    if (!any) fails++;
+                }
+                if (made > 0)
+                {
+                    PushLog("军工厂自动补产: " + made + " 件(军械工业 " + level + " 级 · 已解锁但库存低于军团需求)");
+                    DLog.Force("军械库: 自动补产 " + made + " 件(工业 " + level + " 级) -> " + OwnerName(key));
+                }
+            }
+            catch { }
+        }
+
+        // 在途数量(该 owner 尚未完成的订单合计) —— 自动补产避免与订单重复生产
+        private static int PendingOf(string ownerKey, string equipId)
+        {
+            try
+            {
+                int n = 0;
+                for (int i = 0; i < _orders.Count; i++)
+                {
+                    var o = _orders[i];
+                    if (o == null || o.Remaining <= 0) continue;
+                    if (o.Owner == ownerKey && o.EquipId == equipId) n += o.Remaining;
+                }
+                return n;
+            }
+            catch { return 0; }
         }
 
         // 工厂日产点 = Σ min(3, 建筑数) 档位产出(10/20/35)
@@ -450,6 +579,9 @@ namespace FeudalInternalAffairs
                 var hero = c != null ? c.Leader : null;
                 if (hero == null || hero.Gold < gold) return false;
                 hero.ChangeHeroGold(-gold);
+                // v4.290 记账修复: 业主是玩家氏族时 hero 就是 MainHero, 这笔钱实际从玩家金币出,
+                //   原先不入任何科目。只对玩家侧记账, AI 氏族照旧(它们不记 mod 的财政账)。
+                try { if (ReferenceEquals(hero, Hero.MainHero)) Fiscal.AddCourtPaid(gold); } catch { }
                 return true;
             }
             return WarEconomy.TryPayKingdom(kingdom, gold);
@@ -463,7 +595,12 @@ namespace FeudalInternalAffairs
                 if (ownerKey.StartsWith("L:", StringComparison.Ordinal))
                 {
                     var c = FindClan(ownerKey.Substring(2));
-                    if (c != null && c.Leader != null) c.Leader.ChangeHeroGold(gold);
+                    if (c != null && c.Leader != null)
+                    {
+                        c.Leader.ChangeHeroGold(gold);
+                        // v4.290 记账修复: 与上面的支出侧配对(只对玩家氏族)。
+                        try { if (ReferenceEquals(c.Leader, Hero.MainHero)) Fiscal.AddCourtGot(gold); } catch { }
+                    }
                     return;
                 }
                 WarEconomy.RefundKingdom(kingdom, gold);

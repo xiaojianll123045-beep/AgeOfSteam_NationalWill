@@ -468,6 +468,8 @@ namespace FeudalInternalAffairs
                     }
                     try
                     {
+                        // v4.254: 玩家接管中的部队不参与 AI 进攻改道(原来这里无条件下令, 会覆盖玩家命令)
+                        if (!DefArmy.CanAutoMove(troops)) continue;
                         if (isVillage) troops.SetMoveRaidSettlement(target, MobileParty.NavigationType.Default, false);
                         else troops.SetMoveBesiegeSettlement(target, MobileParty.NavigationType.Default);
                         try { DefArmyAi.RailTransportAi.EnableForMarch(troops, target.Position.ToVec2()); } catch { }   // v4.21x: 战时长途行军自动开铁路运输

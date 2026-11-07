@@ -87,12 +87,79 @@ namespace FeudalInternalAffairs
 
                         // 3) 原版收尾: 应用最终效果 + 结束角色创建(进入地图)
                         DLog.Force("角色创建: 进入选国家阶段 -> 直接完成角色创建(进入地图选国)");
-                        __instance.ApplyFinalEffects();
+                        // v4.290 修复: ApplyFinalEffects 原先和下面的 FinalizeCharacterCreationState 在**同一个
+                        //   try** 里, 于是它一旦抛异常, 收尾那一步就被整个跳过 —— 角色创建没有结束,
+                        //   玩家会**卡在原版的"文化列表"界面上**(用户反馈: "地图选择国家怎么没了, 变成列表选择了")。
+                        //   现在单独 try 住它: 即使它失败, 也保证 FinalizeCharacterCreationState 一定执行。
+                        //   同时把**内层异常**打出来 —— TargetInvocationException.Message 只有
+                        //   "Exception has been thrown by the target of an invocation", 真正的成因在 InnerException。
+                        try { __instance.ApplyFinalEffects(); }
+                        catch (Exception ex1)
+                        {
+                            string inner = ex1.InnerException != null
+                                ? (ex1.InnerException.GetType().Name + ": " + ex1.InnerException.Message)
+                                : "无内层";
+                            DLog.Force("ApplyFinalEffects 异常(已忽略, 继续收尾): " + ex1.Message
+                                + " | 内层 " + inner
+                                + (ex1.InnerException != null && ex1.InnerException.StackTrace != null
+                                    ? "\n" + ex1.InnerException.StackTrace : ""));
+                            // v4.290 兜底: ApplyFinalEffects 里最关键的一步是 CharacterCreationContent.ApplyCulture,
+                            //   它把文化写进主角与玩家氏族:
+                            //     Hero.MainHero.Culture = SelectedCulture;
+                            //     Clan.PlayerClan.Culture = SelectedCulture;
+                            //     Clan.PlayerClan.ResetPlayerHomeAndFactionMidSettlement();
+                            //     Hero.MainHero.BornSettlement = Clan.PlayerClan.HomeSettlement;
+                            //   它一旦失败, 玩家就"没有文化" —— 后续一切按文化取值的逻辑(兵种/建筑/特性/
+                            //   征兵/外交)都会走异常分支。这里单独补最关键的两步(设文化);
+                            //   补设失败也不阻断下面的收尾。
+                            try
+                            {
+                                var cul = __instance.CharacterCreationContent != null
+                                    ? __instance.CharacterCreationContent.SelectedCulture : null;
+                                if (cul != null)
+                                {
+                                    if (Hero.MainHero != null && Hero.MainHero.Culture == null) Hero.MainHero.Culture = cul;
+                                    if (Clan.PlayerClan != null && Clan.PlayerClan.Culture == null) Clan.PlayerClan.Culture = cul;
+                                    DLog.Force("ApplyFinalEffects 兜底: 已把文化补设为 " + cul.StringId);
+                                }
+                                else DLog.Force("ApplyFinalEffects 兜底: SelectedCulture 为 null, 无法补设文化");
+                            }
+                            catch (Exception ex2) { DLog.Force("ApplyFinalEffects 兜底失败: " + ex2.Message); }
+                        }
                         var state = GameStateManager.Current != null ? GameStateManager.Current.ActiveState as CharacterCreationState : null;
-                        if (state != null) state.FinalizeCharacterCreationState();
+                        // v4.290: 这一步也必须单独 try —— 实测异常就是**从这里**抛的, 不是 ApplyFinalEffects
+                        //   (证据: "角色创建: 进入选国家阶段" 打印了, 但 "ApplyFinalEffects 异常" 没有)。
+                        //   它内部是: UnregisterActiveStateDisableRequest -> CreateState<MapState>() ->
+                        //   CleanAndPushState(...) -> SetVisualAsDirty -> OnCharacterCreationIsOver()。
+                        //   任何一环抛异常都会让角色创建**没有结束** -> 玩家卡在原版"文化列表"界面,
+                        //   而且选完之后状态不一致会崩(用户反馈: "还是列表选国, 选完了之后就崩了")。
+                        //   即使失败也把类型/内层/堆栈打全, 便于定位。
+                        if (state != null)
+                        {
+                            try { state.FinalizeCharacterCreationState(); }
+                            catch (Exception ex3)
+                            {
+                                DLog.Force("FinalizeCharacterCreationState 异常: " + ex3.GetType().Name + ": " + ex3.Message
+                                    + (ex3.InnerException != null
+                                        ? " | 内层 " + ex3.InnerException.GetType().Name + ": " + ex3.InnerException.Message
+                                            + " @ " + ex3.InnerException.StackTrace
+                                        : "")
+                                    + " @ " + ex3.StackTrace);
+                            }
+                        }
                         else DLog.Force("警告: 找不到 CharacterCreationState, 角色创建可能未正确结束");
                     }
-                    catch (Exception ex) { DLog.Force("跳过选国家阶段异常: " + ex.Message); }
+                    // v4.290: 把堆栈也打出来 —— 原来只有 ex.Message, 无法定位是哪一步抛的。
+                    //   实测 "角色创建: 进入选国家阶段" 那行**没有**打印, 说明异常发生在它之前,
+                    //   而 :57-88 每一段都自带 catch, 所以必须靠堆栈才能看出确切位置。
+                    catch (Exception ex)
+                    {
+                        DLog.Force("跳过选国家阶段异常: " + ex.GetType().Name + ": " + ex.Message
+                            + (ex.InnerException != null
+                                ? " | 内层 " + ex.InnerException.GetType().Name + ": " + ex.InnerException.Message
+                                : "")
+                            + "\n" + ex.StackTrace);
+                    }
                 }
             }
         }

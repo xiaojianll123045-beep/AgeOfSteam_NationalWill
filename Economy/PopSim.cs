@@ -21,6 +21,21 @@ namespace FeudalInternalAffairs
             var needMiss = new Dictionary<string, float>();
             try
             {
+                // v4.269: 清空本日的只读缓存(需求买包值 / 需求份额权重 / 国别通胀)。这些缓存只覆盖
+                //   "读"路径, 每个值的输入都在日结之间才变化, 所以按日清空即安全(逐条论证见各字段注释)。
+                BeginReadCaches();
+                var needs = PopNeeds.All;   // 需求总表(静态只读; 全仓只有读, 无写点)
+                // v4.269: 税负激进(文档 20.1) + 政治激进(第 21 章: 法令/镇压/内战) + 民族精神(v4.150)
+                //   这三项只取决于全局状态, 与具体 Pop 无关 -> 从"每个 Pop"提到循环外算一次(原来 ≈Pop 数 ×3 次)。
+                //   等价性: 循环体内只写 Pop 字段与市场买卖单, 没有任何代码改动这三个输入
+                //   (RadicalPressure 由"税制"步骤写, 而"税制"排在"建筑产出"之后、本函数之外)。
+                float radPerDay = TaxPolicy.RadicalPressure + Politics.RadicalDaily();
+                try
+                {
+                    var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
+                    if (pk != null) radPerDay += NationalSpirits.RadicalDelta(pk);
+                }
+                catch { }
                 foreach (var kv in Pops.BySettlement)
                 {
                     var list = kv.Value;
@@ -38,26 +53,28 @@ namespace FeudalInternalAffairs
                         float income = IncomeOf(pop);
                         float needCost = 0f, spent = 0f, unmet = 0f;
 
-                        foreach (var need in PopNeeds.All)
+                        for (int ni = 0; ni < needs.Count; ni++)
                         {
-                            float value = PopNeeds.ValueFor(need, pop.WealthLevel, pop.Culture);
+                            var need = needs[ni];
+                            // v4.269: 买包值只取决于(需求, 财富等级, 文化) —— 纯函数(见 NeedValueOf 论证), 按日缓存。
+                            //   原来是每个 Pop 的每类需求都重算一遍(PopNeeds.ValueFor 内含商品遍历 + 痴迷/禁忌判定)。
+                            float value = NeedValueOf(ni, need, pop.WealthLevel, pop.Culture);
                             if (value <= 0f) continue;
                             needCost += value;
                             float nm0;
                             needOrd[need.Id] = (needOrd.TryGetValue(need.Id, out nm0) ? nm0 : 0f) + value;
 
-                            float wsum = 0f;
-                            for (int g = 0; g < need.Goods.Count; g++)
-                            {
-                                var e = need.Goods[g];
-                                wsum += PopNeeds.BuyWeight(e, ShareOf(market, need, e.Good), pop.Culture);
-                            }
+                            // v4.269: 份额(ShareOf)+权重(BuyWeight) 只取决于(市场, 需求, 文化) —— 纯只读, 按
+                            //   (市场, 文化) 缓存一次即可。原代码在上面算 wsum、下面算 w 时把同一结果**算了两遍**。
+                            //   逐项等价性见 PlanOf: 同一批商品、同一累加顺序 -> wsum 与每个 w 逐位相同。
+                            float wsum;
+                            var ws = PlanOf(ni, need, market, pop.Culture, out wsum);
                             if (wsum <= 0.001f) { unmet += value; continue; }
 
-                            for (int g = 0; g < need.Goods.Count; g++)
+                            for (int g = 0; g < ws.Length; g++)
                             {
                                 var e = need.Goods[g];
-                                float w = PopNeeds.BuyWeight(e, ShareOf(market, need, e.Good), pop.Culture);
+                                float w = ws[g];
                                 if (w <= 0.001f) continue;
                                 var def = FeudalGoods.Def(e.Good);
                                 if (def == null || def.BasePrice <= 0) continue;
@@ -90,14 +107,8 @@ namespace FeudalInternalAffairs
                         float expSol = Pops.ExpectedSolOf(pop);
                         if (pop.WealthLevel < expSol - 2f) Pops.ShiftStance(pop, -0.0005f);
                         else if (pop.WealthLevel > expSol + 2f) Pops.ShiftStance(pop, 0.0002f);
-                        // 税负激进(文档 20.1) + 政治激进(第 21 章: 法令/镇压/内战) + 民族精神(v4.150)
-                        float radPerDay = TaxPolicy.RadicalPressure + Politics.RadicalDaily();
-                        try
-                        {
-                            var pk = NationalWillOrders.Behavior != null ? NationalWillOrders.Behavior.NationKingdom : null;
-                            if (pk != null) radPerDay += NationalSpirits.RadicalDelta(pk);
-                        }
-                        catch { }
+                        // v4.269: 税负激进(文档 20.1) + 政治激进(第 21 章: 法令/镇压/内战) + 民族精神(v4.150)
+                        //   已提到循环外(radPerDay), 值完全相同(见函数开头注释)
                         if (radPerDay > 0.00001f || radPerDay < -0.00001f)
                             Pops.ShiftStance(pop, -radPerDay);
                     }
@@ -109,6 +120,15 @@ namespace FeudalInternalAffairs
                         float gain = (avg - 5f) * 0.02f;
                         if (gain > 2f) gain = 2f;
                         if (gain < -1f) gain = -1f;
+                        // v4.290 修复: 接入建筑效果 @prosperity(市政厅/水井/城市中心/神庙村)。
+                        //   此前 @prosperity 在全仓没有任何消费者 —— 玩家建这几座建筑收益恒为 0。
+                        //   放在 ±钳制之后加, 免得被 2f/-1f 上限吃掉。
+                        try
+                        {
+                            float bp = BuildDefs.EffectSumOf(town.Settlement.StringId, BuildDefs.EffProsperity);
+                            if (bp != 0f) gain += bp;
+                        }
+                        catch { }
                         if (Math.Abs(gain) > 0.001f) { town.Prosperity += gain; prosp10 += (int)Math.Round(gain * 10f); }
                     }
                     _soldLog += soldLiving;   // 仅保留旧的售出口径用于日志对照
@@ -295,6 +315,15 @@ namespace FeudalInternalAffairs
                 for (int i = 0; i < l.Count; i++) { var q = l[i]; if (q != null) total += q.Size; }
                 float birth = BirthRate(avg) * womenMult;
                 if (total < 5000f) birth *= 1.5f;                       // V3 官方: 人口稀少(<5000) 出生率 +50%
+                // v4.290 修复: 接入建筑效果 @population(医院/城市中心)。此前该效果全仓零消费者 ——
+                //   玩家花钱建医院对人口零影响(Growth 只读制度"卫生机构"等级, 与 hospital 建筑无关)。
+                //   按"出生率 +N%"口径乘在 birth 上(直接加进 rate 会被下面的 ±0.006 钳制整个吃掉)。
+                try
+                {
+                    float bp = BuildDefs.EffectSumOf(kv.Key, BuildDefs.EffPopulation) / 100f;
+                    if (bp != 0f) { birth *= (1f + bp); if (birth < 0f) birth = 0f; }
+                }
+                catch { }
                 float death = DeathRate(avg) * (1f - 0.02f * health);   // V3 官方: 卫生系统降低死亡率
                 float rate = birth - death;
                 if (rate > 0.006f) rate = 0.006f;
@@ -361,6 +390,14 @@ namespace FeudalInternalAffairs
                     if (wsum > 0f) delta += (sat / wsum) * 0.01f;
                 }
                 catch { }
+                // v4.290 修复: 接入建筑效果 @loyalty(神庙/神庙村)。此前该效果全仓零消费者 ——
+                //   这两座建筑的忠诚度收益是死数据。效果值口径与 delta 一致(忠诚度点/日), 直接累加。
+                try
+                {
+                    float bl = BuildDefs.EffectSumOf(t.Settlement.StringId, BuildDefs.EffLoyalty);
+                    if (bl != 0f) delta += bl;
+                }
+                catch { }
                 t.Loyalty += delta;
                 if (t.Loyalty > 100f) t.Loyalty = 100f;
                 if (t.Loyalty < 0f) t.Loyalty = 0f;
@@ -409,10 +446,11 @@ namespace FeudalInternalAffairs
 
         private static float CostOf(PopRecord pop, int level)
         {
-            float t = 0f;
-            for (int i = 0; i < PopNeeds.All.Count; i++) t += PopNeeds.ValueFor(PopNeeds.All[i], level, pop.Culture);
+            // v4.269: 前半段(Σ 各需求在该财富等级下的买包值)只取决于(财富等级, 文化) —— 纯函数, 按日缓存;
+            //   后半段(乘通胀、乘本 Pop 的 NeedUnitsScale)逐字保持原来的运算与顺序 -> 浮点结果逐位相同。
+            float t = NeedsCostOf(pop.Culture, level);
             // v4.149: AI 铸币通胀 -> 该国人口消费成本上升(财富与立场恶化)
-            try { t *= AiEconomyDeep.InflationForSettlement(pop.SettlementId); } catch { }
+            try { t *= InflationOf(pop.SettlementId); } catch { }
             return t * pop.NeedUnitsScale;
         }
 
@@ -424,12 +462,12 @@ namespace FeudalInternalAffairs
                 if (roster == null || units <= 0f) return 0f;
                 var item = FeudalGoods.Item(goodId);
                 if (item == null) return 0f;
-                int have = roster.GetItemNumber(item);
+                int have = RosterMemo.Count(roster, item);   // v4.269: 等价于 roster.GetItemNumber(item)
                 if (have <= 0) return 0f;
-                int want = MBRandom.RoundRandomized(units);
+                int want = MBRandom.RoundRandomized(units);   // 注意: 随机调用次数/顺序与改前完全一致
                 if (want > have) want = have;
                 if (want <= 0) return 0f;
-                roster.AddToCounts(item, -want);
+                RosterMemo.Take(roster, item, want);         // v4.269: 等价于 roster.AddToCounts(item, -want)
                 return want;
             }
             catch { return 0f; }
@@ -470,6 +508,182 @@ namespace FeudalInternalAffairs
                 return self / sum;
             }
             catch { return 1f; }
+        }
+
+        // ==================== v4.269: 只读缓存(需求买包值 / 份额权重 / 国别通胀) ====================
+        //   三条都只优化**读**路径, 不碰任何写点; 缓存的生命周期就是一次 DailyConsume(函数开头清空),
+        //   因为三个输入(需求静态表、市场库存/产量、国别铸币)都只在日结之间变化。
+        private sealed class ReadCache
+        {
+            internal float[] Val;      // [需求下标 * 128 + 财富等级] 买包值
+            internal bool[] ValSet;
+            internal float[] Cost;     // [财富等级] 全需求买包值合计(CostOf 用)
+            internal bool[] CostSet;
+        }
+        private static readonly Dictionary<string, ReadCache> _read = new Dictionary<string, ReadCache>(StringComparer.Ordinal);
+        private static readonly Dictionary<string, float> _infl = new Dictionary<string, float>(StringComparer.Ordinal);
+        // 需求计划(份额/权重): 只在 (市场, 文化) 变化时整表重算; _planTick 是"世代号"
+        private static float[][] _planW;      // [需求下标][商品下标] 购买权重
+        private static float[] _planWSum;     // [需求下标] 权重合计
+        private static int[] _planGen;        // [需求下标] 已算好的世代号
+        private static int _planTick;
+        private static int _planNeeds = -1;
+        private static TownMarket _planMarket;
+        private static string _planCulture;
+
+        private static void BeginReadCaches()
+        {
+            _read.Clear();
+            _infl.Clear();
+            _planNeeds = -1;
+            _planMarket = null;
+            _planCulture = null;
+            _planTick = 0;
+        }
+
+        private static ReadCache CacheOf(string culture)
+        {
+            string k = culture ?? "";    // 字典不接受 null 键(原逻辑允许 culture 为 null, 这里只做键归一化)
+            ReadCache c;
+            if (_read.TryGetValue(k, out c)) return c;
+            var needs = PopNeeds.All;
+            c = new ReadCache
+            {
+                Val = new float[needs.Count * 128],
+                ValSet = new bool[needs.Count * 128],
+                Cost = new float[128],
+                CostSet = new bool[128]
+            };
+            _read[k] = c;
+            return c;
+        }
+
+        // 等价于 PopNeeds.ValueFor(need, level, culture)
+        //   纯函数依据: PopNeeds.ValueFor = PackageValue(纯算术: 只读 NeedDef 的曲线字段) + 痴迷/禁忌判定
+        //   (PopDefs.ObsessionOf/IsTaboo 都是 switch/字符串比较, 无状态、无随机、无写入)。
+        private static float NeedValueOf(int ni, NeedDef need, int level, string culture)
+        {
+            if (level < 0 || level > 127) return PopNeeds.ValueFor(need, level, culture);   // 越界不走缓存(与原式同解)
+            var c = CacheOf(culture);
+            int idx = ni * 128 + level;
+            if (c.ValSet[idx]) return c.Val[idx];
+            float v = PopNeeds.ValueFor(need, level, culture);
+            c.Val[idx] = v; c.ValSet[idx] = true;
+            return v;
+        }
+
+        // 等价于 Σ_i PopNeeds.ValueFor(PopNeeds.All[i], level, culture)(同样的遍历顺序与累加顺序)
+        private static float NeedsCostOf(string culture, int level)
+        {
+            if (level < 0 || level > 127) return SumNeedsCost(culture, level);
+            var c = CacheOf(culture);
+            if (c.CostSet[level]) return c.Cost[level];
+            float t = SumNeedsCost(culture, level);
+            c.Cost[level] = t; c.CostSet[level] = true;
+            return t;
+        }
+
+        private static float SumNeedsCost(string culture, int level)
+        {
+            float t = 0f;
+            var needs = PopNeeds.All;
+            for (int i = 0; i < needs.Count; i++) t += PopNeeds.ValueFor(needs[i], level, culture);
+            return t;
+        }
+
+        // 等价于 AiEconomyDeep.InflationForSettlement(sid) —— 它内部按**线性扫 Settlement.All** 找定居点,
+        //   而 CostOf 每个 Pop 要调两次(当前档 + 下一档), 全图就是上千次线性扫描。这里按定居点缓存当日结果。
+        //   纯函数依据: 只读 s.MapFaction -> Kingdom -> MintOf(铸币厂数量), 三者在本次 DailyConsume 内都不变
+        //   (铸币厂由 MintRight.Daily 写, 排在"建筑产出"之后的另一个调度步骤)。
+        private static float InflationOf(string sid)
+        {
+            if (string.IsNullOrEmpty(sid)) return 1f;
+            float v;
+            if (_infl.TryGetValue(sid, out v)) return v;
+            v = AiEconomyDeep.InflationForSettlement(sid);
+            _infl[sid] = v;
+            return v;
+        }
+
+        private static void EnsurePlan(TownMarket market, string culture)
+        {
+            var needs = PopNeeds.All;
+            if (_planNeeds != needs.Count)
+            {
+                _planW = new float[needs.Count][];
+                _planWSum = new float[needs.Count];
+                _planGen = new int[needs.Count];   // 全 0
+                _planNeeds = needs.Count;
+                _planTick = 1;                     // 必须 >=1: 否则 _planGen 全 0 == 世代号 -> 会跳过建表(空指针)
+                _planMarket = market;
+                _planCulture = culture;
+                return;
+            }
+            if (ReferenceEquals(_planMarket, market) && _planCulture == culture) return;
+            _planMarket = market;
+            _planCulture = culture;
+            if (++_planTick == int.MaxValue) { for (int i = 0; i < _planGen.Length; i++) _planGen[i] = 0; _planTick = 1; }
+        }
+
+        // 某需求在本(市场, 文化)下的购买权重数组 + 权重合计
+        //   等价于原来那两段:
+        //     float wsum = 0f; for(g) wsum += BuyWeight(e, ShareOf(market, need, e.Good), culture);
+        //     for(g) { float w = BuyWeight(e, ShareOf(market, need, e.Good), culture); ... }
+        //   —— 两段的入参完全相同, 而 ShareOf/BuyWeight 都是纯只读(见两函数实现: ShareOf 只读
+        //   MarketEntry.Stock/DailyProduction 与 NeedEntry.MinShare; BuyWeight 只读 NeedEntry 字段 + 文化判定),
+        //   所以第二段重算出来的 w 与第一段逐位相同 —— 算一次就是同一个值。
+        //   两段之间的"写"只有 market.GetOrCreate(...).BuyOrders/DailyConsumption += (第 86/92 行), 写的是
+        //   **另外两个字段**, 不动 ShareOf 读的 Stock/DailyProduction; GetOrCreate 新建条目的 Stock/DailyProduction
+        //   恒为 0(见 MarketData.GetOrCreate), 与"条目不存在"对 ShareOf 同解。
+        //   计划按需求惰性建立: 只有 value > 0 的需求才会走到这里(与原代码进入 wsum 循环的条件一致),
+        //   因此"哪些需求会去调 ShareOf"这一集合与改前完全相同。
+        private static float[] PlanOf(int ni, NeedDef need, TownMarket market, string culture, out float wsum)
+        {
+            EnsurePlan(market, culture);
+            if (_planGen[ni] != _planTick)
+            {
+                int gc = need.Goods != null ? need.Goods.Count : 0;
+                var arr = _planW[ni];
+                if (arr == null || arr.Length != gc) { arr = new float[gc]; _planW[ni] = arr; }
+                float sum = 0f;
+                for (int g = 0; g < gc; g++)
+                {
+                    var e = need.Goods[g];
+                    float w = PopNeeds.BuyWeight(e, ShareOf(market, need, e.Good), culture);
+                    arr[g] = w;
+                    sum += w;
+                }
+                _planWSum[ni] = sum;
+                _planGen[ni] = _planTick;
+            }
+            else if (VerifyOn())
+            {
+                // v4.269 自检(默认关闭, flags 含 memo 时打开): 缓存复用 vs 现算(份额+权重)逐个商品比对。
+                var arr = _planW[ni];
+                int gc = need.Goods != null ? need.Goods.Count : 0;
+                for (int g = 0; g < gc && arr != null && g < arr.Length; g++)
+                {
+                    var e = need.Goods[g];
+                    float fresh = PopNeeds.BuyWeight(e, ShareOf(market, need, e.Good), culture);
+                    if (fresh != arr[g])
+                    {
+                        _planMismatch++;
+                        if (_planMismatch <= 20)
+                            DLog.Force("需求计划缓存自检不一致: 需求=" + (need.Id ?? "?") + " 商品=" + (e != null ? e.Good : "?")
+                                + " 缓存=" + arr[g] + " 现算=" + fresh);
+                    }
+                }
+            }
+            wsum = _planWSum[ni];
+            return _planW[ni];
+        }
+
+        private static long _planMismatch;
+        private static bool _verifyChecked, _verify;
+        private static bool VerifyOn()
+        {
+            if (!_verifyChecked) { _verifyChecked = true; try { _verify = DLog.Flag("memo"); } catch { _verify = false; } }
+            return _verify;
         }
 
         // 定居点 -> 挂靠城镇(市场): 城=自己; 村=贸易绑定城镇; 堡=最近的城镇(缓存)

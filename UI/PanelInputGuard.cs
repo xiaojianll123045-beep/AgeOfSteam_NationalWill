@@ -163,6 +163,8 @@ namespace FeudalInternalAffairs
                 if (SuppressAfterInquiry(TaleWorlds.InputSystem.Input.IsKeyDown(TaleWorlds.InputSystem.InputKey.LeftMouseButton))) return true;
                 if (PanelScreen.IsMouseOnPanel()) return true;
                 if (TaleWorlds.InputSystem.Input.MousePositionPixel.X < PanelScreen.PanelX) return true;
+                // v4.263: 鼠标在教程浮窗上 -> 一律吞掉(左右键都不许穿透到地图, 否则点教程按钮会把部队指挥走)
+                if (TutorialWindow.IsMouseOn()) return true;
             }
             catch { }
             return false;

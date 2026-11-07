@@ -470,8 +470,25 @@ namespace FeudalInternalAffairs
                 {
                     // v4.252: 关税(Fiscal.LastTariff)是**支出**(进口关税由国库承担, 见 MarketSim.SpendGold),
                     //   原来放在收入侧 -> 与国家面板/财政页的净额相差 2×关税。现在两边口径统一。
-                    int inc = Fiscal.LastTax + Fiscal.LastMint + Fiscal.LastExport + Fiscal.LastDividend;
-                    int exp = Fiscal.LastInterest + Fiscal.LastFee + Fiscal.LastMilitary + Fiscal.LastCourt + Fiscal.LastBurn + Fiscal.LastTariff + Fiscal.LastUpkeep;
+                    // ==================== v4.279(第 8 项): 预算/日 与 Fiscal.Income/Expense 完全同口径 ====================
+                    //   【原缺陷】
+                    //     ① `exp` **漏了 `Fiscal.LastNavy`** —— 海军维护费(Fiscal.cs:21/90, v4.268 加的科目)
+                    //        完全没进国家面板, 于是"预算/日"**系统性高估**(少算全部舰队日常开销), 而
+                    //        财政页与 Fiscal.Expense 都算了它 -> 两个页面数字对不上。
+                    //     ② `inc`/`exp` 都把 `LastCourt` 当**无条件支出**加。但 Fiscal 的 LastCourt 是
+                    //        **有符号**的: `Fiscal.Income` 用 `(LastCourt < 0 ? -LastCourt : 0)`,
+                    //        `Fiscal.Expense` 用 `(LastCourt > 0 ? LastCourt : 0)` —— 也就是说
+                    //        宫廷/外交往来既可能是支出(宴会/赏赐)也可能是收入(赔款/贡金/保释金,
+                    //        见 FiscalVM 里那两行"外交往来"的正负拆分)。原来的写法在 LastCourt < 0
+                    //        (收入)时会**又少算一笔收入又凭空多算一笔支出**(净额差 2×|LastCourt|)。
+                    //   【修法】直接照 Fiscal.Income / Fiscal.Expense 的判据重写(逐项一致), 不改 Fiscal 本身。
+                    //   ★ 注: Economy\Fiscal.cs 现由 v4.278 拆成 `LastCourtPaid`(只增的支出侧) /
+                    //     `LastCourtGot`(只增的收入侧) 两个字段(旧的 `LastCourt` 保留为二者相减的兼容属性)。
+                    //     这里**直接取双字段**, 与 Fiscal.Income / Fiscal.Expense 的当前实现逐项一致,
+                    //     不再依赖"正负号"这种容易写错的隐式约定。
+                    int inc = Fiscal.LastTax + Fiscal.LastMint + Fiscal.LastExport + Fiscal.LastDividend + Fiscal.LastCourtGot;
+                    int exp = Fiscal.LastInterest + Fiscal.LastFee + Fiscal.LastMilitary + Fiscal.LastBurn
+                            + Fiscal.LastTariff + Fiscal.LastUpkeep + Fiscal.LastNavy + Fiscal.LastCourtPaid;
                     int net = inc - exp;
                     BudgetText = (net >= 0 ? "+" : "") + net.ToString("N0") + " / 日";
                     int pu = MintRight.Purity < 0 ? 0 : (MintRight.Purity > 2 ? 2 : MintRight.Purity);

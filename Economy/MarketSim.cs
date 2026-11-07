@@ -21,37 +21,67 @@ namespace FeudalInternalAffairs
         // (其余按文档 19.9.3 由买方自行消化; 数值可调)
         internal const float BurnTreasuryShare = 0.20f;
         private static readonly Dictionary<string, bool> _playerMkt = new Dictionary<string, bool>();
+
+        // v4.269: 分段时间(只统计, 不影响结算) —— 供 DailySettlement 的"日结耗时归因"日志读取
+        internal static float MsPop, MsNat, MsLocal, MsMove, MsImp, MsExp, MsCar;
+
         // 返回 [调运件数, 进口件数, 繁荣增量*10]
         internal static int[] Run()
         {
             int moved = 0, imported = 0, prosp = 0;
             try
             {
-                PopSim.DailyConsume(ref prosp);   // 【必须最先】人口按买包消费(文档 19.13.2 第 2 步); 旧 5.6 民用循环已被 19.x 取代
-                LedgerToday = 0f;
-                NationalPrices();          // 全国基准价 + 汇总买卖量(含今日消耗)
-                // 铸币: 有铸币厂时按 20.3 铸币权结算(这里只记账); 否则维持"净创造入国库/销毁按20%计支出"
-                if (!MintRight.HasMint)
+                MsPop = 0f; MsNat = 0f; MsLocal = 0f; MsMove = 0f; MsImp = 0f; MsExp = 0f; MsCar = 0f;
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                // v4.269: "人口消费 -> 进口/出口"这一整段只碰**定居点市场 roster**, 且所有写入都改走
+                //   RosterMemo.Take/Give -> 用一份多 roster 快照把原版 GetItemNumber 的线性查找压掉
+                //   (等价性逐条论证见 RosterMemo 类头)。商队损耗 Caravans.Daily 会**直接** AddToCounts
+                //   写 roster, 所以用 finally 把它挡在窗口外 —— 窗口内只允许快照自己的写入。
+                RosterMemo.Begin();
+                try
                 {
-                    int mint = (int)LedgerTodayPlayer;
-                    if (mint > 0) { EconomyWorld.TreasuryAdd(mint); Fiscal.AddMint(mint); }
-                    else if (mint < 0)
+                    PopSim.DailyConsume(ref prosp);   // 【必须最先】人口按买包消费(文档 19.13.2 第 2 步); 旧 5.6 民用循环已被 19.x 取代
+                    MsPop = El(sw);
+                    LedgerToday = 0f;
+                    NationalPrices();          // 全国基准价 + 汇总买卖量(含今日消耗)
+                    MsNat = El(sw);
+                    // 铸币: 有铸币厂时按 20.3 铸币权结算(这里只记账); 否则维持"净创造入国库/销毁按20%计支出"
+                    if (!MintRight.HasMint)
                     {
-                        int burn = (int)(-mint * BurnTreasuryShare);
-                        if (burn > 0) { EconomyWorld.TreasurySpend(burn); Fiscal.AddBurn(burn); }
+                        int mint = (int)LedgerTodayPlayer;
+                        if (mint > 0) { EconomyWorld.TreasuryAdd(mint); Fiscal.AddMint(mint); }
+                        else if (mint < 0)
+                        {
+                            int burn = (int)(-mint * BurnTreasuryShare);
+                            if (burn > 0) { EconomyWorld.TreasurySpend(burn); Fiscal.AddBurn(burn); }
+                        }
                     }
+                    LocalPrices();
+                    MsLocal = El(sw);
+                    moved = Transfers();
+                    MsMove = El(sw);
+                    int imp = Imports();
+                    MsImp = El(sw);
+                    int exp = Exports();
+                    MsExp = El(sw);
+                    imported = imp + exp;
+                    LastImported = imp;
+                    LastExported = exp;
                 }
-                LocalPrices();
-                moved = Transfers();
-                int imp = Imports();
-                int exp = Exports();
-                imported = imp + exp;
-                LastImported = imp;
-                LastExported = exp;
+                finally { RosterMemo.End(); }   // 收口: 之后的代码一律回到原版口径
                 Caravans.Daily();          // 商队损耗(文档 20.10)
+                MsCar = El(sw);
             }
             catch (Exception ex) { DLog.Force("市场结算异常: " + ex.Message); }
             return new[] { moved, imported, prosp };
+        }
+
+        // v4.269: 取本段耗时并重启计时(纯诊断)
+        private static float El(System.Diagnostics.Stopwatch sw)
+        {
+            float v = (float)sw.Elapsed.TotalMilliseconds;
+            sw.Restart();
+            return v;
         }
 
         // ==================== 1) 全国基准价 ====================
@@ -113,18 +143,25 @@ namespace FeudalInternalAffairs
             if (pk == null) return;
             try
             {
+                // v4.269: 原来对每个市场都**线性扫一遍 Settlement.All**(市场数 × 定居点数 ≈ 十万级字符串比较/日)。
+                //   改成先按 StringId 建一次索引(O(定居点数)), 再查表。
+                //   等价性: ①StringId 唯一 -> 查到的对象与线性扫描"先命中者"是同一个实例, 读 s.MapFaction 完全一致;
+                //          ②查不到(key 不存在) -> 与原逻辑一样保持 own = false, 不写入任何东西。
+                var byId = new Dictionary<string, Settlement>(StringComparer.Ordinal);
+                var all = Settlement.All;
+                for (int i = 0; all != null && i < all.Count; i++)
+                {
+                    var s = all[i];
+                    if (s == null || string.IsNullOrEmpty(s.StringId)) continue;
+                    byId[s.StringId] = s;   // 重复 id 时后者覆盖: 与线性扫描的"先命中者"在 StringId 唯一时同解
+                }
                 foreach (var kv in EconomyWorld.Markets)
                 {
                     bool own = false;
                     try
                     {
-                        var sid = kv.Key;
-                        foreach (var s in Settlement.All)
-                        {
-                            if (s == null || s.StringId != sid) continue;
-                            own = s.MapFaction == pk;
-                            break;
-                        }
+                        Settlement s;
+                        if (byId.TryGetValue(kv.Key, out s) && s != null) own = s.MapFaction == pk;
                     }
                     catch { }
                     _playerMkt[kv.Key] = own;
@@ -141,6 +178,9 @@ namespace FeudalInternalAffairs
                 var m = kv.Value;
                 if (m == null || string.IsNullOrEmpty(m.TownId)) continue;
                     float bonus = PriceBonusOf(m.TownId);   // 市场建筑的价格改善(负值 = 改善)
+                    // v4.269: MAPI 只取决于城市(不看商品), 原来在商品循环里每件商品重算一次(≈市场数 ×18 次)。
+                    //   提到循环外 —— MapiOf 是纯读(只读该城建筑组), 商品循环只写市场条目的价格字段, 不影响它。
+                    float mapi = MapiOf(m.TownId);
                     foreach (var g in FeudalGoods.Main)
                     {
                         var e = m.Get(g.Id);
@@ -157,8 +197,7 @@ namespace FeudalInternalAffairs
                         //   只剩 (1-mapi)*1.5 ≈ 15%; 调运/进口/出口判定改用 e.LocalPrice, e.Price 语义不变。
                         e.LocalPrice = localPrice;
                         float basePrice = EconomyWorld.National.PriceOf(g.Id);
-                        float mapi = MapiOf(m.TownId);
-                        float target = mapi * basePrice + (1f - mapi) * localPrice;
+                        float target = mapi * basePrice + (1f - mapi) * localPrice;   // v4.269: mapi 已提到商品循环外
                     if (target < g.BasePrice * MarketRules.MinPriceFactor) target = g.BasePrice * MarketRules.MinPriceFactor;
                     if (target > g.BasePrice * MarketRules.MaxPriceFactor) target = g.BasePrice * MarketRules.MaxPriceFactor;
                     e.PrevPrice = e.Price;
@@ -239,12 +278,12 @@ namespace FeudalInternalAffairs
             {
                 var item = FeudalGoods.Item(goodId);
                 if (item == null || want <= 0f) return 0f;
-                int have = roster.GetItemNumber(item);
+                int have = RosterMemo.Count(roster, item);   // v4.269: 等价于 roster.GetItemNumber(item)
                 if (have <= 0) return 0f;
                 int take = MBRandom.RoundRandomized(want);
                 if (take > have) take = have;
                 if (take <= 0) return 0f;
-                roster.AddToCounts(item, -take);
+                RosterMemo.Take(roster, item, take);         // v4.269: 等价于 roster.AddToCounts(item, -take)
                 if (m != null) m.GetOrCreate(goodId).DailyConsumption += take;
                 return take;
             }
@@ -305,7 +344,7 @@ namespace FeudalInternalAffairs
                                 var buyerRoster = dear.Settlement.ItemRoster;
                                 if (sellerRoster == null || buyerRoster == null) continue;
 
-                                int have = sellerRoster.GetItemNumber(item);
+                                int have = RosterMemo.Count(sellerRoster, item);   // v4.269: 等价于 sellerRoster.GetItemNumber(item)
                                 int reserve = 20;   // 保留本地底仓, 不搬空
                                 int can = Math.Min(cap, have - reserve);
                                 if (can <= 0) continue;
@@ -313,8 +352,8 @@ namespace FeudalInternalAffairs
                                 int arrive = can - freight;
                                 if (arrive <= 0) continue;
 
-                                sellerRoster.AddToCounts(item, -can);
-                                buyerRoster.AddToCounts(item, arrive);
+                                RosterMemo.Take(sellerRoster, item, can);      // v4.269: 等价于 AddToCounts(item, -can)
+                                RosterMemo.Give(buyerRoster, item, arrive);    // v4.269: 等价于 AddToCounts(item, arrive)
                                 ec.DailyProduction -= 0f;   // 流量不变(库存搬运)
                                 moved += arrive;
                                 if (DLog.Flag("econ"))
@@ -387,10 +426,10 @@ namespace FeudalInternalAffairs
                         if (e.LocalPrice > basePrice * 0.85f) continue;    // 价差 <15% -> 路线自动取消
                         var item = FeudalGoods.Item(g.Id);
                         if (item == null) continue;
-                        int have = roster.GetItemNumber(item);
+                        int have = RosterMemo.Count(roster, item);    // v4.269: 等价于 roster.GetItemNumber(item)
                         int can = Math.Min(cap, have - 30);           // 保留本地底仓
                         if (can <= 0) continue;
-                        roster.AddToCounts(item, -can);
+                        RosterMemo.Take(roster, item, can);           // v4.269: 等价于 roster.AddToCounts(item, -can)
                         int rev = (int)Math.Round(can * basePrice * (ally ? 1.0f : 0.9f));
                         EconomyWorld.TreasuryAdd(rev);
                         Fiscal.AddExport(rev);
@@ -437,7 +476,7 @@ namespace FeudalInternalAffairs
                         //   进口在数学上从未触发
                         if (e.LocalPrice < basePrice * (1f + MarketRules.ImportPremium)) continue;
                         int room = cap;
-                        int stock = roster.GetItemNumber(item);
+                        int stock = RosterMemo.Count(roster, item);   // v4.269: 等价于 roster.GetItemNumber(item)
                         int limit = (int)MarketRules.BaseStockLimit;
                         if (stock >= limit) continue;
                         int can = Math.Min(room, limit - stock);
@@ -450,7 +489,7 @@ namespace FeudalInternalAffairs
                         // v4.252: 国库付不起就不进这批货 —— 原来无校验地 SpendGold, 靠 Credit 的免债兜底,
                         //   等于"零成本进口"(每 14 天一次破产核销), 货却已经进市场可以再出口换钱
                         if (cost > 0 && EconomyWorld.Treasury.Gold < cost) continue;
-                        roster.AddToCounts(item, can);
+                        RosterMemo.Give(roster, item, can);           // v4.269: 等价于 roster.AddToCounts(item, can)
                         SpendGold(cost);
                         Fiscal.AddTariff(cost);
                         imported += can;

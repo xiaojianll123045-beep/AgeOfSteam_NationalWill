@@ -673,6 +673,15 @@ namespace FeudalInternalAffairs
             catch { return false; }
         }
 
+        // v4.290: 供 DefArmyPatches.LordArmyNoNativeExpensePatch 复用。
+        //   必须与 DailyWages 的**收费范围完全一致**(IsLordArmy && !IsMainParty) ——
+        //   否则会出现"mod 不收、原版也被跳过"的免费部队, 或反过来漏掉一侧仍然双扣。
+        internal static bool IsLordArmyForWage(MobileParty p)
+        {
+            try { return IsLordArmy(p) && !p.IsMainParty; }
+            catch { return false; }
+        }
+
         private static Hero PayerOf(MobileParty p, Clan clan)
         {
             try

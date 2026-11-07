@@ -1,0 +1,87 @@
+<Prefab>
+  <Constants>
+  </Constants>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+        <!-- ===== v4.265: 引导浮窗(570x360, 可拖动; 正文行列表可滚轮翻看; 字体已放大) ===== -->
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="570" SuggestedHeight="360"
+                HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@WinX" MarginTop="@WinY"
+                Sprite="fia_ui_frame">
+          <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    MarginLeft="6" MarginRight="6" MarginTop="6" MarginBottom="6" Sprite="fia_ui2_tex_wood" />
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    MarginLeft="11" MarginRight="11" MarginTop="11" MarginBottom="11"
+                    Sprite="BlankWhiteSquare" Color="#0D0A07F0" />
+            <!-- 标题栏(拖动区) -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="44"
+                    VerticalAlignment="Top" MarginLeft="11" MarginRight="11" MarginTop="11"
+                    Sprite="fia_ui2_plate_dark" />
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="28" SuggestedHeight="28"
+                    HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="20" MarginTop="19"
+                    Sprite="fia_cat_military" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="392" HeightSizePolicy="Fixed" SuggestedHeight="32"
+                        HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="56" MarginTop="17"
+                        Brush="MapTextBrushGal" Brush.FontSize="24" Brush.FontColor="#E9CD74FF" Text="@Title" />
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="110" HeightSizePolicy="Fixed" SuggestedHeight="22"
+                        HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="52" MarginTop="22"
+                        TextHorizontalAlignment="Right"
+                        Brush="MapTextBrushGal" Brush.FontSize="16" Brush.FontColor="#8A8070FF" Text="@Progress" />
+            <!-- 关闭 X (窗内 522,17 32x30) -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="32" SuggestedHeight="30"
+                    HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="16" MarginTop="17"
+                    Sprite="fia_ui_button">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#C96A5AFF" Text="X" />
+              </Children>
+            </Widget>
+            <!-- 正文: 行列表(每行一个 TextWidget, 由 VM 按滚动位置填行) -->
+            <ListPanel DataSource="{Lines}" WidthSizePolicy="Fixed" SuggestedWidth="518" HeightSizePolicy="Fixed"
+                       SuggestedHeight="200" HorizontalAlignment="Left" VerticalAlignment="Top"
+                       MarginLeft="26" MarginTop="62" StackLayout.LayoutMethod="VerticalTopToBottom">
+              <ItemTemplate>
+                <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="510" HeightSizePolicy="Fixed" SuggestedHeight="25"
+                            MarginBottom="1"
+                            Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#E8DCC0FF" Text="@Text" />
+              </ItemTemplate>
+            </ListPanel>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="8"
+                    VerticalAlignment="Bottom" MarginLeft="26" MarginRight="26" MarginBottom="62"
+                    Sprite="fia_ui2_divider_thin" />
+            <!-- 底部三键 (窗内 y=304, 高 40, 宽 164; x=26/206/386) -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="164" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="26" MarginBottom="14"
+                    Sprite="fia_ui_button">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#7FBF6AFF" Text="@BtnAText" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="164" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="206" MarginBottom="14"
+                    Sprite="fia_ui_button">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#8FD8E8FF" Text="@BtnBText" />
+              </Children>
+            </Widget>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="164" SuggestedHeight="40"
+                    HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginLeft="386" MarginBottom="14"
+                    Sprite="fia_ui_button">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MapTextBrushGal" Brush.FontSize="19" Brush.FontColor="#E8C33AFF" Text="@BtnCText" />
+              </Children>
+            </Widget>
+            <TextWidget WidthSizePolicy="Fixed" SuggestedWidth="240" HeightSizePolicy="Fixed" SuggestedHeight="18"
+                        HorizontalAlignment="Right" VerticalAlignment="Bottom" MarginRight="24" MarginBottom="1"
+                        TextHorizontalAlignment="Right"
+                        Brush="MapTextBrushGal" Brush.FontSize="14" Brush.FontColor="#6A6258FF" Text="滚轮翻看 · 按住窗口可拖动" />
+          </Children>
+        </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

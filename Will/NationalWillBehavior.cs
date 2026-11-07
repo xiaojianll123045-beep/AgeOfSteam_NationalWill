@@ -22,6 +22,7 @@ namespace FeudalInternalAffairs
         private bool _gaveUp;
         private string _focusState = "";
         private string _cameraState = "";
+        private string _guideState = "";        // 挑战式引导存档段(旧档缺省为空 -> 引导保持未开始)
         private string _pendingCamera = null;   // 读档后等相机就绪再恢复视角
         private Hero _originalRuler = null;     // 接管前的原统治者(玩家家族成为统治家族后 Kingdom.Leader 会变成玩家)
         private string _originalRulerId = "";   // 存档: 原统治者只存 StringId(对象引用会坏档)
@@ -139,6 +140,11 @@ namespace FeudalInternalAffairs
                     try { MapDataMode.Set((MapData)_mapMode, _mapPickB, _mapPickI); } catch { }
                     DLog.Force("读档: 国策=" + (_focusState ?? "空") + " 视角=" + (_cameraState ?? "空") + " 地图模式=" + MapDataMode.NameOf(MapDataMode.Current));
                 }
+                // 挑战式引导(一个键): 旧存档没有此键 -> 读回空串 -> Guide 按"未开始引导"容错处理
+                try { if (dataStore.IsSaving) _guideState = Guide.Save(); } catch { }
+                _guideState = _guideState ?? "";
+                dataStore.SyncData("FIA_Guide", ref _guideState);
+                try { if (dataStore.IsLoading) Guide.Load(_guideState); } catch { }
             }
             catch (Exception ex) { DLog.Force("SyncData 异常: " + ex.Message); }
         }
@@ -238,7 +244,9 @@ namespace FeudalInternalAffairs
 
         private void OnTick(float dt)
         {
-            try { Tutorials.Tick(dt); } catch { }   // v4.124: 分步教程计时
+            // v4.262: 旧的分步教程计时已移除(教程改为挑战式引导, 由 Guide.Tick 驱动)
+            try { Guide.Tick(dt); } catch { }       // 挑战式引导(内部 1.5 秒节流检测)
+            try { KeepWorldPeace(); } catch { }     // v4.283: flags 写 worldpeace 才生效(内部 5 秒节流, 开新档后立刻和平而不必等日结)
             try { CommandTimeout.Tick(dt); } catch (Exception ex) { DLog.Force("指挥超时 tick 异常: " + ex.Message); }
             try { BattleCommand.TickPostBattleLeave(dt); } catch { }   // 战后自动离开结算菜单
             // v4.75j: 心跳诊断(每 3 秒): 排查"接管不推进"类问题
@@ -293,10 +301,45 @@ namespace FeudalInternalAffairs
         }
 
         // 国策: 每天推进一次
+        // v4.281(临时调试开关, 用户要求): flags 文件写 worldpeace 则每天把所有交战王国强制停战一次。
+        //   为什么一次就够: 项目自己有 BlockMakePeace 补丁阻止 AI 停战, 那就意味着 AI 也不会"重新宣战后自己停战",
+        //   强制停战的效果能保持住; 每天再扫一遍只是兜住"新宣战/新国家出现"。
+        //   **测完把 flags 里的 worldpeace 删掉即可**(本方法零开销, 不需要删代码)。
+        internal static void KeepWorldPeace()
+        {
+            try
+            {
+                if (!DLog.FlagFresh("worldpeace")) return;
+                var ks = Kingdom.All;
+                for (int i = 0; i < ks.Count; i++)
+                {
+                    var a = ks[i];
+                    if (a == null || a.IsEliminated) continue;
+                    for (int j = i + 1; j < ks.Count; j++)
+                    {
+                        var b = ks[j];
+                        if (b == null || b.IsEliminated || ReferenceEquals(a, b)) continue;
+                        bool war = false;
+                        try { war = a.IsAtWarWith(b); } catch { }
+                        if (!war) continue;
+                        try
+                        {
+                            // Kingdom 本身没有 MakePeace 方法, 走原版的停战 Action
+                            TaleWorlds.CampaignSystem.Actions.MakePeaceAction.Apply(a, b);
+                            DLog.Force("世界和平: " + a.Name + " 与 " + b.Name + " 停战");
+                        }
+                        catch (Exception ex) { DLog.Force("世界和平失败(" + a.Name + " vs " + b.Name + "): " + ex.Message); }
+                    }
+                }
+            }
+            catch (Exception ex) { DLog.Force("世界和平异常: " + ex.Message); }
+        }
+
         private void OnDailyTick()
         {
             try
             {
+                try { KeepWorldPeace(); } catch { }   // v4.281: flags 写 worldpeace 才生效, 否则零开销
                 var done = FocusTreeData.TickDay();
                 if (done != null)
                 {
@@ -417,7 +460,7 @@ namespace FeudalInternalAffairs
 
             _setupDone = true;
             try { DefArmy.TempFillIfReady(); } catch { }   // TEMP: 选国完成, 玩家王国已确定 -> 补给一次
-            Tutorials.StartIntro();   // v4.124: 接管完成 -> 3 秒后弹开局分步教程
+            // v4.262: 旧的开局分步教程已移除 —— 接管后由挑战式引导接手(教程局)或完全静默(正常开局)
             NationPickMode.Stop();   // v4.75: 接管完成 -> 退出选国模式(相机解锁)
             // 国家一确定就立即把视角瞬移到版图中心(地图已就绪时一次成功)
             NationalWillCamera.CenterOnKingdomOnce(kingdom);

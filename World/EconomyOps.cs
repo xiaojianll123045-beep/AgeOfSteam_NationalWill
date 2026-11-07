@@ -48,6 +48,12 @@ namespace FeudalInternalAffairs
                 }
                 if (buy <= 0) return "国库不足, 买不起粮";
                 EconomyWorld.TreasurySpend((int)cost);
+                // v4.290 记账修复: 原先这一笔**完全不进财政账**(全函数零 Fiscal.Add*) ——
+                //   国库 −cost 而账本上 TodayExpense 一行都不显示; 配合 MarketSim.Exports
+                //   (本地价 ≤0.85×全国价就出口, 有 TreasuryAdd + AddExport) 就构成
+                //   "买粮不记成本 -> 次日压价出口换回现金"的闭环, 账面只看到出口收入。
+                //   与 World\StrategicReserve.cs:144-145 的写法对齐(那处本来就是记账的)。
+                Fiscal.AddCourtPaid((int)cost);
                 try { needTown.ItemRoster.AddToCounts(grain, buy); } catch { }
                 if (me != null) me.Stock = Math.Max(0f, me.Stock - buy);   // 市场买走 -> 供给减少(价格上行)
                 return "战略储备: 购入 " + buy + " 粮(费 " + (int)cost + " 第纳尔, " + townName

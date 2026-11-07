@@ -186,9 +186,22 @@ namespace FeudalInternalAffairs
                 if (Fiscal.TodayTariff != 0) ExpenseRows.Add(new FiscalRowVM("进口关税(贸易路线)", Fiscal.TodayTariff, false));
                 if (Fiscal.TodayInterest != 0) ExpenseRows.Add(new FiscalRowVM("信贷利息(钱庄/债主)", Fiscal.TodayInterest, false));
                 if (Fiscal.TodayFee != 0) ExpenseRows.Add(new FiscalRowVM("行会年金(特许状)", Fiscal.TodayFee, false));
-                if (Fiscal.TodayMilitary != 0) ExpenseRows.Add(new FiscalRowVM("国防军军费(募兵/军饷/建军)", Fiscal.TodayMilitary, false));
+                // v4.277(第 1 项): 这一行现在同时含**陆军军饷**与**舰队水手军饷**(两者都进 Military 科目),
+                //   所以标题改成"军费"并把日额拆开写清楚 —— 否则玩家会以为这一行只有国防军。
+                if (Fiscal.TodayMilitary != 0)
+                {
+                    int landWage = 0, seaWage = 0, sailors = 0;
+                    try { landWage = DefArmy.DailyWageCost(); } catch { }
+                    try { seaWage = NavalTaskForce.NavalWageDaily(); sailors = NavalTaskForce.NavalSailorsTotal(); } catch { }
+                    string sub = (seaWage > 0 || landWage > 0)
+                        ? "(今日已扣 · 陆军军饷 " + landWage + "/日 + 舰队水手军饷 " + seaWage + "/日[" + sailors + " 人], 募兵/建军另计)"
+                        : "(募兵/建军/军饷/军粮)";
+                    ExpenseRows.Add(new FiscalRowVM("军费" + sub, Fiscal.TodayMilitary, false));
+                }
                 // v4.251: 建筑维护费(本国建筑数 × 1.5 金/栋/日)
                 if (Fiscal.TodayUpkeep != 0) ExpenseRows.Add(new FiscalRowVM("建筑维护(" + DailySettlement.LastUpkeepUnits + " 栋 × 1.5 金/日)", Fiscal.TodayUpkeep, false));
+                // v4.268: 海军维护费(各舰日维护之和 × 海军科技折扣; 单舰 = 船体价/1200 ×(0.6+完整度))
+                if (Fiscal.TodayNavy != 0) ExpenseRows.Add(new FiscalRowVM("海军维护费(舰队日常开销)", Fiscal.TodayNavy, false));
                 if (Fiscal.TodayCourt > 0) ExpenseRows.Add(new FiscalRowVM("宫廷与外交往来(宴会/赏赐/赔款/购买)", Fiscal.TodayCourt, false));
                 if (ExpenseRows.Count == 0) ExpenseRows.Add(new FiscalRowVM("今日暂无支出", 0, false));
                 _researchCost = Institutions.MaintenanceFee.ToString("N0") + " 金/月";

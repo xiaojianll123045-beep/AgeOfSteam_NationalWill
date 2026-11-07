@@ -193,8 +193,45 @@ namespace FeudalInternalAffairs
                 if (next == _scrollTop) return;
                 _scrollTop = next;
                 ApplyVisible();
+                NotifyHint();
             }
             catch { }
+        }
+
+        // ==================== v4.286c(用户反馈①: "选国页面也有此类问题") ====================
+        //   【查证结论】这一页的滚轮链路其实是**通的**, 与海军页的毛病不同:
+        //     · 事件: NationPickPanel.Tick 自己轮询 Input.DeltaMouseScroll(鼠标在右栏上时),
+        //       而 PanelScreen.IsMouseOnPanel() 里有"选国侧栏在屏幕右侧"的特例 -> 能收到;
+        //     · 渲染: ApplyVisible() 把新内容逐行写进 VisibleLines[i] 的 Label/Value,
+        //       而 PickInfoVM 的 setter 带 OnPropertyChangedWithValue -> **渲染跟得上**(不像海军页那样只改索引);
+        //     · 能滚到底: max = 总行数 - 可见行数; 可见行数 = (屏高-160-216)/30(clamp 8..32),
+        //       列表从 y160 起、底部提示在屏高-116 之上 -> 最后一行画得出来, 不会卡在半路。
+        //   【真正的问题】底部那句提示是**写死**的: 内容一屏装得下时它也说"滚轮上下滚动查看全部",
+        //     而且没有任何"当前在第几屏"的反馈 —— 玩家滚两下没变化(因为本来就没得滚), 就以为坏了。
+        //   【修法】提示改为按需: 装不下才提"滚轮查看全部", 并带上"第 x/y 屏"。
+        [DataSourceProperty] public string BottomHint
+        {
+            get
+            {
+                try
+                {
+                    // v4.291: 侧栏宽只有 500px, 原提示串在字号 15 下约 510px+ -> 居中溢出到框外(用户反馈)。
+                    //   这里把文案压到 ~435px 以内; prefab 那边同时改成 StretchToParent + 换行兜底。
+                    string tail = "点其他领地切换 · 选好后点下方按钮";
+                    if (_visibleCount <= 0 || _allLines.Count <= _visibleCount) return tail;
+                    int pages = (_allLines.Count + _visibleCount - 1) / _visibleCount;
+                    int cur = _scrollTop / _visibleCount + 1;
+                    if (cur < 1) cur = 1;
+                    if (cur > pages) cur = pages;
+                    return "滚轮翻页 " + cur + "/" + pages + " · " + tail;
+                }
+                catch { return ""; }
+            }
+        }
+
+        private void NotifyHint()
+        {
+            try { OnPropertyChangedWithValue(BottomHint, "BottomHint"); } catch { }
         }
 
         private void ApplyVisible()
@@ -244,6 +281,7 @@ namespace FeudalInternalAffairs
 
                 BuildLines(k);
                 ApplyVisible();
+                NotifyHint();   // v4.286c: 换国家后刷新底部提示(装得下就不提"滚轮", 装不下给出"第 x/y 屏")
             }
             catch (Exception ex) { DLog.Force("选国侧栏刷新异常: " + ex.Message); }
         }

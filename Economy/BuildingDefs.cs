@@ -275,7 +275,10 @@ namespace FeudalInternalAffairs
                 Outputs = { A(EffStorage, 100f, 150f, 230f) }, Maintenance = F(1.0f, 0.7f, 0.45f), Work = WAdmin },
             new BuildDef { Id = "temple_village", Name = "神庙", Sprite = "fia_bld_temple", Loc = BuildLoc.Village, Cat = BuildCat.Living, CanBePrivate = true,
                 Outputs = { A(EffLoyalty, 3f, 5f, 8f) }, Maintenance = F(1.0f, 0.7f, 0.45f), Work = WAdmin },
-            new BuildDef { Id = "militia_camp", Name = "民兵营", Sprite = "fia_bld_militia", Loc = BuildLoc.Village, Cat = BuildCat.Military, CanBePrivate = false,
+            // v4.290 修复: 原先 Loc = BuildLoc.Village, 而 @militia 的唯一读取点
+            // ArmyDoctrine.ApplyMilitiaFloor 只对城镇/城堡生效(s.IsTown || s.IsCastle) ——
+            // 建在村庄的民兵营效果永远读不到, 收益恒为零。改为与 barracks 一致。
+            new BuildDef { Id = "militia_camp", Name = "民兵营", Sprite = "fia_bld_militia", Loc = BuildLoc.Town | BuildLoc.Castle, Cat = BuildCat.Military, CanBePrivate = false,
                 Outputs = { A(EffMilitia, 20f, 30f, 46f) }, Maintenance = F(1.5f, 1.05f, 0.68f), Work = WMilitary },
 
             // ================= 城镇 · 加工类 =================
@@ -371,6 +374,35 @@ namespace FeudalInternalAffairs
             if (string.IsNullOrEmpty(id)) return null;
             BuildDef b;
             return Index.TryGetValue(id, out b) ? b : null;
+        }
+
+        // v4.266: 某定居点全部建筑某项效果(@xxx)的合计(按当前建造档位 × 已建数量)。
+        //   军事建筑的一批"死效果"(@garrison/@recruit/@supply/@cavalry/@defense/@vision/@security/@bandit/@militia)
+        //   此前全代码没有任何读取点(建了完全不生效); 统一由这里读取, 调用方见 World\ArmyDoctrine.cs 的 MilBuildings。
+        internal static float EffectSumOf(string settlementId, string effId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(settlementId) || string.IsNullOrEmpty(effId)) return 0f;
+                var sb = EconomyWorld.Find(settlementId);
+                if (sb == null || sb.Groups == null) return 0f;
+                float v = 0f;
+                for (int i = 0; i < sb.Groups.Count; i++)
+                {
+                    var g = sb.Groups[i];
+                    if (g == null || g.Count <= 0) continue;
+                    var def = Get(g.DefId);
+                    if (def == null || def.Outputs == null) continue;
+                    for (int j = 0; j < def.Outputs.Count; j++)
+                    {
+                        var o = def.Outputs[j];
+                        if (o == null || o.Good != effId) continue;
+                        v += o.Value(g.Mode) * g.Count;
+                    }
+                }
+                return v;
+            }
+            catch { return 0f; }
         }
 
         // 该定居点能否建这个建筑

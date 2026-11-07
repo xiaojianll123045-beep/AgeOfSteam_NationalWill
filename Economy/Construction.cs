@@ -56,18 +56,21 @@ namespace FeudalInternalAffairs
                 var ironItem = FeudalGoods.Item(FeudalGoods.Iron);
 
                 // 三种材料齐了才扣(避免扣一半又停滞)
+                // v4.267: 改走 DailySettlement 的物品数量快照 —— 与本定居点结算同一份记忆, 读写同步
+                //   (快照由 DailySettlement.TickSettlement 用 BeginItemMemo(roster)/finally EndItemMemo 括起来,
+                //    本方法只被它调用; roster 不是本次结算的 roster 时 ItemCount/ItemTake 自动回源, 绝不错算)
                 bool ok = true;
-                if (w > 0 && (woodItem == null || roster.GetItemNumber(woodItem) < w)) ok = false;
-                if (ok && st > 0 && (stoneItem == null || roster.GetItemNumber(stoneItem) < st)) ok = false;
-                if (ok && ir > 0 && (ironItem == null || roster.GetItemNumber(ironItem) < ir)) ok = false;
+                if (w > 0 && (woodItem == null || DailySettlement.ItemCount(roster, woodItem) < w)) ok = false;
+                if (ok && st > 0 && (stoneItem == null || DailySettlement.ItemCount(roster, stoneItem) < st)) ok = false;
+                if (ok && ir > 0 && (ironItem == null || DailySettlement.ItemCount(roster, ironItem) < ir)) ok = false;
                 if (!ok)
                 {
                     stalled++;   // 缺料停滞, 进度不倒退(3.3)
                     continue;
                 }
-                if (w > 0) roster.AddToCounts(woodItem, -w);
-                if (st > 0) roster.AddToCounts(stoneItem, -st);
-                if (ir > 0) roster.AddToCounts(ironItem, -ir);
+                if (w > 0) DailySettlement.ItemTake(roster, woodItem, w);
+                if (st > 0) DailySettlement.ItemTake(roster, stoneItem, st);
+                if (ir > 0) DailySettlement.ItemTake(roster, ironItem, ir);
 
                 pool -= points;
                 q.Progress += (int)Math.Round(points * eff);

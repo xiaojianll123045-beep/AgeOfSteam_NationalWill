@@ -344,6 +344,10 @@ namespace FeudalInternalAffairs
                     }
                 }
                 float need = 0f;
+                // v4.266: 军事科技省粮(后勤学/总参谋部/预备役)与 DefArmy.FoodMultOf 同口径,
+                //   否则"实际日耗"与"可支撑天数"两个数字会对不上
+                float foodSave = 1f;
+                try { foodSave = Math.Max(0.4f, 1f - Research.FoodSave(k)); } catch { }
                 foreach (var p in MobileParty.All)
                 {
                     if (p == null || !p.IsActive) continue;
@@ -351,7 +355,21 @@ namespace FeudalInternalAffairs
                     if (p.IsCaravan || p.IsMilitia) continue;
                     int men = 0;
                     try { men = p.MemberRoster != null ? p.MemberRoster.TotalManCount : 0; } catch { }
-                    need += men * DefArmy.FoodPerManPerDay;
+                    // v4.266: 军事建筑"补给站/军械库"(@supply) —— 与 DefArmy.FeedLegions 的驻地省粮同口径,
+                    //   否则"军团实际日耗"与这里显示的"军粮可支撑天数"会对不上
+                    float save = foodSave;
+                    try
+                    {
+                        var lg = DefArmy.LegionOf(p);
+                        if (lg != null)
+                        {
+                            var h = DefArmy.FindSettlement(lg.HomeId);
+                            float s2 = MilBuildings.SupplyFoodSaveOf(h);
+                            if (s2 > 0f) save *= 1f - s2;
+                        }
+                    }
+                    catch { }
+                    need += men * DefArmy.FoodPerManPerDay * save;
                 }
                 if (need <= 0.01f) return 99f;
                 return stock / need;
